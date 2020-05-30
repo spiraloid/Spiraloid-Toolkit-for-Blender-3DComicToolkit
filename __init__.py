@@ -24,7 +24,6 @@ for currentModuleFullName in modulesFullNames:
         globals()[currentModuleFullName] = importlib.import_module(currentModuleFullName)
         setattr(globals()[currentModuleFullName], 'modulesNames', modulesFullNames)
 
-
 # addCubeModule = sys.modules[modulesNames['addCubeClass']]
 
 
