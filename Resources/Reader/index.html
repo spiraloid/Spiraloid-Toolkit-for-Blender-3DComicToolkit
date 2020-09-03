@@ -5,14 +5,14 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<meta name="apple-mobile-web-app-capable" content="yes">
-		<meta name="description" content="Title - A 3D Comic by Author - Chapter 1 -  Issue Name" >
-		<meta name="keywords" content="Spiraloid, 3Dcomic.shop, 3D Comic, Online Graphic Novel, Digital Comic, Comic, comics, comix, Graphic Novel, 3D Art, 3D model, Concept Art, Digital Painting, VFX">
+		<meta name="description" content="Title" >
+		<meta name="keywords" content="Spiraloid, 3Dcomic.shop, 3DComic,3DGraphicNovel, 3D Graphic Novel, 3D Comic, Online Graphic Novel, Digital Comic, Comic, comics, comix, Graphic Novel, 3D Art, 3D model, Concept Art, Digital Painting, VFX">
 		<meta name="author" content="Author">
 
 		<link href="./apple-touch-icon.png" rel="apple-touch-icon">
 		<link rel="manifest" href="./manifest.json">
 
-		<link href="https://3dcomic.shop/NaniteFulcrumChronicles/SiteThumbnail.jpg" rel="image_src">
+		<link href="https://3dcomic.shop/Inkbots/SiteThumbnail.jpg" rel="image_src">
 		<link href="./favicon.ico" rel="fav-icon">
 
 		<style>
@@ -21,7 +21,7 @@
 			}
 
 			html, body {
-				background-color: #000000;
+				background-color: rgb(13, 21, 29);
 				margin: 0px;
 				height: 100%;
 			}
@@ -62,8 +62,17 @@
 			var camera, scene, renderer;
 			var scenes = [];
 
-			var lastScrollY = 0;
-			var needsRender = false;
+			var isPointerDown = false;
+			var pointer = new THREE.Vector2();
+			var pointerOnDown = new THREE.Vector2();
+
+			var language = 'en';
+
+			if ( window.location.search.substr( 0, 5 ) === '?lan=' ) {
+
+				language = window.location.search.substr( 5 );
+
+			}
 
 			init();
 			loadFiles();
@@ -78,6 +87,33 @@
 				renderer.shadowMap.type = THREE.BasicShadowMap;
 				renderer.outputEncoding = THREE.sRGBEncoding;
 
+				document.body.addEventListener( 'pointerdown', onPointerDown );
+				document.body.addEventListener( 'pointermove', onPointerMove );
+				document.body.addEventListener( 'pointerout', onPointerUp );
+				document.body.addEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			function onPointerDown( event ) {
+
+				isPointerDown = true;
+
+				pointerOnDown.x = event.clientX;
+				pointerOnDown.y = event.clientY;
+
+			}
+
+			function onPointerMove( event ) {
+
+				pointer.x = event.clientX;
+				pointer.y = event.clientY;
+
+			}
+
+			function onPointerUp() {
+
+				isPointerDown = false;
+
 			}
 
 			function loadFiles() {
@@ -86,13 +122,13 @@
 
 				for ( var i = 0; i < files.length; i ++ ) {
 
-					loadFile( files[ i ] );
+					loadFile( files[ i ].replace( '${lan}', language ) );
 
 				}
 
 				function loadFile( path ) {
 
-					var aspect = 16 / 9;
+					var aspect = 1;
 
 					var width = 100;
 					var height = 100;
@@ -118,22 +154,30 @@
 					element.style.paddingTop = ( height / aspect ) + '%';
 					content.appendChild( element );
 
-					var colors = new Uint8Array( [ 0, 0, 0, 0, 0, 0, 255, 255, 255 ] );
-					var gradientMap = new THREE.DataTexture( colors, 3, 1, THREE.RGBFormat );
+					var colors = new Uint8Array( [ 0, 0, 255 ] );
+					var gradientMap = new THREE.DataTexture( colors, 3, 1, THREE.LuminanceFormat );
 					gradientMap.minFilter = THREE.NearestFilter;
 					gradientMap.magFilter = THREE.NearestFilter;
+					gradientMap.generateMipmaps = false;
 
 					loader.load( path, function ( gltf ) {
 
 						var scene = gltf.scene;
 
-						var camera;
+						var camera, cameraOrigin, cameraTarget;
+						var letters;
 
 						scene.traverse( function ( child ) {
 
+							if ( /^Camera\d{4}$/.test( child.name ) ) cameraOrigin = child;
+							if ( /^Camera_aim\d{4}$/.test( child.name ) ) cameraTarget = child;
+							if ( /^Letters_\w+\d{4}$/.test( child.name ) ) letters = child;
+
+							//
+
 							if ( child.isPerspectiveCamera ) {
 
-								camera = child;
+								camera = child.clone();
 								camera.userData.vFov = camera.fov;
 
 							}
@@ -142,6 +186,8 @@
 
 								child.castShadow = true;
 								child.shadow.mapSize.set( 1024, 1024 );
+								child.shadow.autoUpdate = false;
+								child.shadow.needsUpdate = true;
 
 							}
 
@@ -154,7 +200,6 @@
 
 								child.material = new THREE.MeshToonMaterial( {
 									color: color,
-									specular: 0x000000,
 									gradientMap: gradientMap
 								} );
 
@@ -170,13 +215,38 @@
 
 						} );
 
+						//
+
+						if ( camera ) {
+
+							scene.add( camera );
+
+							if ( cameraOrigin ) {
+
+								camera.position.copy( cameraOrigin.position );
+								camera.rotation.copy( cameraOrigin.rotation );
+
+							}
+
+							if ( letters ) {
+
+								letters.position.set( 0, 0, - 2 );
+								letters.rotation.set( 0, 0, 0 );
+
+								camera.add( letters );
+
+							}
+
+						}
+
 						scene.userData.camera = camera;
+						scene.userData.cameraOrigin = cameraOrigin;
+						scene.userData.cameraTarget = cameraTarget;
+
 						scene.userData.element = element;
 						scene.userData.mixer = mixer;
 
 						scenes.push( scene );
-
-						needsRender = true;
 
 					} );
 
@@ -193,7 +263,6 @@
 				if ( canvas.width !== width * dpr || canvas.height !== height * dpr ) {
 
 					renderer.setSize( width, height, false );
-					needsRender = true;
 
 				}
 
@@ -209,15 +278,6 @@
 			function render() {
 
 				updateSize();
-
-				if ( lastScrollY !== window.scrollY ) {
-
-					lastScrollY = window.scrollY;
-					needsRender = true;
-
-				}
-
-				if ( needsRender === false ) return;
 
 				// canvas.style.transform = `translateY(${window.scrollY}px)`;
 
@@ -263,11 +323,40 @@
 					var mixer = scene.userData.mixer;
 					mixer.setTime( time * duration );
 
+					//
+
+					var isPointerInFrame = pointer.y < rect.bottom && pointer.y > rect.top;
+
+					var cameraOrigin = scene.userData.cameraOrigin;
+					var cameraTarget = scene.userData.cameraTarget;
+
+					if ( cameraOrigin ) {
+
+						if ( isPointerDown && isPointerInFrame ) {
+
+							camera.position.x = cameraOrigin.position.x - ( ( pointer.x - pointerOnDown.x ) * 0.01 );
+							camera.position.y = cameraOrigin.position.y + ( ( pointer.y - pointerOnDown.y ) * 0.01 );
+							camera.position.z = cameraOrigin.position.z;
+
+						} else {
+
+							camera.position.x += ( cameraOrigin.position.x - camera.position.x ) * 0.4;
+							camera.position.y += ( cameraOrigin.position.y - camera.position.y ) * 0.4;
+							camera.position.z += ( cameraOrigin.position.z - camera.position.z ) * 0.4;
+
+						}
+
+					}
+
+					if ( cameraTarget ) {
+
+						camera.lookAt( cameraTarget.position );
+
+					}
+
 					renderer.render( scene, camera );
 
 				} );
-
-				needsRender = false;
 
 			}
 
