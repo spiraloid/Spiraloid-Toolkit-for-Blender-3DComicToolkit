@@ -781,14 +781,19 @@ def smart_anim_bake(obj):
 
 def set_active_language(self, context): 
     current_scene = bpy.context.scene
-    active_language = current_scene.comic_settings.language
+    currSceneIndex = getCurrentSceneIndex()
+    current_scene_name = bpy.data.scenes[currSceneIndex].name
+    active_language_index = current_scene["comic_settings"]["language"]
+    active_language = bpy.context.scene.comic_settings.language
     if not active_language:
-        current_scene.comic_settings.language = "english"
+        current_scene["comic_settings"]["language"] = 0
     print(active_language)
     panels = []
     for scene in bpy.data.scenes:
         if "p." in scene.name:
             panels.append(scene.name)
+            scene["comic_settings"]["language"] = active_language_index
+
     for panel in panels :
         for i in range(len(bpy.data.scenes)):
             if bpy.data.scenes[i].name == panel:
@@ -817,7 +822,7 @@ def set_active_language(self, context):
 
 
     bpy.ops.object.select_all(action='DESELECT')
-    bpy.context.window.scene = current_scene
+    bpy.context.window.scene = bpy.data.scenes[currSceneIndex]
     bpy.context.window_manager.popup_menu(warn_language_set, title="SUCCESS", icon='ERROR')
     return {'None'} 
 
@@ -1731,23 +1736,66 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         currSceneIndex = getCurrentSceneIndex()
         current_scene_name = bpy.data.scenes[currSceneIndex].name
 
+        active_language = bpy.context.scene.comic_settings.language
+
+        if "english" in active_language:
+            active_language_abreviated = 'en'                    
+        if "spanish" in active_language:
+            active_language_abreviated = 'es'
+        if "japanese." in active_language:
+            active_language_abreviated = 'ja'
+        if "korean." in active_language:
+            active_language_abreviated = 'ko'
+        if "german." in active_language:
+            active_language_abreviated = 'de'
+        if "french." in active_language:
+            active_language_abreviated = 'fr'
+        if "dutch." in active_language:
+            active_language_abreviated = 'da'
+
+        if not active_language_abreviated:
+            self.report({'ERROR'}, "No Active Language!")
+
+
+
         # export all scenes
         i = 0
 
+
+        # delete existing panels
         if os.path.exists(file_dir+'panels/'):
             if not export_only_current:
                 # delete existing panel.glb fils.
-                for panel_files in glob.glob(file_dir+'panels/'+'*.glb'):
+                for panel_files in glob.glob(file_dir+'panels/*.' + active_language_abreviated +'.glb'):
                     print('os.remove(', panel_files, ')')
                     os.remove(panel_files)
             else:
-                for panel_files in glob.glob(file_dir +'panels/'+ current_scene_name +'.glb'):
+                for panel_files in glob.glob(file_dir +'panels/'+ current_scene_name + '.' + active_language_abreviated + '.glb'):
                     print('os.remove(', panel_files, ')')
                     os.remove(panel_files)
         else:
             os.mkdir(file_dir+'panels/')
 
-        
+        # copy template reader files
+        if not export_only_current:            
+            if not os.path.exists(file_dir+'index.html'):
+                # copy 3D Comic Html
+                user_dir = os.path.expanduser("~")
+                common_subdir = "2.90/scripts/addons/3DComicToolkit/Resources/Reader"
+                if system() == 'Linux':
+                    addon_path = "/.config/blender/" + common_subdir
+                elif system() == 'Windows':
+                    addon_path = (
+                        "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
+                        + common_subdir.replace("/", "\\")
+                    )
+                    # os.path.join()
+                elif system() == 'Darwin':
+                    addon_path = "/Library/Application Support/Blender/" + common_subdir
+                addon_dir = user_dir + addon_path
+                copy_tree(addon_dir, file_dir)        
+
+
 
         if not export_only_current:
             # begin writing the javascript file for the comic
@@ -2098,25 +2146,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                         action.user_clear()
                         # empty_trash(self, context)
 
-                active_language = scene.comic_settings.language
 
-                if "english" in active_language:
-                    active_language_abreviated = 'en'                    
-                if "spanish" in active_language:
-                    active_language_abreviated = 'es'
-                if "japanese." in active_language:
-                    active_language_abreviated = 'ja'
-                if "korean." in active_language:
-                    active_language_abreviated = 'ko'
-                if "german." in active_language:
-                    active_language_abreviated = 'de'
-                if "french." in active_language:
-                    active_language_abreviated = 'fr'
-                if "dutch." in active_language:
-                    active_language_abreviated = 'da'
-
-                if not active_language_abreviated:
-                    self.report({'ERROR'}, "No Active Language!")
 
                 path_to_export_file = (file_dir + 'panels/' + scene.name + "." + active_language_abreviated + ".glb")
                 bpy.ops.export_scene.gltf(
@@ -2248,21 +2278,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             bat_file.close()
 
 
-            # copy 3D Comic Html
-            user_dir = os.path.expanduser("~")
-            common_subdir = "2.90/scripts/addons/3DComicToolkit/Resources/Reader"
-            if system() == 'Linux':
-                addon_path = "/.config/blender/" + common_subdir
-            elif system() == 'Windows':
-                addon_path = (
-                    "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
-                    + common_subdir.replace("/", "\\")
-                )
-                # os.path.join()
-            elif system() == 'Darwin':
-                addon_path = "/Library/Application Support/Blender/" + common_subdir
-            addon_dir = user_dir + addon_path
-            copy_tree(addon_dir, file_dir)
+
 
         C.area.type=old_area_type
 
@@ -2555,6 +2571,8 @@ class BR_OT_clone_comic_scene(bpy.types.Operator):
                     bpy.ops.view3d.view_center_camera(override)
 
         bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
+
 
         return {'FINISHED'}
 
@@ -2718,13 +2736,15 @@ class BR_OT_delete_comic_scene(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        currScene = getCurrentSceneIndex()
+        currSceneIndex = getCurrentSceneIndex()
+        previousSceneIndex = currSceneIndex - 1
         bpy.ops.scene.delete()
-        for currSceneIndex in range(len(bpy.data.scenes) + 1):
-            if currSceneIndex > currScene:
-                m = currSceneIndex - 1
-                sceneNumber = "%04d" % m
-                bpy.data.scenes[m].name = 'Scene_'+ str(sceneNumber)
+        bpy.context.window.scene = bpy.data.scenes[previousSceneIndex]
+        renameAllScenesAfter()
+        BR_OT_panel_validate_naming_all.execute(self, context)
+
+
+
         return {'FINISHED'}
 
 class BR_OT_reorder_scene_later(bpy.types.Operator):
@@ -3127,6 +3147,41 @@ class BR_OT_add_letter_sfx(bpy.types.Operator):
         return {'FINISHED'}
 
 
+
+
+
+
+class BR_OT_key_scale_hide(bpy.types.Operator):
+    """Verify 3d panel naming is correct for export"""
+    bl_idname = "wm.spiraloid_3d_comic_key_scale_hide"
+    bl_label ="key scale hide"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        selected_objects = bpy.context.selected_objects
+        for ob in selected_objects:
+            duration = 20
+            hide_frame = bpy.context.scene.frame_current
+            visible_frame = hide_frame + duration
+
+            bpy.context.scene.frame_current = visible_frame
+            ob.keyframe_insert(data_path="scale", index=-1, frame=visible_frame)
+
+            bpy.context.scene.frame_current = hide_frame
+            ob.scale[1] = 0.0001
+            ob.scale[2] = 0.0001
+            ob.scale[0] = 0.0001
+            C=bpy.context
+            old_area_type = C.area.type
+            C.area.type='DOPESHEET_EDITOR'
+            bpy.ops.action.select_all(action='DESELECT')
+            ob.keyframe_insert(data_path="scale", index=-1, frame=hide_frame)
+            bpy.ops.action.interpolation_type(type='BOUNCE')
+            C.area.type=old_area_type
+
+
+        return {'FINISHED'}
+
 class BR_OT_panel_validate_naming(bpy.types.Operator):
     """Verify 3d panel naming is correct for export"""
     bl_idname = "view3d.spiraloid_3d_comic_panel_validate_naming"
@@ -3146,6 +3201,8 @@ class BR_OT_panel_validate_naming_all(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        currSceneIndex = getCurrentSceneIndex()
+
         panels = []
         for scene in bpy.data.scenes:
             if "p." in scene.name:
@@ -3155,6 +3212,9 @@ class BR_OT_panel_validate_naming_all(bpy.types.Operator):
                 if bpy.data.scenes[i].name == panel:
                     bpy.context.window.scene = bpy.data.scenes[i]                
                     validate_naming()
+
+        bpy.context.window.scene = bpy.data.scenes[currSceneIndex]
+
         return {'FINISHED'}
 
 
@@ -4393,9 +4453,11 @@ class ComicSettings(bpy.types.PropertyGroup):
             ("dutch", "dutch", "dutch", 5)
             },
         default=0,
-        update = set_active_language
-
+        update = set_active_language,
     )
+
+
+
 
 def bake_collection_composite():
     if bake_ao_applied and bake_ao and bake_albedo:
@@ -6218,6 +6280,7 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
         layout.operator("wm.spiraloid_pose_overwrite", icon="ARMATURE_DATA")
         layout.operator("wm.spiraloid_pose_remove", icon="ARMATURE_DATA")
         layout.separator()
+        layout.operator("wm.spiraloid_3d_comic_key_scale_hide", icon="HIDE_ON")
         layout.operator("wm.spiraloid_toggle_child_lock", icon="RESTRICT_INSTANCED_OFF")
         layout.separator()
         layout.operator("view3d.spiraloid_3d_comic_preview", icon= "FILE_MOVIE")
@@ -6289,6 +6352,7 @@ classes = (
     BR_MT_3d_comic_submenu_panels,
     BR_MT_3d_comic_submenu_letters,
     BR_OT_spiraloid_3d_comic_workshop,
+    BR_OT_key_scale_hide,
     BR_OT_add_outline,
     BR_OT_add_toonshade,
     BR_OT_add_whiteout,
