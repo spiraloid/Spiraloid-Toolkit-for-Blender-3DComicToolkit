@@ -234,12 +234,14 @@ def load_resource(self, context, blendFileName, is_random):
             random_int = random.randint(0, len(index) -1)
             while (random_int == previous_random_int):
                 random_int = random.randint(0, len(index) -1)
-                if  (random_int != previous_random_int):
+                if (random_int != previous_random_int):
                     break
         else:
             random_int = 0
         padded_random_int = "%03d" % random_int
         filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".blend"
+        previous_random_int = random_int
+
     else:
         filepath = addon_dir + blendFileName
 
@@ -321,9 +323,16 @@ def validate_naming():
         currScene =  bpy.data.scenes[currSceneIndex]
         sceneNumber = getCurrentPanelNumber()
         paddedSceneNumber = "%04d" % sceneNumber
-        print("::::::::::::::::::::::::::::" + str(sceneNumber))
-        panelSceneName = 'p.'+ str(paddedSceneNumber) + ".w100h100"
-        bpy.data.scenes[currSceneIndex].name = panelSceneName
+        current_scene_name = bpy.data.scenes[currSceneIndex].name
+        stringFragments = current_scene_name.split('.')
+        x_stringFragments = stringFragments[2]
+        xx_stringFragments = x_stringFragments.split('h')
+        current_panel_height = xx_stringFragments[1]
+        xxx_stringFragments = xx_stringFragments[0].split('w')
+        current_panel_width = xxx_stringFragments[1]
+        # panelSceneName = 'p.'+ str(paddedSceneNumber) + ".w100h100"
+        panelSceneName = 'p.'+ str(paddedSceneNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
+        # bpy.data.scenes[currSceneIndex].name = panelSceneName
         # renameAllScenesAfter()
 
         scene_collections = bpy.data.scenes[currSceneIndex].collection.children
@@ -1359,8 +1368,6 @@ def prep_letters_export(self, context, scene):
                                 export_collection.objects.link(c)
                                 letters_collection.objects.unlink(c)
 
-
-
                             export_collection.objects.link(obj)
                             letters_collection.objects.unlink(obj)
 
@@ -1801,8 +1808,8 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             # begin writing the javascript file for the comic
             js_file = open(js_file_path, "w")
             js_file.write('var files = [' +'\n')
-            js_file.write('      "./panels/header.w100h50.glb",' +'\n')  
-            js_file.write('      "./panels/black.w100h100.glb",' +'\n')  
+            # js_file.write('      "./panels/header.w100h50.glb",' +'\n')  
+            # js_file.write('      "./panels/black.w100h100.glb",' +'\n')  
 
         panels = []
         if export_only_current:
@@ -1859,8 +1866,8 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                 active_camera = bpy.context.scene.camera
                 if active_camera is None :
                     self.report({'ERROR'}, 'No Camera found in export collection of scene: ' + bpy.context.scene.name)
-                objects = export_collection.all_objects
-                for obj in objects:
+                export_objects = export_collection.all_objects
+                for obj in export_objects:
                     if obj is not None:
                         if "Camera." in obj.name:
                             if "Camera." in active_camera.name:
@@ -1877,10 +1884,15 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                             obj.keyframe_insert(data_path="location", index=-1, frame=startFrame)
                             bpy.context.scene.frame_set(endFrame)
                             obj.keyframe_insert(data_path="location", index=-1, frame=endFrame)
+                            
+
 
                 objects = export_collection.all_objects
                 for obj in objects:
                     if obj is not None:
+                        print (obj.name)
+
+
                         if obj.animation_data:
                             if obj.type == 'OBJECT':
                                 print('>>>>> attempting to process: ' + obj.name)
@@ -2260,8 +2272,8 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
         if not export_only_current:            
             # finish writing the javascript file
-            js_file.write('      "./panels/black.w100h100.glb",' +'\n')  
-            js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
+            js_file.write('      "./panels/black.w100h25.glb",' +'\n')  
+            # js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
             js_file.write('];' +'\n')
             js_file.close()
 
@@ -2323,7 +2335,9 @@ def reset_blender():
 
 class NewComicSettings(bpy.types.PropertyGroup):
     title : bpy.props.StringProperty(name="Title", description="Enter Title Name", default="Inkbots S1 EP01")
-    start_panel_count : bpy.props.IntProperty(name="Number of starting Panels",  description="Create a number of blank panels to start", default=4 )
+    author : bpy.props.StringProperty(name="Author", description="Are you Moebius, Eisner, McFarlane, Miyazaki, Miller, Torres, Lee, Kirby?", default="Author Name")
+    url : bpy.props.StringProperty(name="Author URL", description="where do you want readers to visit", default="https://3dcomic.shop/inkbots")
+    start_panel_count : bpy.props.IntProperty(name="How Many Panel in Row?",  description="Create a number of blank panels to start", default=1 )
 
 class BR_OT_new_3d_comic(bpy.types.Operator):
     """Start a new 3D Comic from scratch"""
@@ -2338,6 +2352,8 @@ class BR_OT_new_3d_comic(bpy.types.Operator):
         new_3d_comic_settings = context.scene.new_3d_comic_settings
 
         layout.prop(new_3d_comic_settings, "title")
+        layout.prop(new_3d_comic_settings, "author")
+        layout.prop(new_3d_comic_settings, "url")
         # layout.prop(new_3d_comic_settings, "start_panel_count")
         layout.separator()
 
@@ -2577,37 +2593,21 @@ class BR_OT_clone_comic_scene(bpy.types.Operator):
         return {'FINISHED'}
 
 
-
-class BR_OT_insert_comic_scene(bpy.types.Operator):
-    """ Insert a new panel scene after the currently active panel scene"""
-    bl_idname = "view3d.spiraloid_3d_comic_create_panel"
-    bl_label ="New Panel..."
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
+def insert_comic_panel(self, context):
+    scene = context.scene
+    new_panel_row_settings = scene.new_panel_row_settings
+    new_panel_count = new_panel_row_settings.new_panel_count
+    for i in range(new_panel_count):
+        panel_width = int(100 / new_panel_count)
         currSceneIndex = getCurrentSceneIndex()
         renameAllScenesAfter()
-        # panels = []
-        # for scene in bpy.data.scenes:
-        #     if "p." in scene.name:
-        #         panels.append(scene.name)
-
-        # for panel in panels :
-        #     for i in range(len(bpy.data.scenes)):
-        #         if bpy.data.scenes[i].name == panel:
-        #             m = currSceneIndex - 1
-        #             if m > currSceneIndex:
-        #                 sceneNumber = "%04d" % m
-        #                 bpy.data.scenes[m].name = 'p.'+ str(sceneNumber)
-
         newSceneIndex = currSceneIndex + 1
         newSceneIndexPadded = "%04d" % newSceneIndex
-        newSceneName = 'p.'+ str(newSceneIndexPadded) + ".w100h100"
+        newSceneName = 'p.'+ str(newSceneIndexPadded) + ".w" + str(panel_width) + "h100"
         newScene = bpy.ops.scene.new(type='NEW')
         bpy.context.scene.name = newSceneName
         BR_OT_panel_init.execute(self, context)
         BR_OT_panel_validate_naming_all.execute(self, context)
-
         for v in bpy.context.window.screen.areas:
             if v.type=='VIEW_3D':
                 v.spaces[0].region_3d.view_perspective = 'CAMERA'
@@ -2617,20 +2617,97 @@ class BR_OT_insert_comic_scene(bpy.types.Operator):
                 }
                 if bpy.ops.view3d.view_center_camera.poll(override):
                     bpy.ops.view3d.view_center_camera(override)
-
-
-
-
         bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
 
+    # return {'FINISHED'}
+
+
+class NewPanelRowSettings(bpy.types.PropertyGroup):
+    new_panel_count : bpy.props.IntProperty(name="side-by-side panel count:",  description="number of panels to insert in row", min=1, max=4, default=1 )
+
+
+class BR_OT_new_panel_row(bpy.types.Operator):
+    """Merge all meshes in active collection, unwrap and toggle_workmodeing and textures into a new "Export" collection"""
+    bl_idname = "view3d.spiraloid_new_panel_row"
+    bl_label = "Insert..."
+    bl_options = {'REGISTER', 'UNDO'}
+    config: bpy.props.PointerProperty(type=NewPanelRowSettings)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        new_panel_row_settings = scene.new_panel_row_settings
+        layout = self.layout
+        layout.prop(new_panel_row_settings, "new_panel_count")
+
+    def execute(self, context):
+        insert_comic_panel(self, context)
         return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+
+class BR_OT_insert_comic_scene(bpy.types.Operator):
+    """ Insert a new panel scene after the currently active panel scene"""
+    bl_idname = "view3d.spiraloid_3d_comic_create_panel"
+    bl_label ="New Panel..."
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        insert_comic_panel(self, context)
+
+        # currSceneIndex = getCurrentSceneIndex()
+        # renameAllScenesAfter()
+        # # panels = []
+        # # for scene in bpy.data.scenes:
+        # #     if "p." in scene.name:
+        # #         panels.append(scene.name)
+
+        # # for panel in panels :
+        # #     for i in range(len(bpy.data.scenes)):
+        # #         if bpy.data.scenes[i].name == panel:
+        # #             m = currSceneIndex - 1
+        # #             if m > currSceneIndex:
+        # #                 sceneNumber = "%04d" % m
+        # #                 bpy.data.scenes[m].name = 'p.'+ str(sceneNumber)
+
+        # newSceneIndex = currSceneIndex + 1
+        # newSceneIndexPadded = "%04d" % newSceneIndex
+        # newSceneName = 'p.'+ str(newSceneIndexPadded) + ".w100h100"
+        # newScene = bpy.ops.scene.new(type='NEW')
+        # bpy.context.scene.name = newSceneName
+        # BR_OT_panel_init.execute(self, context)
+        # BR_OT_panel_validate_naming_all.execute(self, context)
+
+        # for v in bpy.context.window.screen.areas:
+        #     if v.type=='VIEW_3D':
+        #         v.spaces[0].region_3d.view_perspective = 'CAMERA'
+        #         override = {
+        #             'area': v,
+        #             'region': v.regions[0],
+        #         }
+        #         if bpy.ops.view3d.view_center_camera.poll(override):
+        #             bpy.ops.view3d.view_center_camera(override)
+
+
+
+
+        # bpy.ops.object.select_all(action='DESELECT')
+
+
+
+
+
+        # return {'FINISHED'}
 
 
 
 class BR_OT_export_comic_scene(bpy.types.Operator):
     """export current panel scene"""
     bl_idname = "view3d.spiraloid_3d_comic_export_panel"
-    bl_label ="Export Panel..."
+    bl_label ="Export Panel Scene..."
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -2674,7 +2751,7 @@ class BR_OT_export_comic_scene(bpy.types.Operator):
 class BR_OT_import_comic_scene(Operator, ImportHelper):
     """import current panel scene"""
     bl_idname = "view3d.spiraloid_3d_comic_import_panel"
-    bl_label ="Import Panel..."
+    bl_label ="Import Panel Scene..."
     bl_options = {'REGISTER', 'UNDO'}
 
     filename_ext = ".blend"  # ExportHelper mixin class uses this
@@ -3159,25 +3236,29 @@ class BR_OT_key_scale_hide(bpy.types.Operator):
 
     def execute(self, context):
         selected_objects = bpy.context.selected_objects
-        for ob in selected_objects:
-            duration = 20
-            hide_frame = bpy.context.scene.frame_current
-            visible_frame = hide_frame + duration
-
-            bpy.context.scene.frame_current = visible_frame
-            ob.keyframe_insert(data_path="scale", index=-1, frame=visible_frame)
-
-            bpy.context.scene.frame_current = hide_frame
-            ob.scale[1] = 0.0001
-            ob.scale[2] = 0.0001
-            ob.scale[0] = 0.0001
-            C=bpy.context
+        C=bpy.context
+        if (C):
             old_area_type = C.area.type
             C.area.type='DOPESHEET_EDITOR'
-            bpy.ops.action.select_all(action='DESELECT')
-            ob.keyframe_insert(data_path="scale", index=-1, frame=hide_frame)
-            bpy.ops.action.interpolation_type(type='BOUNCE')
-            C.area.type=old_area_type
+
+            for ob in selected_objects:
+                duration = 20
+                visible_frame = bpy.context.scene.frame_current
+                hide_frame = visible_frame - duration
+
+                bpy.context.scene.frame_current = visible_frame
+                ob.keyframe_insert(data_path="scale", index=-1, frame=visible_frame)
+
+                bpy.context.scene.frame_current = hide_frame
+                ob.scale[1] = 0.0001
+                ob.scale[2] = 0.0001
+                ob.scale[0] = 0.0001
+
+                bpy.ops.action.select_all(action='DESELECT')
+                ob.keyframe_insert(data_path="scale", index=-1, frame=hide_frame)
+                bpy.ops.action.interpolation_type(type='BOUNCE')
+
+        C.area.type = old_area_type
 
 
         return {'FINISHED'}
@@ -3227,6 +3308,20 @@ class BR_OT_panel_init(bpy.types.Operator):
     def execute(self, context):
         currSceneIndex = getCurrentSceneIndex()
         sceneNumber = "%04d" % currSceneIndex
+        current_scene_name = bpy.data.scenes[currSceneIndex].name
+
+        stringFragments = current_scene_name.split('.')
+        x_stringFragments = stringFragments[2]
+        xx_stringFragments = x_stringFragments.split('h')
+        current_panel_height = xx_stringFragments[1]
+        xxx_stringFragments = xx_stringFragments[0].split('w')
+        current_panel_width = xxx_stringFragments[1]
+        print (stringFragments)
+        print (x_stringFragments)
+        print (xx_stringFragments)
+        print (xxx_stringFragments)
+
+
         bpy.ops.object.select_all(action='DESELECT')
         active_camera = bpy.context.scene.camera
 
@@ -3246,7 +3341,8 @@ class BR_OT_panel_init(bpy.types.Operator):
 
         currScene =  bpy.data.scenes[currSceneIndex]
         currsceneName = currScene.name
-        panelSceneName = 'p.'+ str(sceneNumber) + ".w100h100"
+        # panelSceneName = 'p.'+ str(sceneNumber) + ".w100h100"
+        panelSceneName = 'p.'+ str(sceneNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
 
         # if panelSceneName != currsceneName:
         bpy.data.scenes[currSceneIndex].name = panelSceneName
@@ -3380,8 +3476,8 @@ class BR_OT_panel_init(bpy.types.Operator):
         # for library in bpy.data.libraries:
         #     bpy.data.libraries.
 
-        bpy.context.scene.render.resolution_x = 1920
-        bpy.context.scene.render.resolution_y = 1080
+        bpy.context.scene.render.resolution_x = 1024
+        bpy.context.scene.render.resolution_y = 1024
         bpy.context.scene.frame_start = 1 
         bpy.context.scene.frame_end = 72
         bpy.context.scene.cursor.location[2] = 1.52
@@ -3765,11 +3861,18 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        starting_mode = bpy.context.object.mode
+        if "POSE" in starting_mode:
+            selected_bones = bpy.context.selected_pose_bones
+        if "EDIT" in starting_mode:
+            selected_elementes = bpy.context.selected
+
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)                
         # sky_color = (1, 1, 1, 1)
         sky_color = (0, 0, 0, 1)
         currSceneIndex = getCurrentSceneIndex()
         sceneNumber = "%04d" % currSceneIndex
-
+        lighting_group = ""
         bpy.ops.object.select_all(action='DESELECT')
         lighting_collection_name =  "Lighting." + str(sceneNumber) 
         # lighting_collection = bpy.data.collections.get(lighting_collection_name)
@@ -3803,10 +3906,10 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
         lighting_group_name = "Lighting." + str(sceneNumber)
 
         keylight_name = "Key." + str(sceneNumber)
-        rim_name = "Rim." + str(sceneNumber)
-        back_name = "Back." + str(sceneNumber)
-        fill_name = "Fill." + str(sceneNumber)
-        bouncelight_name = "Bounce." + str(sceneNumber)
+        # rim_name = "Rim." + str(sceneNumber)
+        # back_name = "Back." + str(sceneNumber)
+        # fill_name = "Fill." + str(sceneNumber)
+        # bouncelight_name = "Bounce." + str(sceneNumber)
         sky_name = "Sky." + str(sceneNumber)
 
 
@@ -3827,8 +3930,33 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
 
         bpy.ops.object.select_all(action='DESELECT')
         bpy.ops.object.empty_add(type='SPHERE', align='WORLD', location=(0, 0, 1.52), scale=(1, 1, 1))
-        lighting_group = bpy.context.active_object
-        lighting_group.name = lighting_group_name
+
+        if currSceneIndex != 0:
+            lighting_group = bpy.context.active_object
+            lighting_group.name = lighting_group_name
+        else:
+            lighting_collection_name =  "Lighting.Main" 
+            lighting_collection = bpy.data.collections.get(lighting_collection_name)
+            if lighting_collection:
+                bpy.data.collections.remove(lighting_collection)
+                empty_trash(self, context)
+
+            lighting_collection = bpy.data.collections.new(lighting_collection_name)
+            bpy.context.scene.collection.children.link(lighting_collection)
+
+
+            bpy.ops.object.select_all(action='DESELECT')
+            bpy.ops.object.empty_add(type='SPHERE', align='WORLD', location=(0, 0, 1.52), scale=(1, 1, 1))
+            lighting_group = bpy.context.active_object
+            lighting_group.name = "Lighting_group"
+            lighting_group.show_in_front = True
+            lighting_group.empty_display_size = 0.1
+
+            if active_camera:
+                active_camera.select_set(state=True)
+                bpy.context.view_layer.objects.active = active_camera
+                bpy.ops.object.parent_no_inverse_set()
+
 
         lighting_group.show_in_front = True
         lighting_group.empty_display_size = 0.1
@@ -4027,7 +4155,12 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
         bpy.context.scene.eevee.shadow_cascade_size = '64'
         bpy.context.scene.eevee.use_soft_shadows = False
 
+        bpy.ops.object.select_all(action='DESELECT')
+        keylight.select_set(state=True)
+        bpy.context.view_layer.objects.active = keylight
 
+        context.scene.tool_settings.transform_pivot_point = 'CURSOR'
+        bpy.ops.view3d.snap_cursor_to_center()
 
 
         return {'FINISHED'}
@@ -4374,8 +4507,7 @@ class BR_MT_export_3d_comic_current(bpy.types.Operator):
             # self.report({'WARNING'}, "You must save your file first!")
             bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
         else:
-            export_panel(self, context,False, True)
-            export_letters(self, context,True)
+            export_panel(self, context,True, True)
         return {'FINISHED'}
 
  
@@ -6201,7 +6333,8 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
         layout.separator()
         layout.menu(BR_MT_3d_comic_submenu_utilities.bl_idname, icon="PREFERENCES")
         layout.separator()
-        layout.operator("view3d.spiraloid_export_3d_comic_all", icon="RENDER_RESULT")
+        layout.operator("view3d.spiraloid_export_3d_comic_current", icon="FILE_BLANK")
+        layout.operator("view3d.spiraloid_export_3d_comic_all", icon="NODE_COMPOSITING")
         layout.separator()
         layout.operator("view3d.spiraloid_read_3d_comic", icon="HIDE_OFF")
 
@@ -6212,7 +6345,8 @@ class BR_MT_3d_comic_submenu_panels(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("view3d.spiraloid_3d_comic_create_panel")
+        # layout.operator("view3d.spiraloid_3d_comic_create_panel")
+        layout.operator("view3d.spiraloid_new_panel_row")
         layout.operator("view3d.spiraloid_3d_comic_clone_panel")
         layout.operator("view3d.spiraloid_3d_comic_reorder_scene_earlier", icon="REW")
         layout.operator("view3d.spiraloid_3d_comic_reorder_scene_later", icon="FF")
@@ -6288,11 +6422,9 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
         layout.operator("view3d.spiraloid_3d_comic_panel_init")
         layout.operator("view3d.spiraloid_3d_comic_panel_validate_naming")
         layout.operator("view3d.spiraloid_3d_comic_panel_validate_naming_all")
-        layout.separator()
-        layout.operator("view3d.spiraloid_export_3d_comic_current", icon="RENDER_RESULT")
+
         # layout.operator("view3d.spiraloid_export_3d_comic_letters_current", icon="RENDER_RESULT")
         # layout.operator("view3d.spiraloid_export_3d_comic_letters_all", icon="RENDER_RESULT")
-        layout.separator()
 
 
 
@@ -6341,6 +6473,7 @@ def draw_item(self, context):
 #------------------------------------------------------
 
 classes = (
+    NewPanelRowSettings,
     BR_OT_add_pose,
     BR_OT_overwrite_pose,
     BR_OT_remove_pose,
@@ -6371,6 +6504,7 @@ classes = (
     BR_MT_3d_comic_submenu_utilities,
     BR_OT_reorder_scene_later,
     BR_OT_reorder_scene_earlier,
+    BR_OT_new_panel_row,
     BR_OT_insert_comic_scene,
     BR_OT_clone_comic_scene,
     BR_OT_add_letter_caption,
@@ -6450,6 +6584,7 @@ def register():
         register_class(cls)
 
     bpy.types.Scene.bake_panel_settings = bpy.props.PointerProperty(type=BakePanelSettings)
+    bpy.types.Scene.new_panel_row_settings = bpy.props.PointerProperty(type=NewPanelRowSettings)
     bpy.types.Scene.new_3d_comic_settings = bpy.props.PointerProperty(type=NewComicSettings)
     bpy.types.Scene.comic_settings = bpy.props.PointerProperty(type=ComicSettings)
     bpy.types.TOPBAR_MT_editor_menus.append(draw_item)
