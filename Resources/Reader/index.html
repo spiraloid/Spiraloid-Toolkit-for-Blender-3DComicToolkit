@@ -1,494 +1,485 @@
 <!DOCTYPE html>
-<head>
-	<title>Inkbots - A 3D Comic by Bay Raitt - Chapter 1 - Stolen</title>
-	<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
-	<meta content="initial-scale=1, width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0, minimal-ui" name="apple-mobile-web-app-capable">
-    <meta content="Inkbots - Chapter 1 - Stolen" name="description">
-    <meta content="Inkbots, Bay Raitt, 3DComic, 3D Comic, Webtoon, Webcomic,  Spiraloid, Online Graphic Novel, Graphic Novel, 3D Art, 3D model, Concept Art, Digital Painting, VFX" name="keywords">
-    <meta content="Bay Raitt" name="author">
-	<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0' >
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>Inkbots - A 3D Comic by Bay Raitt - Chapter 1 - Stolen</title>
 
-    <link href="./apple-touch-icon.png" rel="apple-touch-icon">
-    <link rel="manifest" href="./manifest.json">
+		<meta name="author" content="3D Comic Artist Extraordinaire">
+		<meta name="description" content="3DComic">
+		<meta name="keywords" content="3Dcomic, 3dcomic.shop, Inkbots, Bay Raitt, 3DComic, 3D Comic, Webtoon, Webcomic,  Spiraloid, Online Graphic Novel, Graphic Novel, 3D Art, 3D model, Concept Art, Digital Painting, VFX">
 
-    <link href="https://3dcomic.shop/inkbots/SiteThumbnail.jpg" rel="image_src">
-    <link href="./favicon.ico" rel="fav-icon">
+		<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+		<meta name="apple-mobile-web-app-capable" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1, minimal-ui">
 
-	<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+		<link href="./apple-touch-icon.png" rel="apple-touch-icon">
+		<link rel="manifest" href="./manifest.json">
 
-    <link href="./styles.css" rel="stylesheet">
-	<script src="random_cover.js" type="text/javascript"> </script>
+		<link href="https://3dcomic.shop/inkbots/SiteThumbnail.jpg" rel="image_src">
+		<link href="./favicon.ico" rel="fav-icon">
 
-	<script src="js/three.js"></script>
-	<script src="js/orbitcontrols.js"></script>
-	<script src="js/gltfloader.js"></script>
-	<script src="js/tween.js"></script>
-	<script src="files.js"></script>
+		<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
 
+		<link href="./styles.css" rel="stylesheet">
+		<script src="random_cover.js" type="text/javascript"> </script>
 
-	<script>
-		function resizeIframe(obj) {
-		  obj.style.height = obj.contentWindow.document.documentElement.scrollHeight + 'px';
-		}
-	</script>
+		<script src="js/three.js"></script>
+		<script src="js/gltfloader.js"></script>
+		<script src="files.js"></script>
 
-</head>
-<body
-    class="body">
+		<script>
+			function resizeIframe(obj) {
+				obj.style.height = obj.contentWindow.document.documentElement.scrollHeight + 'px';
+				// obj.style.width = obj.contentWindow.document.documentElement.style.width + 'px';
+				$('obj').width('100%');
+			}
+		</script>
 
-
-    <!-- <span id="titlebar"></span> -->
-	<canvas id="canvas"></canvas>
+	</head>
+	<body class="body">
 
 
-
-    <!-- the main container is openned. -->
-    <div
-        style="width:100%; max-width:1024px; margin-right:auto; margin-left:auto; margin-top:0px; margin-bottom:0px; text-align:center; position:relative">
-
-        
-        <!-- The Home-Button -->
-        <div style="width:100%">
-            <a class="menuelink" href="https://3dcomic.shop/store.html">
-                <!-- <div id="homebutton">◄Home</div> -->
-                <img  id="homebutton" src="./images/home_button.png" alt="" width="100%" style="display: block;">
-
-            </a>
-        </div>
-
-        <div style="width:100%">
-
-            <div class="scrollArrowLeft-wrapper">
-                <div class="scrollArrowLeft">
-                        <span>S</br>C</br>R</br>O</br>L</br>L</span>
-                        <!-- <i class="fa fa-chevron-down"></i> -->
-
-                        <div id="arrowAnimLeft">
-                            <div class="arrowSliding">
-                                <div class="arrow"></div>
-                            </div>
-                            <div class="arrowSliding delay1">
-                                <div class="arrow"></div>
-                            </div>
-                            <div class="arrowSliding delay2">
-                                <div class="arrow"></div>
-                            </div>
-                            <div class="arrowSliding delay3">
-                                <div class="arrow"></div>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-            </div>
-
-            <div class="scrollArrowRight-wrapper">
-                <div class="scrollArrowRight">
-                        <span>S</br>C</br>R</br>O</br>L</br>L</span>
-                        <!-- <i class="fa fa-chevron-down"></i> -->
-
-                        <div id="arrowAnimRight">
-                            <div class="arrowSliding">
-                                <div class="arrow"></div>
-                            </div>
-                            <div class="arrowSliding delay1">
-                                <div class="arrow"></div>
-                            </div>
-                            <div class="arrowSliding delay2">
-                                <div class="arrow"></div>
-                            </div>
-                            <div class="arrowSliding delay3">
-                                <div class="arrow"></div>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div>
+			<!-- <span id="titlebar"></span> -->
+		<canvas id="canvas"></canvas>
 
 
-        <!-- The WIP-Chapteer Box -->
-        <div id="wipchapterboxbackground">
-            <div id="wipchapterbox">
-                <div style="width:95%">
-					You've arrived at the latest installment of Inkbots!
-					<br>
-					<br>
-                                        This chapter is
-                    <font color="#ffffff">
-                        <b>in progress</b>
-                    </font>
-                    and  
-                    <font color="#ffffff">
-                        <b>updates often!</b>
-                    </font>
-                    <br>
-                    <br>
-                    <!-- <br>
-                                        <center>Please scroll down to begin</center> 
-                                        <br> -->
-                    If you're a returning reader, use this button to jump to the latest content:
-                    <br/>
-                </div>
-                <!-- The Jump to Bottom-Button -->
-                <div style="width:100%; height:32px; margin-left:auto; margin-right:auto; text-align:center; position:relative ">
-                    <a class="menuelink" href="https://3dcomic.shop/inkbots/s01e01/#bottom">
-                        <div id="jumptobottombutton">▼<b>Jump To Bottom</b>▼</div>
-                    </a>
-                </div>
-                <div style="width:100%">
-                    If you plan to check this page for updates regularly, bookmark the link and it always send you to the bottom of the page!
-                </div>
 
-                <div style="width:100%; text-align:center; margin-top:16px; line-height: 10pt; font-size:10px; text-decoration: none">
-                    <a href="https://3dcomic.shop/inkbots/s01e01/#bottom">
-                        <center>
-                            <font color="#004d80">
-                        <p> SAVE BOOKMARK </p>
-                            </font>
-                        </center>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="coverwrapper">
-            <div  style="width:100%; height:100%"><img id="banner" alt="" class="lazy" height="100%" src="./images/cover_black.gif" style="display: block;" width="100%"></div>
-            <div id="coveroverlay"><img alt="" class="lazy" height="100%" src="./images/page_curl_hint.gif" style="display: block;" width="100%"></div>
-        </div>
-
-	</div>
-	
-
-	<div id="content"></div>
+			<!-- the main container is openned. -->
+			<div
+					style="width:100%; max-width:1024px; margin-right:auto; margin-left:auto; margin-top:0px; margin-bottom:0px; text-align:center; position:relative">
 
 
-	<script>
-		document.cookie = 'name=3dcomicshop; ; SameSite=Secure;'
+					<!-- The Home-Button -->
+					<div style="width:100%">
+							<a class="menuelink" href="https://3dcomic.shop/store.html">
+									<!-- <div id="homebutton">◄Home</div> -->
+									<img  id="homebutton" src="./images/home_button.png" alt="" width="100%" style="display: block;">
 
-		var canvas = document.getElementById( 'canvas' );
-		var content = document.getElementById( 'content' );
+							</a>
+					</div>
 
-		var camera, scene, renderer;
-		var scenes = [];
+					<div style="width:100%">
 
-		var isPointerDown = false;
-		var pointer = new THREE.Vector2();
-		var pointerOnDown = new THREE.Vector2();
+							<div class="scrollArrowLeft-wrapper">
+									<div class="scrollArrowLeft">
+													<span>S</br>C</br>R</br>O</br>L</br>L</span>
+													<!-- <i class="fa fa-chevron-down"></i> -->
 
-		var language = 'en';
+													<div id="arrowAnimLeft">
+															<div class="arrowSliding">
+																	<div class="arrow"></div>
+															</div>
+															<div class="arrowSliding delay1">
+																	<div class="arrow"></div>
+															</div>
+															<div class="arrowSliding delay2">
+																	<div class="arrow"></div>
+															</div>
+															<div class="arrowSliding delay3">
+																	<div class="arrow"></div>
+															</div>
+													</div>
+											</a>
+									</div>
+							</div>
 
-		if ( window.location.search.substr( 0, 5 ) === '?lan=' ) {
+							<div class="scrollArrowRight-wrapper">
+									<div class="scrollArrowRight">
+													<span>S</br>C</br>R</br>O</br>L</br>L</span>
+													<!-- <i class="fa fa-chevron-down"></i> -->
 
-			language = window.location.search.substr( 5 );
-
-		}
-
-		init();
-		loadFiles();
-		animate();
-
-		function disableScrolling(){
-			var x=window.scrollX;
-			var y=window.scrollY;
-			window.onscroll=function(){window.scrollTo(x, y);};
-		}
-
-		function enableScrolling(){
-			window.onscroll=function(){};
-		}
-
-
-		function init() {
-
-			renderer = new THREE.WebGLRenderer( { canvas: canvas, antialias: true } );
-			renderer.setClearColor( 0x131313 );
-			renderer.setPixelRatio( window.devicePixelRatio );
-			renderer.shadowMap.enabled = true;
-			renderer.shadowMap.type = THREE.BasicShadowMap;
-			renderer.outputEncoding = THREE.sRGBEncoding;
-
-			document.body.addEventListener( 'pointerdown', onPointerDown );
-			document.body.addEventListener( 'pointermove', onPointerMove );
-			document.body.addEventListener( 'pointerout', onPointerUp );
-			document.body.addEventListener( 'pointerup', onPointerUp );
+													<div id="arrowAnimRight">
+															<div class="arrowSliding">
+																	<div class="arrow"></div>
+															</div>
+															<div class="arrowSliding delay1">
+																	<div class="arrow"></div>
+															</div>
+															<div class="arrowSliding delay2">
+																	<div class="arrow"></div>
+															</div>
+															<div class="arrowSliding delay3">
+																	<div class="arrow"></div>
+															</div>
+													</div>
+											</a>
+									</div>
+							</div>
+					</div>
 
 
-		}
+					<!-- The WIP-Chapteer Box -->
+					<div id="wipchapterboxbackground">
+							<div id="wipchapterbox">
+									<div style="width:95%">
+						You've arrived at the latest installment of Inkbots!
+						<br>
+						<br>
+																					This chapter is
+											<font color="#ffffff">
+													<b>in progress</b>
+											</font>
+											and
+											<font color="#ffffff">
+													<b>updates often!</b>
+											</font>
+											<br>
+											<br>
+											<!-- <br>
+																					<center>Please scroll down to begin</center>
+																					<br> -->
+											If you're a returning reader, use this button to jump to the latest content:
+											<br/>
+									</div>
+									<!-- The Jump to Bottom-Button -->
+									<div style="width:100%; height:32px; margin-left:auto; margin-right:auto; text-align:center; position:relative ">
+											<a class="menuelink" href="https://3dcomic.shop/inkbots/s01e01/#bottom">
+													<div id="jumptobottombutton">▼<b>Jump To Bottom</b>▼</div>
+											</a>
+									</div>
+									<div style="width:100%">
+											If you plan to check this page for updates regularly, bookmark the link and it always send you to the bottom of the page!
+									</div>
 
-		function onPointerDown( event ) {
+									<div style="width:100%; text-align:center; margin-top:16px; line-height: 10pt; font-size:10px; text-decoration: none">
+											<a href="https://3dcomic.shop/inkbots/s01e01/#bottom">
+													<center>
+															<font color="#004d80">
+													<p> SAVE BOOKMARK </p>
+															</font>
+													</center>
+											</a>
+									</div>
+							</div>
+					</div>
 
-			isPointerDown = true;
-			pointerOnDown.x = event.clientX;
-			pointerOnDown.y = event.clientY;
-			// disableScrolling()
+					<div class="coverwrapper">
+							<div  style="width:100%; height:100%"><img id="banner" alt="" class="lazy" height="100%" src="./images/cover_black.gif" style="display: block;" width="100%"></div>
+							<div id="coveroverlay"><img alt="" class="lazy" height="100%" src="./images/page_curl_hint.gif" style="display: block;" width="100%"></div>
+					</div>
 
-		}
+		</div>
 
-		function onPointerMove( event ) {
 
-			pointer.x = event.clientX;
-			pointer.y = event.clientY;
-			event.preventDefault();
+		<div id="content"></div>
 
-		}
 
-		function onPointerUp() {
+		<script>
+			document.cookie = 'name=3dcomicshop; ; SameSite=Secure;'
 
-			isPointerDown = false;
-			// enableScrolling();
-		}
+			var canvas = document.getElementById( 'canvas' );
+			var content = document.getElementById( 'content' );
 
-		function loadFiles() {
+			var camera, scene, renderer;
+			var scenes = [];
 
-			var loader = new THREE.GLTFLoader();
+			var isPointerDown = false;
+			var pointer = new THREE.Vector2();
+			var pointerOnDown = new THREE.Vector2();
 
-			for ( var i = 0; i < files.length; i ++ ) {
+			var language = 'en';
 
-				loadFile( files[ i ].replace( '${lan}', language ) );
+			if ( window.location.search.substr( 0, 5 ) === '?lan=' ) {
+
+				language = window.location.search.substr( 5 );
 
 			}
 
-			function loadFile( path ) {
+			init();
+			loadFiles();
+			animate();
 
-				var aspect = 1;
+			function init() {
 
-				var width = 100;
-				var height = 100;
+				renderer = new THREE.WebGLRenderer( { canvas: canvas, antialias: true } );
+				renderer.setClearColor( 0x131313 );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.shadowMap.enabled = true;
+				renderer.shadowMap.type = THREE.BasicShadowMap;
+				renderer.outputEncoding = THREE.sRGBEncoding;
 
-				var parts = path.split( '.' );
-				var regex = /^w([0-9]+)h([0-9]+)/;
-				var result = regex.exec( parts[ parts.length - 3 ] );
+				document.body.addEventListener( 'pointerdown', onPointerDown );
+				document.body.addEventListener( 'pointermove', onPointerMove );
+				document.body.addEventListener( 'pointerout', onPointerUp );
+				document.body.addEventListener( 'pointerup', onPointerUp );
 
-				if ( result !== null ) {
+			}
 
-					width = result[ 1 ];
-					height = result[ 2 ];
+			function onPointerDown( event ) {
+
+				isPointerDown = true;
+				pointerOnDown.x = event.clientX;
+				pointerOnDown.y = event.clientY;
+				pointer.x = event.clientX;
+				pointer.y = event.clientY;
+
+			}
+
+			function onPointerMove( event ) {
+
+				pointer.x = event.clientX;
+				pointer.y = event.clientY;
+
+			}
+
+			function onPointerUp() {
+
+				isPointerDown = false;
+
+			}
+
+			function loadFiles() {
+
+				var loader = new THREE.GLTFLoader();
+
+				for ( var i = 0; i < files.length; i ++ ) {
+
+					loadFile( files[ i ].replace( '${lan}', language ) );
 
 				}
 
-				var element = document.createElement( 'div' );
-				element.className = 'panel';
-				element.style.display = 'inline-block';
-				element.style.width = width + '%';
-				// Hack: Maintain aspect ratio in divs
-				// https://css-tricks.com/aspect-ratio-boxes/
-				element.style.height = '0';
-				element.style.paddingTop = ( height / aspect ) + '%';
-				content.appendChild( element );
+				function loadFile( path ) {
 
-				var colors = new Uint8Array( [ 0, 0, 255 ] );
-				var gradientMap = new THREE.DataTexture( colors, 3, 1, THREE.LuminanceFormat );
-				gradientMap.minFilter = THREE.NearestFilter;
-				gradientMap.magFilter = THREE.NearestFilter;
-				gradientMap.generateMipmaps = false;
+					var aspect = 1;
 
-				loader.load( path, function ( gltf ) {
+					var width = 100;
+					var height = 100;
 
-					var scene = gltf.scene;
+					var parts = path.split( '.' );
+					var regex = /^w([0-9]+)h([0-9]+)/;
+					var result = regex.exec( parts[ parts.length - 3 ] );
 
-					var camera, cameraOrigin, cameraTarget;
-					var letters;
+					if ( result !== null ) {
 
-					scene.traverse( function ( child ) {
+						width = result[ 1 ];
+						height = result[ 2 ];
 
-						if ( /^Camera\d{4}$/.test( child.name ) ) cameraOrigin = child;
-						if ( /^Camera_aim\d{4}$/.test( child.name ) ) cameraTarget = child;
-						if ( /^Letters_\w+\d{4}$/.test( child.name ) ) letters = child;
+					}
+
+					var element = document.createElement( 'div' );
+					element.className = 'panel';
+					element.style.display = 'inline-block';
+					element.style.width = width + '%';
+					// Hack: Maintain aspect ratio in divs
+					// https://css-tricks.com/aspect-ratio-boxes/
+					element.style.height = '0';
+					element.style.paddingTop = ( height / aspect ) + '%';
+					content.appendChild( element );
+
+					var colors = new Uint8Array( [ 0, 0, 255 ] );
+					var gradientMap = new THREE.DataTexture( colors, 3, 1, THREE.LuminanceFormat );
+					gradientMap.minFilter = THREE.NearestFilter;
+					gradientMap.magFilter = THREE.NearestFilter;
+					gradientMap.generateMipmaps = false;
+
+					loader.load( path, function ( gltf ) {
+
+						var scene = gltf.scene;
+
+						var camera, cameraOrigin, cameraTarget;
+						var letters;
+
+						scene.traverse( function ( child ) {
+
+							if ( /^Camera\d{4}$/.test( child.name ) ) cameraOrigin = child;
+							if ( /^Camera_aim\d{4}$/.test( child.name ) ) cameraTarget = child;
+							if ( /^Letters_\w+\d{4}$/.test( child.name ) ) letters = child;
+
+							//
+
+							if ( child.isPerspectiveCamera ) {
+
+								camera = child.clone();
+								camera.userData.vFov = camera.fov;
+
+							}
+
+							if ( child.isLight ) {
+
+								child.castShadow = true;
+								child.shadow.mapSize.set( 1024, 1024 );
+								child.shadow.autoUpdate = false;
+								child.shadow.needsUpdate = true;
+								child.shadow.camera.near = 1;
+								child.shadow.camera.far = 20;
+								child.shadow.bias = 0.00005;
+
+							}
+
+							if ( child.isMesh && child.material.isMeshStandardMaterial ) {
+
+								child.castShadow = true;
+								child.receiveShadow = true;
+
+								var color = child.material.color;
+
+								child.material = new THREE.MeshToonMaterial( {
+									color: color,
+									gradientMap: gradientMap
+								} );
+
+							}
+
+						} );
+
+						var mixer = new THREE.AnimationMixer( scene );
+						gltf.animations.forEach( function ( clip ) {
+
+							mixer.clipAction( clip ).play();
+							scene.userData.duration = clip.duration;
+
+						} );
 
 						//
 
-						if ( child.isPerspectiveCamera ) {
+						if ( camera ) {
 
-							camera = child.clone();
-							camera.userData.vFov = camera.fov;
+							scene.add( camera );
 
-						}
+							if ( cameraOrigin ) {
 
-						if ( child.isLight ) {
+								camera.position.copy( cameraOrigin.position );
+								camera.rotation.copy( cameraOrigin.rotation );
 
-							child.castShadow = true;
-							child.shadow.mapSize.set( 1024, 1024 );
-							child.shadow.autoUpdate = false;
-							child.shadow.needsUpdate = true;
-							child.shadow.camera.near = 1;       
-							child.shadow.camera.far = 20  ;
-							child.shadow.bias = 0.00005  ;
-						}
+							}
 
-						if ( child.isMesh && child.material.isMeshStandardMaterial ) {
+							if ( letters ) {
 
-							child.castShadow = true;
-							child.receiveShadow = true;
+								letters.position.set( 0, 0, - 2 );
+								letters.rotation.set( 0, 0, 0 );
 
-							var color = child.material.color;
+								camera.add( letters );
 
-							child.material = new THREE.MeshToonMaterial( {
-								color: color,
-								gradientMap: gradientMap
-							} );
+							}
 
 						}
+
+						scene.userData.camera = camera;
+						scene.userData.cameraOrigin = cameraOrigin;
+						scene.userData.cameraTarget = cameraTarget;
+
+						scene.userData.element = element;
+						scene.userData.mixer = mixer;
+
+						scenes.push( scene );
 
 					} );
 
-					var mixer = new THREE.AnimationMixer( scene );
-					gltf.animations.forEach( function ( clip ) {
+				}
 
-						mixer.clipAction( clip ).play();
-						scene.userData.duration = clip.duration;
+			}
 
-					} );
+			function updateSize() {
+
+				var width = canvas.clientWidth;
+				var height = canvas.clientHeight;
+				var dpr = window.devicePixelRatio;
+
+				if ( canvas.width !== width * dpr || canvas.height !== height * dpr ) {
+
+					renderer.setSize( width, height, false );
+
+				}
+
+			}
+
+			function animate() {
+
+				render();
+				requestAnimationFrame( animate );
+
+			}
+
+			function render() {
+
+				updateSize();
+
+				// canvas.style.transform = `translateY(${window.scrollY}px)`;
+
+				renderer.setScissorTest( false );
+				renderer.clear();
+
+				renderer.setScissorTest( true );
+
+				scenes.forEach( function ( scene ) {
+
+					var element = scene.userData.element;
+					var rect = element.getBoundingClientRect();
+
+					if ( rect.bottom < 0 || rect.top > renderer.domElement.clientHeight ||
+							rect.right < 0 || rect.left > renderer.domElement.clientWidth ) {
+
+						return; // it's off screen
+
+					}
+
+					var width = rect.right - rect.left;
+					var height = rect.bottom - rect.top;
+					var left = rect.left;
+					var bottom = renderer.domElement.clientHeight - rect.bottom;
+
+					renderer.setViewport( left, bottom, width, height );
+					renderer.setScissor( left, bottom, width, height );
+
+					var camera = scene.userData.camera;
+					camera.aspect = rect.width / rect.height;
+					camera.fov = camera.userData.vFov;
+
+					if ( camera.aspect < 1 ) {
+						// Use horizontal fov in vertical aspect ratios
+						camera.fov = Math.atan( Math.tan( camera.fov * Math.PI / 360 ) / camera.aspect ) * 360 / Math.PI;
+					}
+
+					camera.updateProjectionMatrix();
+
+					var time = THREE.Math.mapLinear( rect.top, renderer.domElement.clientHeight, - rect.height, 0, 1 );
+					var duration = scene.userData.duration;
+
+					var mixer = scene.userData.mixer;
+					mixer.setTime( time * duration );
 
 					//
 
-					if ( camera ) {
+					var isPointerInFrame = pointer.y < rect.bottom && pointer.y > rect.top;
 
-						scene.add( camera );
+					var cameraOrigin = scene.userData.cameraOrigin;
+					var cameraTarget = scene.userData.cameraTarget;
 
-						if ( cameraOrigin ) {
+					if ( cameraOrigin ) {
 
-							camera.position.copy( cameraOrigin.position );
-							camera.rotation.copy( cameraOrigin.rotation );
+						if ( isPointerDown && isPointerInFrame ) {
 
-						}
+							camera.position.x = cameraOrigin.position.x - ( ( pointer.x - pointerOnDown.x ) * 0.01 );
+							camera.position.y = cameraOrigin.position.y + ( ( pointer.y - pointerOnDown.y ) * 0.01 );
+							camera.position.z = cameraOrigin.position.z;
 
-						if ( letters ) {
+						} else {
 
-							letters.position.set( 0, 0, - 2 );
-							letters.rotation.set( 0, 0, 0 );
-
-							camera.add( letters );
+							camera.position.x += ( cameraOrigin.position.x - camera.position.x ) * 0.4;
+							camera.position.y += ( cameraOrigin.position.y - camera.position.y ) * 0.4;
+							camera.position.z += ( cameraOrigin.position.z - camera.position.z ) * 0.4;
 
 						}
 
 					}
 
-					scene.userData.camera = camera;
-					scene.userData.cameraOrigin = cameraOrigin;
-					scene.userData.cameraTarget = cameraTarget;
+					if ( cameraTarget ) {
 
-					scene.userData.element = element;
-					scene.userData.mixer = mixer;
+						camera.lookAt( cameraTarget.position );
 
-					scenes.push( scene );
+					}
+
+					renderer.render( scene, camera );
 
 				} );
 
-			}
-
-		}
-
-		function updateSize() {
-
-			var width = canvas.clientWidth;
-			var height = canvas.clientHeight;
-			var dpr = window.devicePixelRatio;
-
-			if ( canvas.width !== width * dpr || canvas.height !== height * dpr ) {
-
-				renderer.setSize( width, height, false );
 
 			}
-
-		}
-
-		function animate() {
-
-			render();
-			requestAnimationFrame( animate );
-
-		}
-
-		function render() {
-
-			updateSize();
-
-			// canvas.style.transform = `translateY(${window.scrollY}px)`;
-
-			renderer.setScissorTest( false );
-			renderer.clear();
-
-			renderer.setScissorTest( true );
-
-			scenes.forEach( function ( scene ) {
-
-				var element = scene.userData.element;
-				var rect = element.getBoundingClientRect();
-
-				if ( rect.bottom < 0 || rect.top > renderer.domElement.clientHeight ||
-						rect.right < 0 || rect.left > renderer.domElement.clientWidth ) {
-
-					return; // it's off screen
-
-				}
-
-				var width = rect.right - rect.left;
-				var height = rect.bottom - rect.top;
-				var left = rect.left;
-				var bottom = renderer.domElement.clientHeight - rect.bottom;
-
-				renderer.setViewport( left, bottom, width, height );
-				renderer.setScissor( left, bottom, width, height );
-
-				var camera = scene.userData.camera;
-				camera.aspect = rect.width / rect.height;
-				camera.fov = camera.userData.vFov;
-
-				if ( camera.aspect < 1 ) {
-					// Use horizontal fov in vertical aspect ratios
-					camera.fov = Math.atan( Math.tan( camera.fov * Math.PI / 360 ) / camera.aspect ) * 360 / Math.PI;
-				}
-
-				camera.updateProjectionMatrix();
-
-				var time = THREE.Math.mapLinear( rect.top, renderer.domElement.clientHeight, - rect.height, 0, 1 );
-				var duration = scene.userData.duration;
-
-				var mixer = scene.userData.mixer;
-				mixer.setTime( time * duration );
-
-				//
-
-				var isPointerInFrame = pointer.y < rect.bottom && pointer.y > rect.top;
-
-				var cameraOrigin = scene.userData.cameraOrigin;
-				var cameraTarget = scene.userData.cameraTarget;
-
-				if ( cameraOrigin ) {
-
-					if ( isPointerDown && isPointerInFrame ) {
-						
-						camera.position.x = cameraOrigin.position.x - ( ( pointer.x - pointerOnDown.x ) * 0.01 );
-						camera.position.y = cameraOrigin.position.y + ( ( pointer.y - pointerOnDown.y ) * 0.01 );
-						camera.position.z = cameraOrigin.position.z;
-
-					} else {
-
-						camera.position.x += ( cameraOrigin.position.x - camera.position.x ) * 0.4;
-						camera.position.y += ( cameraOrigin.position.y - camera.position.y ) * 0.4;
-						camera.position.z += ( cameraOrigin.position.z - camera.position.z ) * 0.4;
-
-					}
-
-				}
-
-				if ( cameraTarget ) {
-
-					camera.lookAt( cameraTarget.position );
-
-				}
-
-				renderer.render( scene, camera );
-
-			} );
-
-			
-		}
-	</script>
-	<a name="bottom"></a>
-	<div class="footer">
-		<span>
-			<iframe src="https://3dcomic.shop/dev/footer/footer.html" width="100%" frameborder="0" scrolling="no" onload="resizeIframe(this)"></iframe>
-		</span>
-	</div>	
-</body></html>
+		</script>
+		<a name="bottom"></a>
+		<div class="footer" style="width:100%; max-width:1024px; margin-right:auto; margin-left:auto; margin-top:0px; margin-bottom:0px; text-align:center; position:relative">
+			<span>
+				<iframe style="width:100%; height:100%;  margin-right:0; margin-left:0;" src="https://3dcomic.shop/dev/footer/footer.html" frameborder="0" scrolling="no" onload="resizeIframe(this)" ></iframe>
+			</span>
+		</div>
+	</body>
+</html>

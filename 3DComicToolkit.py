@@ -2337,7 +2337,7 @@ class NewComicSettings(bpy.types.PropertyGroup):
     title : bpy.props.StringProperty(name="Title", description="Enter Title Name", default="Inkbots S1 EP01")
     author : bpy.props.StringProperty(name="Author", description="Are you Moebius, Eisner, McFarlane, Miyazaki, Miller, Torres, Lee, Kirby?", default="Author Name")
     url : bpy.props.StringProperty(name="Author URL", description="where do you want readers to visit", default="https://3dcomic.shop/inkbots")
-    start_panel_count : bpy.props.IntProperty(name="How Many Panel in Row?",  description="Create a number of blank panels to start", default=1 )
+    start_panel_count : bpy.props.IntProperty(name="How Many Panels?",  description="Create a number of blank panels to start", min=1, max=99, default=1 )
 
 class BR_OT_new_3d_comic(bpy.types.Operator):
     """Start a new 3D Comic from scratch"""
@@ -2349,18 +2349,20 @@ class BR_OT_new_3d_comic(bpy.types.Operator):
 
     def draw(self, context):
         layout = self.layout
-        new_3d_comic_settings = context.scene.new_3d_comic_settings
-
+        scene = context.scene
+        new_3d_comic_settings = scene.new_3d_comic_settings
         layout.prop(new_3d_comic_settings, "title")
         layout.prop(new_3d_comic_settings, "author")
         layout.prop(new_3d_comic_settings, "url")
-        # layout.prop(new_3d_comic_settings, "start_panel_count")
+        layout.prop(new_3d_comic_settings, "start_panel_count")
         layout.separator()
 
     def execute(self, context):
-        settings = context.scene.new_3d_comic_settings
-        title_name = settings.title
+        scene = context.scene
+        settings = scene.new_3d_comic_settings
         start_panel_count = settings.start_panel_count
+
+        title_name = settings.title
         bpy.ops.wm.read_homefile(use_empty=True)
 
         # load_resource("comic_default.blend")
@@ -2446,6 +2448,35 @@ class BR_OT_new_3d_comic(bpy.types.Operator):
 
 
         # BR_OT_insert_comic_scene.execute(self, context)
+        # for i in range(start_panel_count):
+        #     scene = context.scene
+        #     settings = scene.new_3d_comic_settings
+        #     title_name = settings.title
+        #     start_panel_count = settings.start_panel_count
+        #     panel_width = 100
+        #     currSceneIndex = getCurrentSceneIndex()
+        #     renameAllScenesAfter()
+        #     newSceneIndex = currSceneIndex + 1
+        #     newSceneIndexPadded = "%04d" % newSceneIndex
+        #     newSceneName = 'p.'+ str(newSceneIndexPadded) + ".w" + str(panel_width) + "h100"
+        #     newScene = bpy.ops.scene.new(type='NEW')
+        #     bpy.context.scene.name = newSceneName
+        #     BR_OT_panel_init.execute(self, context)
+        #     BR_OT_panel_validate_naming_all.execute(self, context)
+        #     for v in bpy.context.window.screen.areas:
+        #         if v.type=='VIEW_3D':
+        #             v.spaces[0].region_3d.view_perspective = 'CAMERA'
+        #             override = {
+        #                 'area': v,
+        #                 'region': v.regions[0],
+        #             }
+        #             if bpy.ops.view3d.view_center_camera.poll(override):
+        #                 bpy.ops.view3d.view_center_camera(override)
+        #     bpy.ops.object.select_all(action='DESELECT')
+        #     bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
+
+
+
 
         return {'FINISHED'}
         
@@ -2624,13 +2655,13 @@ def insert_comic_panel(self, context):
 
 
 class NewPanelRowSettings(bpy.types.PropertyGroup):
-    new_panel_count : bpy.props.IntProperty(name="side-by-side panel count:",  description="number of panels to insert in row", min=1, max=4, default=1 )
+    new_panel_count : bpy.props.IntProperty(name="panel count:",  description="number of side-by-side panels to insert in new row", min=1, max=4, default=1 )
 
 
 class BR_OT_new_panel_row(bpy.types.Operator):
     """Merge all meshes in active collection, unwrap and toggle_workmodeing and textures into a new "Export" collection"""
     bl_idname = "view3d.spiraloid_new_panel_row"
-    bl_label = "Insert..."
+    bl_label = "Insert Row..."
     bl_options = {'REGISTER', 'UNDO'}
     config: bpy.props.PointerProperty(type=NewPanelRowSettings)
 
@@ -4159,8 +4190,8 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
         keylight.select_set(state=True)
         bpy.context.view_layer.objects.active = keylight
 
-        context.scene.tool_settings.transform_pivot_point = 'CURSOR'
-        bpy.ops.view3d.snap_cursor_to_center()
+        # context.scene.tool_settings.transform_pivot_point = 'CURSOR'
+        # bpy.ops.view3d.snap_cursor_to_center()
 
 
         return {'FINISHED'}
