@@ -176,7 +176,17 @@ def renameAllScenesAfter():
 
                 sceneNumber = "%04d" % n
                 oldSceneNumber = "%04d" % nn
-                scene.name = 'p.'+ str(sceneNumber) + ".w100h100"
+                # scene.name = 'p.'+ str(sceneNumber) + ".w100h100"
+
+                stringFragments = bpy.data.scenes[m].name.split('.')
+                x_stringFragments = stringFragments[2]
+                xx_stringFragments = x_stringFragments.split('h')
+                current_panel_height = xx_stringFragments[1]
+                xxx_stringFragments = xx_stringFragments[0].split('w')
+                current_panel_width = xxx_stringFragments[1]
+
+
+                scene.name = 'p.'+ str(sceneNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
 
                 scene_objects = scene.objects
                 for obj in scene_objects:
@@ -347,6 +357,9 @@ def validate_naming():
                 c.name = "Lighting." + str(paddedSceneNumber) 
             if "Letters." in c.name:
                 c.name = "Letters." + str(paddedSceneNumber) 
+
+
+
 
         export_collection = getCurrentExportCollection()
         for c in export_collection.children:
@@ -2485,7 +2498,7 @@ class BR_OT_new_3d_comic(bpy.types.Operator):
 
 class BR_OT_first_panel_scene(bpy.types.Operator):
     """make first panel scene the active scene"""
-    bl_idname = "view3d.spiraloid_3d_comic_first_panel"
+    bl_idname = "screen.spiraloid_3d_comic_first_panel"
     bl_label ="First"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -2495,7 +2508,7 @@ class BR_OT_first_panel_scene(bpy.types.Operator):
 
 class BR_OT_last_panel_scene(bpy.types.Operator):
     """make last panel scene the active scene"""
-    bl_idname = "view3d.spiraloid_3d_comic_last_panel"
+    bl_idname = "screen.spiraloid_3d_comic_last_panel"
     bl_label ="Last"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -2506,7 +2519,7 @@ class BR_OT_last_panel_scene(bpy.types.Operator):
 
 class BR_OT_next_panel_scene(bpy.types.Operator):
     """make next panel scene the active scene"""
-    bl_idname = "view3d.spiraloid_3d_comic_next_panel"
+    bl_idname = "screen.spiraloid_3d_comic_next_panel"
     bl_label ="Next"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -2532,7 +2545,7 @@ class BR_OT_next_panel_scene(bpy.types.Operator):
 
 class BR_OT_previous_panel_scene(bpy.types.Operator):
     """make previous panel scene the active scene"""
-    bl_idname = "view3d.spiraloid_3d_comic_previous_panel"
+    bl_idname = "screen.spiraloid_3d_comic_previous_panel"
     bl_label ="Previous"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -2595,10 +2608,21 @@ class BR_OT_clone_comic_scene(bpy.types.Operator):
 
     def execute(self, context):
         currSceneIndex = getCurrentSceneIndex()
+        current_scene_name = bpy.data.scenes[currSceneIndex].name
+        stringFragments = current_scene_name.split('.')
+        x_stringFragments = stringFragments[2]
+        xx_stringFragments = x_stringFragments.split('h')
+        current_panel_height = xx_stringFragments[1]
+        xxx_stringFragments = xx_stringFragments[0].split('w')
+        current_panel_width = xxx_stringFragments[1]
+
         renameAllScenesAfter()
+
         newSceneIndex = currSceneIndex + 1
-        sceneNumber = "%04d" % newSceneIndex
-        newSceneName = 'p.'+ str(sceneNumber) + ".w100h100"
+        sceneNumber = "%04d" % newSceneIndex  
+        # newSceneName = 'p.'+ str(sceneNumber) + ".w100h100"
+        newSceneName = 'p.'+ str(sceneNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
+
         newScene = bpy.ops.scene.new(type='FULL_COPY')
         bpy.context.scene.name = newSceneName
 
@@ -2857,30 +2881,51 @@ class BR_OT_delete_comic_scene(bpy.types.Operator):
 
 class BR_OT_reorder_scene_later(bpy.types.Operator):
     """Shift current scene later, changing the read order of panel scenes"""
-    bl_idname = "view3d.spiraloid_3d_comic_reorder_scene_later"
+    bl_idname = "screen.spiraloid_3d_comic_reorder_scene_later"
     bl_label ="Shift Scene Later"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        # currSceneIndex = getCurrentSceneIndex()
+        # nextSceneIndex = currSceneIndex + 1
+        # current_scene_name = bpy.data.scenes[currSceneIndex].name
+        # next_scene_name = bpy.data.scenes[nextSceneIndex].name
+        # bpy.data.scenes[nextSceneIndex].name = next_scene_name + ".1111111111"
+        # bpy.data.scenes[currSceneIndex].name = next_scene_name
+        # bpy.data.scenes[nextSceneIndex].name = current_scene_name
+
+        # validate_naming()
+        # bpy.context.window.scene = bpy.data.scenes[currSceneIndex]
+        # validate_naming()
+        # bpy.context.window.scene = bpy.data.scenes[nextSceneIndex]
         currSceneIndex = getCurrentSceneIndex()
         nextSceneIndex = currSceneIndex + 1
         current_scene_name = bpy.data.scenes[currSceneIndex].name
         next_scene_name = bpy.data.scenes[nextSceneIndex].name
-        bpy.data.scenes[nextSceneIndex].name = next_scene_name + ".1111111111"
+        tmp_name = "zzzz999"
+        bpy.data.scenes[nextSceneIndex].name = tmp_name
+        currSceneIndex = getCurrentSceneIndex()
         bpy.data.scenes[currSceneIndex].name = next_scene_name
-        bpy.data.scenes[nextSceneIndex].name = current_scene_name
 
-        validate_naming()
+
+        # bpy.data.scenes[currSceneIndex].name = previous_scene_name
+
+        for i in range(len(bpy.data.scenes)):
+            if bpy.data.scenes[i].name == tmp_name:
+                bpy.data.scenes[i].name = current_scene_name
+                bpy.context.window.scene = bpy.data.scenes[currSceneIndex]
+
         bpy.context.window.scene = bpy.data.scenes[currSceneIndex]
         validate_naming()
         bpy.context.window.scene = bpy.data.scenes[nextSceneIndex]
+        validate_naming()
 
 
         return {'FINISHED'}
 
 class BR_OT_reorder_scene_earlier(bpy.types.Operator):
     """Shift current scene Earlier, changing the read order of panel scenes"""
-    bl_idname = "view3d.spiraloid_3d_comic_reorder_scene_earlier"
+    bl_idname = "screen.spiraloid_3d_comic_reorder_scene_earlier"
     bl_label ="Shift Scene Earlier"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -3222,7 +3267,7 @@ class BR_OT_add_letter_sfx(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         # load_resource("letter_wordballoon.blend")
         # load_resource("letter_caption.blend")
-        load_resource(self, context, "letter_sfx.blend, False")
+        load_resource(self, context, "letter_sfx.blend", False)
 
         objects = bpy.context.selected_objects
         if objects is not None :
@@ -3347,10 +3392,10 @@ class BR_OT_panel_init(bpy.types.Operator):
         current_panel_height = xx_stringFragments[1]
         xxx_stringFragments = xx_stringFragments[0].split('w')
         current_panel_width = xxx_stringFragments[1]
-        print (stringFragments)
-        print (x_stringFragments)
-        print (xx_stringFragments)
-        print (xxx_stringFragments)
+        # print (stringFragments)
+        # print (x_stringFragments)
+        # print (xx_stringFragments)
+        # print (xxx_stringFragments)
 
 
         bpy.ops.object.select_all(action='DESELECT')
@@ -6379,16 +6424,16 @@ class BR_MT_3d_comic_submenu_panels(bpy.types.Menu):
         # layout.operator("view3d.spiraloid_3d_comic_create_panel")
         layout.operator("view3d.spiraloid_new_panel_row")
         layout.operator("view3d.spiraloid_3d_comic_clone_panel")
-        layout.operator("view3d.spiraloid_3d_comic_reorder_scene_earlier", icon="REW")
-        layout.operator("view3d.spiraloid_3d_comic_reorder_scene_later", icon="FF")
+        layout.operator("screen.spiraloid_3d_comic_reorder_scene_earlier", icon="REW")
+        layout.operator("screen.spiraloid_3d_comic_reorder_scene_later", icon="FF")
         layout.separator()
         layout.operator("view3d.spiraloid_3d_comic_import_panel", icon="IMPORT")
         layout.operator("view3d.spiraloid_3d_comic_export_panel", icon="EXPORT")
         layout.separator()
-        layout.operator("view3d.spiraloid_3d_comic_first_panel", icon="TRIA_UP")
-        layout.operator("view3d.spiraloid_3d_comic_next_panel", icon="TRIA_RIGHT")
-        layout.operator("view3d.spiraloid_3d_comic_previous_panel", icon="TRIA_LEFT")
-        layout.operator("view3d.spiraloid_3d_comic_last_panel", icon="TRIA_DOWN")
+        layout.operator("screen.spiraloid_3d_comic_first_panel", icon="TRIA_UP")
+        layout.operator("screen.spiraloid_3d_comic_next_panel", icon="TRIA_RIGHT")
+        layout.operator("screen.spiraloid_3d_comic_previous_panel", icon="TRIA_LEFT")
+        layout.operator("screen.spiraloid_3d_comic_last_panel", icon="TRIA_DOWN")
         layout.separator()
         layout.operator("view3d.spiraloid_3d_comic_delete_panel")
 

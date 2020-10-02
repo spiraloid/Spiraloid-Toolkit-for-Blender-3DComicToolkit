@@ -2,11 +2,13 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<title>Inkbots - A 3D Comic by Bay Raitt - Chapter 1 - Stolen</title>
+		<title>3D Comic</title>
 
 		<meta name="author" content="3D Comic Artist Extraordinaire">
 		<meta name="description" content="3DComic">
 		<meta name="keywords" content="3Dcomic, 3dcomic.shop, Inkbots, Bay Raitt, 3DComic, 3D Comic, Webtoon, Webcomic,  Spiraloid, Online Graphic Novel, Graphic Novel, 3D Art, 3D model, Concept Art, Digital Painting, VFX">
+
+
 
 		<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
 		<meta name="apple-mobile-web-app-capable" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1, minimal-ui">
@@ -25,14 +27,6 @@
 		<script src="js/three.js"></script>
 		<script src="js/gltfloader.js"></script>
 		<script src="files.js"></script>
-
-		<script>
-			function resizeIframe(obj) {
-				obj.style.height = obj.contentWindow.document.documentElement.scrollHeight + 'px';
-				// obj.style.width = obj.contentWindow.document.documentElement.style.width + 'px';
-				$('obj').width('100%');
-			}
-		</script>
 
 	</head>
 	<body class="body">
@@ -478,7 +472,7 @@
 		<a name="bottom"></a>
 		<div class="footer" style="width:100%; max-width:1024px; margin-right:auto; margin-left:auto; margin-top:0px; margin-bottom:0px; text-align:center; position:relative">
 			<span>
-				<iframe style="width:100%; height:100%;  margin-right:0; margin-left:0;" src="https://3dcomic.shop/dev/footer/footer.html" frameborder="0" scrolling="no" onload="resizeIframe(this)" ></iframe>
+				<iframe src="https://3dcomic.shop/dev/footer/footer.html" width="100%" frameborder="0" scrolling="no" onload="this.height = this.offsetWidth"></iframe>
 			</span>
 		</div>
 	</body>
