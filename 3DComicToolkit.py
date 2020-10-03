@@ -2960,7 +2960,48 @@ class BR_OT_add_letter_caption(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        bpy.ops.object.select_all(action='DESELECT')
+        # bpy.ops.object.select_all(action='DESELECT')
+        # export_collection = getCurrentExportCollection()
+        # active_camera = bpy.context.scene.camera
+        # if active_camera is not None :
+        #     active_camera_name = active_camera.name
+        # else:
+        #     self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
+
+        # bpy.ops.object.select_all(action='DESELECT')
+        # # load_resource(self, context, "letter_wordballoon.blend")
+        # load_resource(self, context, "letter_caption.blend", False)
+        # # load_resource(self, context, "letter_sfx.blend")
+
+        # objects = bpy.context.selected_objects
+        # if objects is not None :
+        #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        # letter = objects[0]
+        # letter_group = getCurrentLetterGroup()
+
+        # bpy.ops.object.select_all(action='DESELECT')
+        # letter.select_set(state=True)
+        # letter_group.select_set(state=True)
+        # bpy.context.view_layer.objects.active = letter_group
+        # # bpy.ops.object.parent_set()
+        # bpy.ops.object.parent_no_inverse_set()
+
+        # bpy.ops.object.select_all(action='DESELECT')
+        # letter.select_set(state=True)
+        # bpy.context.view_layer.objects.active = letter
+        # bpy.ops.object.origin_clear()
+
+        # camera_position = active_camera.matrix_world.to_translation()
+
+        # for obj in objects:
+        #     bpy.context.collection.objects.unlink(obj) 
+        #     export_collection.objects.link(obj)
+
+        # bpy.ops.object.select_all(action='DESELECT')
+        # letter.select_set(state=True)
+        # bpy.context.view_layer.objects.active = letter
+
+
         export_collection = getCurrentExportCollection()
         active_camera = bpy.context.scene.camera
         if active_camera is not None :
@@ -2969,9 +3010,12 @@ class BR_OT_add_letter_caption(bpy.types.Operator):
             self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
 
         bpy.ops.object.select_all(action='DESELECT')
-        # load_resource(self, context, "letter_wordballoon.blend")
-        load_resource(self, context, "letter_caption.blend", False)
-        # load_resource(self, context, "letter_sfx.blend")
+        # load_resource("letter_wordballoon.blend", False)
+        # load_resource(self, context, "letter_wordballoon.000.blend", True)
+        load_resource(self, context, "letter_caption.000.blend", True)
+
+        # load_resource("letter_caption.blend")
+        # load_resource("letter_sfx.blend")
 
         objects = bpy.context.selected_objects
         if objects is not None :
@@ -2993,13 +3037,19 @@ class BR_OT_add_letter_caption(bpy.types.Operator):
 
         camera_position = active_camera.matrix_world.to_translation()
 
-        for obj in objects:
-            bpy.context.collection.objects.unlink(obj) 
-            export_collection.objects.link(obj)
+
+        letters_collection = getCurrentLettersCollection()
+        if not letters_collection:
+            self.report({'WARNING'}, "Export Collection " + letters_collection.name + "was not found in scene, skipping export of" + scene.name)
+        else:
+            for obj in objects:
+                bpy.context.collection.objects.unlink(obj) 
+                letters_collection.objects.link(obj)
 
         bpy.ops.object.select_all(action='DESELECT')
         letter.select_set(state=True)
         bpy.context.view_layer.objects.active = letter
+
 
         return {'FINISHED'}
 
