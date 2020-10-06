@@ -30,14 +30,19 @@ Python 3.8 or later.
 (be sure to check the box to add python to your path on install.  this step is needed to make "read 3d comic" menu work since it runs a local python server)
 https://www.python.org/ftp/python/3.8.5/python-3.8.5.exe
 
-Creativity.
+This repo is for live updates, you can also find the official release on gumroad at:
+https://gumroad.com/l/3dcomictoolkit
 
-This is a tool I use and update frequently if you wish to connect with others interested in making 3D Comics exist, checkout these Communities:
+Be warned, This is a tool I use and update frequently so there may be bugs.   
+
+I'll try not to break things, but if you get stuck feel free to dig into the code yourseld orreport the issue here, and I'll see what I can do as I find the time  (it's free afterall).  
+
+You may also find good tips and tricks by connecting with others interested who are also making 3D Comics in these Communities:
 https://www.facebook.com/groups/3dcomic/
 https://www.reddit.com/r/3DComic/
 
-or follow me on social media at:
+You can follow me on social media here:
 https://linktr.ee/spiraloid
 
-If you make something cool with this, send me a link at bay@spiraloid.net. 
+btw, If you make anything cool with this, send me a link!
 The world needs more 3D Comics.  
