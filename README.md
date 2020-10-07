@@ -46,3 +46,9 @@ https://linktr.ee/spiraloid
 
 btw, If you make anything cool with this, send me a link!
 The world needs more 3D Comics.  
+
+-bay
+
+ps: if you wanna toss a  coin in my busker hat, grab a t-shirt or buy the pro version:
+https://gumroad.com/l/3dcomictoolkit
+https://www.amazon.com/dp/B08J2455QL
