@@ -342,7 +342,7 @@ def validate_naming():
         current_panel_width = xxx_stringFragments[1]
         # panelSceneName = 'p.'+ str(paddedSceneNumber) + ".w100h100"
         panelSceneName = 'p.'+ str(paddedSceneNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
-        # bpy.data.scenes[currSceneIndex].name = panelSceneName
+        bpy.data.scenes[currSceneIndex].name = panelSceneName
         # renameAllScenesAfter()
 
         scene_collections = bpy.data.scenes[currSceneIndex].collection.children
@@ -1020,6 +1020,8 @@ def outline(mesh_objects, mode):
                     ink_thick_mod = mesh_object.modifiers.new(name = 'InkThickness', type = 'VERTEX_WEIGHT_EDIT')
                     ink_thick_mod.vertex_group = ink_thickness_vgroup.name
                     ink_thick_mod.default_weight = 0
+                    ink_thick_mod.use_add = True
+
                     ink_thick_mod.normalize = False
                     ink_thick_mod.falloff_type = 'STEP'
                     ink_thick_mod.invert_falloff = True
@@ -1030,8 +1032,8 @@ def outline(mesh_objects, mode):
 
                     white_outline_mod = mesh_object.modifiers.new(name = 'WhiteOutline', type = 'SOLIDIFY')
                     white_outline_mod.use_flip_normals = True
-                    white_outline_mod.thickness = ink_thickness / 2.5
-                    white_outline_mod.offset = 0
+                    white_outline_mod.thickness = ink_thickness / 3
+                    white_outline_mod.offset = -1
                     white_outline_mod.material_offset = 2
                     white_outline_mod.vertex_group = ink_thickness_vgroup.name
                     white_outline_mod.show_in_editmode = False
@@ -1409,7 +1411,16 @@ def prep_letters_export(self, context, scene):
                                                 context['region'] = region
                                                 break
                                         break
-                                bpy.ops.gpencil.convert(context, type='CURVE', use_normalize_weights=True, radius_multiplier=1.0, use_link_strokes=False, timing_mode='NONE', frame_range=100, start_frame=1, use_realtime=False, end_frame=250, gap_duration=0.0, gap_randomness=0.0, seed=0, use_timing_data=False)
+                                # bpy.ops.gpencil.convert(context, type='CURVE', use_normalize_weights=True, radius_multiplier=1.0, use_link_strokes=False, timing_mode='NONE', frame_range=100, start_frame=1, use_realtime=False, end_frame=250, gap_duration=0.0, gap_randomness=0.0, seed=0, use_timing_data=False)
+                                bpy.ops.gpencil.convert(context, type='CURVE', bevel_depth=0.05, bevel_resolution=3, use_normalize_weights=False, radius_multiplier=0.1, use_link_strokes=False, start_frame=startFrame, end_frame=endFrame, use_timing_data=False)
+
+                                # C=bpy.context
+                                # old_area_type = C.area.type
+                                # C.area.type='VIEW_3D'
+                                # bpy.ops.gpencil.convert(context, type='CURVE', bevel_depth=0.0, bevel_resolution=0, use_normalize_weights=True, radius_multiplier=1.0, use_link_strokes=False, timing_mode='FULL', frame_range=100, start_frame=1, use_realtime=False, end_frame=250, gap_duration=0.0, gap_randomness=0.0, seed=0, use_timing_data=False)
+                                # C.area.type=old_area_type
+                                
+
                                 selected_objects = bpy.context.selected_objects
                                 gp_mesh = selected_objects[1]
                                 bpy.ops.object.select_all(action='DESELECT')
@@ -1827,6 +1838,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         panels = []
         if export_only_current:
             panels.append(bpy.data.scenes[currSceneIndex])
+        
         for scene in bpy.data.scenes:
             if not export_only_current:
                 if "p." in scene.name:
@@ -2301,6 +2313,16 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'\n')  
             bat_file.write('python -m  http.server ' +'\n')
             bat_file.close()
+        else:
+            js_file = open(js_file_path, "w")
+            js_file.write('var files = [' +'\n')
+            for panel_scene in bpy.data.scenes:
+                if "p." in panel_scene.name:
+                    js_file.write('      "./panels/' + panel_scene.name + '.${lan}.glb",' +'\n')  
+            js_file.write('      "./panels/black.w100h25.glb",' +'\n')  
+            js_file.write('];' +'\n')
+            js_file.close()
+
 
 
 
@@ -2367,7 +2389,7 @@ class BR_OT_new_3d_comic(bpy.types.Operator):
         layout.prop(new_3d_comic_settings, "title")
         layout.prop(new_3d_comic_settings, "author")
         layout.prop(new_3d_comic_settings, "url")
-        layout.prop(new_3d_comic_settings, "start_panel_count")
+        # layout.prop(new_3d_comic_settings, "start_panel_count")
         layout.separator()
 
     def execute(self, context):
@@ -2679,7 +2701,7 @@ def insert_comic_panel(self, context):
 
 
 class NewPanelRowSettings(bpy.types.PropertyGroup):
-    new_panel_count : bpy.props.IntProperty(name="panel count:",  description="number of side-by-side panels to insert in new row", min=1, max=4, default=1 )
+    new_panel_count : bpy.props.IntProperty(name="number of new panels:",  description="number of side-by-side panels to insert in new row", min=1, max=4, default=1 )
 
 
 class BR_OT_new_panel_row(bpy.types.Operator):
@@ -4566,7 +4588,7 @@ class BuildComicSettings(bpy.types.PropertyGroup):
     # )
 
 class BR_MT_export_3d_comic_all(bpy.types.Operator):
-    """Export all 3D Comic panels and start a local server.  Existing panels will be overwritten"""
+    """Print to Audience.  Export all 3D Comic panels and start a local server.  Existing panels will be overwritten"""
     bl_idname = "view3d.spiraloid_export_3d_comic_all"
     bl_label ="Export 3D Comic"
     bl_options = {'REGISTER', 'UNDO'}
@@ -4624,7 +4646,7 @@ class BR_MT_export_3d_comic_all(bpy.types.Operator):
 class BR_MT_export_3d_comic_current(bpy.types.Operator):
     """Export current 3D Comic panel scene and start a local server.  Existing panel will be overwritten"""
     bl_idname = "view3d.spiraloid_export_3d_comic_current"
-    bl_label ="Export Current Panel"
+    bl_label ="Export Current 3D Comic Panel"
     bl_options = {'REGISTER', 'UNDO'}
     # config: bpy.props.PointerProperty(type=BuildComicSettings)
 
@@ -6257,7 +6279,7 @@ class BR_OT_toggle_child_lock(bpy.types.Operator):
         #     self.report({'INFO'}, 'Bone Rotations Unlocked!')
         obj = bpy.context.object
         selected_bones = bpy.context.selected_pose_bones
-        
+        isSymmetryActive = bpy.context.selected_objects[0].pose.use_mirror_x
         # if obj is not None :
         #     if obj.type == 'ARMATURE':
         #         bpy.ops.pose.select_all(action='DESELECT')
@@ -6363,8 +6385,9 @@ class OBJECT_OT_add_inkbot_shuffle(Operator, AddObjectHelper):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-
+        objects = bpy.context.selected_objects
+        if objects:
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         load_resource(self, context, "inkbot.000.blend", True)
 
         # aim at viewport camera.
@@ -6407,6 +6430,9 @@ class OBJECT_OT_add_inksplat(Operator, AddObjectHelper):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        objects = bpy.context.selected_objects
+        if objects:
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         load_resource(self, context, "inksplat.blend", False)
         return {'FINISHED'}
 
@@ -6416,6 +6442,9 @@ class OBJECT_OT_add_ground(Operator, AddObjectHelper):
     bl_label = "Ground"
     bl_options = {'REGISTER', 'UNDO'}
     def execute(self, context):
+        objects = bpy.context.selected_objects
+        if objects:
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         load_resource(self, context, "ground_disc.blend", False)
         return {'FINISHED'}
 
@@ -6425,6 +6454,9 @@ class OBJECT_OT_add_ground_rocks(Operator, AddObjectHelper):
     bl_label = "Ground Rocks"
     bl_options = {'REGISTER', 'UNDO'}
     def execute(self, context):
+        objects = bpy.context.selected_objects
+        if objects:
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         load_resource(self, context, "ground_rocks.blend", False)
         return {'FINISHED'}
        
