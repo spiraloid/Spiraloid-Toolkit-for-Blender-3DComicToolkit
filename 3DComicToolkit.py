@@ -2044,6 +2044,12 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                         print('>>>>> Mesh: ' + mesh.name)
                         for mod in [m for m in mesh.modifiers]:
                             mod.show_viewport = True
+                            try:
+                                drivers_data = mesh.animation_data.drivers
+                                for dr in drivers_data:  
+                                    mesh.driver_remove(dr.data_path, -1)
+                            except:
+                                pass
                             bpy.ops.object.modifier_apply(modifier=mod.name)     
 
 
