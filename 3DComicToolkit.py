@@ -1047,15 +1047,28 @@ def outline(mesh_objects, mode):
                     white_outline_mod.vertex_group = ink_thickness_vgroup.name
                     white_outline_mod.show_in_editmode = False
                     white_outline_mod.thickness_clamp = 0.5
+                    white_outline_mod.thickness_vertex_group = 0.5
 
                     black_outline_mod = mesh_object.modifiers.new(name = 'BlackOutline', type = 'SOLIDIFY')
                     black_outline_mod.use_flip_normals = True
-                    black_outline_mod.thickness = ink_thickness 
+                    # black_outline_mod.thickness = ink_thickness 
+
+                    thicknessDriver = black_outline_mod.driver_add('thickness')
+                    thicknessDriver.driver.type = 'SCRIPTED'
+                    newVar = thicknessDriver.driver.variables.new()
+                    newVar.name = "thickness"
+                    newVar.type = 'SINGLE_PROP'
+                    newVar.targets[0].id = mesh_object 
+                    newVar.targets[0].data_path = 'modifiers["WhiteOutline"].thickness'
+                    thicknessDriver.driver.expression =  "thickness * 3"
+
+
                     black_outline_mod.offset = -1
                     black_outline_mod.material_offset = 1
                     black_outline_mod.vertex_group = ink_thickness_vgroup.name
                     black_outline_mod.show_in_editmode = False
                     black_outline_mod.thickness_clamp = 0
+                    black_outline_mod.thickness_vertex_group = 0.2
 
                     decimators = []
                     for i in range(len(mesh_object.modifiers)):
@@ -4165,7 +4178,7 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
         keylight.data.color = (1, 1, 1)
         keylight.data.use_contact_shadow = False
         keylight.data.shadow_buffer_clip_start = 2
-        keylight.data.spot_size = 3.14159
+        keylight.data.spot_size =  2.26893
         keylight.data.shadow_soft_size = 0
         keylight.data.shadow_buffer_bias = 0.001
         keylight.data.use_custom_distance = True
