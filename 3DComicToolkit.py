@@ -120,6 +120,7 @@ def getCurrentLettersCollection():
     letters_collection_name = "Letters." + paddedNumString
     letters_collection = bpy.data.collections.get(letters_collection_name)
     if letters_collection:
+        bpy.context.view_layer.layer_collection.children[letters_collection_name].exclude = False
         return letters_collection
     # else:
     #     report({'ERROR'}, 'No Export Collection named ' + export_collection_name + 'found in ' + currScene.name + '!')
@@ -146,6 +147,8 @@ def get_all_children(parent_object):
 
 
 def getCurrentLetterGroup():
+    #make sure letter collection is active
+    getCurrentLettersCollection()
     language = bpy.context.scene.comic_settings.language
     numString = getCurrentPanelNumber()
     paddedNumString = "%04d" % numString
@@ -539,10 +542,16 @@ def automap(mesh_objects, decimate_ratio):
             mesh_object.select_set(state=True)
             bpy.context.view_layer.objects.active = mesh_object
 
-        bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-        bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.uv.pack_islands(margin=0.017)
-        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+            bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+            bpy.ops.mesh.select_all(action='SELECT')
+            for area in bpy.context.screen.areas:
+                    if area.type == 'VIEW_3D':
+                        for region in area.regions:
+                            if region.type == 'WINDOW':
+                                override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
+                                bpy.ops.uv.pack_islands(override , margin=0.017)
+
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
         # raise Exception('stopping script')
 
@@ -1747,7 +1756,8 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
 
     else:
-
+        #make sure letter collection is active
+        getCurrentLettersCollection()
 
         # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         startFrame = 1
@@ -3330,6 +3340,9 @@ class BR_OT_add_letter_sfx(bpy.types.Operator):
 
     def execute(self, context):
         export_collection = getCurrentExportCollection()
+        letters_collection = getCurrentLettersCollection()
+        objects = bpy.context.selected_objects
+
         active_camera = bpy.context.scene.camera
         if active_camera is not None :
             active_camera_name = active_camera.name
@@ -3340,34 +3353,40 @@ class BR_OT_add_letter_sfx(bpy.types.Operator):
         # load_resource("letter_wordballoon.blend")
         # load_resource("letter_caption.blend")
         load_resource(self, context, "letter_sfx.blend", False)
+        imported_objects = bpy.context.selected_objects
 
-        objects = bpy.context.selected_objects
-        if objects is not None :
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        letter = objects[0]
-        letter_group = getCurrentLetterGroup()
+        if not letters_collection:
+            self.report({'WARNING'}, "Export Collection " + letters_collection.name + "was not found in scene, skipping export of" + scene.name)
+        else:
+            if imported_objects:
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+                letter = imported_objects[0]
+                letter_group = getCurrentLetterGroup()
+                for obj in imported_objects:
+                    bpy.context.collection.objects.unlink(obj) 
+                    letters_collection.objects.link(obj)
 
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        letter_group.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter_group
-        # bpy.ops.object.parent_set()
-        bpy.ops.object.parent_no_inverse_set()
+                bpy.ops.object.select_all(action='DESELECT')
+                letter.select_set(state=True)
+                letter_group.select_set(state=True)
+                bpy.context.view_layer.objects.active = letter_group
+                # bpy.ops.object.parent_set()
+                bpy.ops.object.parent_no_inverse_set()
 
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
-        bpy.ops.object.origin_clear()
+                bpy.ops.object.select_all(action='DESELECT')
+                letter.select_set(state=True)
+                bpy.context.view_layer.objects.active = letter
+                bpy.ops.object.origin_clear()
 
-        camera_position = active_camera.matrix_world.to_translation()
+                camera_position = active_camera.matrix_world.to_translation()
 
-        for obj in objects:
-            bpy.context.collection.objects.unlink(obj) 
-            export_collection.objects.link(obj)
 
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
+
+
+
+            bpy.ops.object.select_all(action='DESELECT')
+            letter.select_set(state=True)
+            bpy.context.view_layer.objects.active = letter
 
         return {'FINISHED'}
 
@@ -4807,18 +4826,18 @@ class BakePanelSettings(bpy.types.PropertyGroup):
     bake_distance : bpy.props.FloatProperty(name="Bake Distance Scale",  description="raycast is largest dimension * this value ", min=0, max=3, default=0.02 )
     bake_to_unlit : bpy.props.BoolProperty(name="Bake Lighting", description="Bake Collection to new mesh with lightmap texture and unlit shader", default=True)
     # bake_to_pbr : bpy.props.BoolProperty(name="Bake PBR", description="Bake Collection to new mesh with a Principled BSDF shader", default=False)
-    bake_albedo : bpy.props.BoolProperty(name="Bake Albedo", description="Bake Collection to mesh with Albedo Texture", default=True)
-    bake_normal : bpy.props.BoolProperty(name="Bake Normal", description="Bake Collection to mesh with Normal Texture", default=True)
-    bake_metallic : bpy.props.BoolProperty(name="Bake Metallic*", description="Bake Collection to mesh with Metallic Texture", default=True)
-    bake_roughness : bpy.props.BoolProperty(name="Bake Roughness", description="Bake Collection to mesh with Roughness Texture", default=True)
+    bake_albedo : bpy.props.BoolProperty(name="Bake Albedo", description="Bake Collection to mesh with Albedo Texture", default=False)
+    bake_normal : bpy.props.BoolProperty(name="Bake Normal", description="Bake Collection to mesh with Normal Texture", default=False)
+    bake_metallic : bpy.props.BoolProperty(name="Bake Metallic*", description="Bake Collection to mesh with Metallic Texture", default=False)
+    bake_roughness : bpy.props.BoolProperty(name="Bake Roughness", description="Bake Collection to mesh with Roughness Texture", default=False)
     bake_emission : bpy.props.BoolProperty(name="Bake Emission*", description="Bake Collection to mesh with Emission Texture", default=False)
     bake_opacity : bpy.props.BoolProperty(name="Bake Transparency*", description="Bake Collection to mesh with Opacity Texture", default=False)
     bake_ao : bpy.props.BoolProperty(name="Bake AO", description="Bake Collection to mesh with Ambient Occlusion Texture", default=False)
     bake_ao_LoFi : bpy.props.BoolProperty(name="Use Output Mesh", description="Use target for Ambient Occlusion, otherwise use source meshes (slower).", default=True)
-    bake_ao_applied : bpy.props.BoolProperty(name="Apply", description="Composite Ambient Occlusion into Albedo Texture", default=True)
-    bake_curvature : bpy.props.BoolProperty(name="Curvature*", description="Bake Collection to mesh with Curvature Texture", default=True)
-    bake_curvature_applied : bpy.props.BoolProperty(name="Apply", description="Bake Curvature into Albedo Texture", default=True)
-    bake_cavity : bpy.props.BoolProperty(name="Cavity*", description="Bake Collection to mesh with Cavity Texture", default=True)
+    bake_ao_applied : bpy.props.BoolProperty(name="Apply", description="Composite Ambient Occlusion into Albedo Texture", default=False)
+    bake_curvature : bpy.props.BoolProperty(name="Curvature*", description="Bake Collection to mesh with Curvature Texture", default=False)
+    bake_curvature_applied : bpy.props.BoolProperty(name="Apply", description="Bake Curvature into Albedo Texture", default=False)
+    bake_cavity : bpy.props.BoolProperty(name="Cavity*", description="Bake Collection to mesh with Cavity Texture", default=False)
     bake_cavity_applied : bpy.props.BoolProperty(name="Apply", description="Bake Cavity into Albedo Texture", default=True)
     bake_w_decimate : bpy.props.BoolProperty(name="Decimate", description="Bake and Emission Textures", default=True)
     bake_w_decimate_ratio : bpy.props.FloatProperty(name="Decimate Ratio",  description="Amount to decimate target mesh", min=0, max=1, default=0.5 )
@@ -4914,7 +4933,10 @@ class BR_OT_bake_panel(bpy.types.Operator):
             bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
             scene_name = bpy.context.window.scene.name
             currSceneIndex = getCurrentSceneIndex()
-            export_collection_name = "Export"
+            # export_collection_name = "Export"
+            export_collection = getCurrentExportCollection()
+            export_collection_name = export_collection.name
+
             panel_number = "0000"
             panels = []
 
@@ -6446,6 +6468,19 @@ class OBJECT_OT_add_ground(Operator, AddObjectHelper):
         if objects:
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         load_resource(self, context, "ground_disc.blend", False)
+
+        export_collection = getCurrentExportCollection()
+        imported_objects = bpy.context.selected_objects
+        if not export_collection:
+            self.report({'WARNING'}, "Export Collection " + export_collection.name + "was not found in scene, skipping export of" + scene.name)
+        else:
+            for obj in imported_objects:
+                bpy.context.collection.objects.unlink(obj) 
+                export_collection.objects.link(obj)
+
+
+
+        
         return {'FINISHED'}
 
 class OBJECT_OT_add_ground_rocks(Operator, AddObjectHelper):
