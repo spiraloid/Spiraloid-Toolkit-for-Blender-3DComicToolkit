@@ -1278,7 +1278,7 @@ def outline(mesh_objects, mode):
 
     for mesh_object in mesh_objects:
         is_toon_shaded = mesh_object.get("is_toon_shaded")
-        if mesh_object.type == 'MESH':
+        if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' :
             if not is_toon_shaded:
                 is_insensitive = False
 
@@ -1302,50 +1302,55 @@ def outline(mesh_objects, mode):
                     mesh_object.select_set(state=True)
                     bpy.context.view_layer.objects.active = mesh_object
                     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-                    bpy.ops.mesh.select_all(action='SELECT')
-                    ink_thickness_vgroup_name = "Ink_Thickness"
-                    mesh_object.vertex_groups.new(name = ink_thickness_vgroup_name)
-                    ink_thickness_vgroup = mesh_object.vertex_groups[-1]
-                    bpy.ops.object.vertex_group_assign()
-                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+                    if mesh_object.type == 'MESH':
+                        bpy.ops.mesh.select_all(action='SELECT')
+                    # if mesh_object.type == 'CURVE':
+                    #     bpy.ops.curve.select_all(action='TOGGLE')
 
-                    bpy.ops.object.select_all(action='DESELECT')
-                    mesh_object.select_set(state=True)
-                    bpy.context.view_layer.objects.active = mesh_object
+                        ink_thickness_vgroup_name = "Ink_Thickness"
+                        mesh_object.vertex_groups.new(name = ink_thickness_vgroup_name)
+                        ink_thickness_vgroup = mesh_object.vertex_groups[-1]
+                        bpy.ops.object.vertex_group_assign()
 
+                        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
-
-
-                    ink_thick_tex_name = "InkThickness"
-                    ink_thick_tex_slot = bpy.data.textures.new(ink_thick_tex_name, type='CLOUDS')
-                    ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
-                    ink_thick_tex.noise_type = 'SOFT_NOISE'
-                    # ink_thick_tex.noise_scale = 0.15
-                    ink_thick_tex.noise_scale = 0.3
-                    ink_thick_tex.noise_depth = 0
-                    ink_thick_tex.nabla = 0.001
-                    ink_thick_tex.intensity = 0.99
+                        bpy.ops.object.select_all(action='DESELECT')
+                        mesh_object.select_set(state=True)
+                        bpy.context.view_layer.objects.active = mesh_object
 
 
-                    ink_thick_mod = mesh_object.modifiers.new(name = 'InkThickness', type = 'VERTEX_WEIGHT_EDIT')
-                    ink_thick_mod.vertex_group = ink_thickness_vgroup.name
-                    ink_thick_mod.default_weight = 0
-                    ink_thick_mod.use_add = True
 
-                    ink_thick_mod.normalize = False
-                    ink_thick_mod.falloff_type = 'STEP'
-                    ink_thick_mod.invert_falloff = True
-                    ink_thick_mod.mask_constant = 1
-                    ink_thick_mod.mask_texture = ink_thick_tex
-                    ink_thick_mod.mask_tex_use_channel = 'INT'
-                    ink_thick_mod.mask_tex_mapping = 'LOCAL'
+                        ink_thick_tex_name = "InkThickness"
+                        ink_thick_tex_slot = bpy.data.textures.new(ink_thick_tex_name, type='CLOUDS')
+                        ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
+                        ink_thick_tex.noise_type = 'SOFT_NOISE'
+                        # ink_thick_tex.noise_scale = 0.15
+                        ink_thick_tex.noise_scale = 0.3
+                        ink_thick_tex.noise_depth = 0
+                        ink_thick_tex.nabla = 0.001
+                        ink_thick_tex.intensity = 0.99
+
+
+                        ink_thick_mod = mesh_object.modifiers.new(name = 'InkThickness', type = 'VERTEX_WEIGHT_EDIT')
+                        ink_thick_mod.vertex_group = ink_thickness_vgroup.name
+                        ink_thick_mod.default_weight = 0
+                        ink_thick_mod.use_add = True
+
+                        ink_thick_mod.normalize = False
+                        ink_thick_mod.falloff_type = 'STEP'
+                        ink_thick_mod.invert_falloff = True
+                        ink_thick_mod.mask_constant = 1
+                        ink_thick_mod.mask_texture = ink_thick_tex
+                        ink_thick_mod.mask_tex_use_channel = 'INT'
+                        ink_thick_mod.mask_tex_mapping = 'LOCAL'
 
                     white_outline_mod = mesh_object.modifiers.new(name = 'WhiteOutline', type = 'SOLIDIFY')
                     white_outline_mod.use_flip_normals = True
                     white_outline_mod.thickness = ink_thickness / 3
                     white_outline_mod.offset = -1
                     white_outline_mod.material_offset = 2
-                    white_outline_mod.vertex_group = ink_thickness_vgroup.name
+                    if mesh_object.type == 'MESH':
+                        white_outline_mod.vertex_group = ink_thickness_vgroup.name
                     white_outline_mod.show_in_editmode = False
                     white_outline_mod.thickness_clamp = 0.5
                     white_outline_mod.thickness_vertex_group = 0.5
@@ -1366,7 +1371,8 @@ def outline(mesh_objects, mode):
 
                     black_outline_mod.offset = -1
                     black_outline_mod.material_offset = 1
-                    black_outline_mod.vertex_group = ink_thickness_vgroup.name
+                    if mesh_object.type == 'MESH':
+                        black_outline_mod.vertex_group = ink_thickness_vgroup.name
                     black_outline_mod.show_in_editmode = False
                     black_outline_mod.thickness_clamp = 0
                     black_outline_mod.thickness_vertex_group = 0.2
@@ -1406,8 +1412,9 @@ def outline(mesh_objects, mode):
 
 
                     if mesh_object.active_material is None:
-                        if mesh_object.data.vertex_colors:
-                            hasVertexColor = True
+                        if mesh_object.type == 'MESH':
+                            if mesh_object.data.vertex_colors:
+                                hasVertexColor = True
 
                         assetName = mesh_object.name
                         matName = (assetName + "Mat")
@@ -1547,7 +1554,7 @@ def outline(mesh_objects, mode):
 
 
                 # raise Exception('stopping script')
-
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     return {'FINISHED'} 
 
 def empty_trash(self, context):
@@ -4610,12 +4617,13 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
 
         visible_objects = []
         for obj in bpy.context.view_layer.objects:
-            if obj.visible_get and  obj.type == 'MESH':
-                if not "ground" in obj.name: 
-                    visible_objects.append(obj)
-                else:
-                    tmp_array = [obj]
-                    outline(tmp_array, "toon")
+            if obj.visible_get: 
+                if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' :
+                    if not "ground" in obj.name: 
+                        visible_objects.append(obj)
+                    else:
+                        tmp_array = [obj]
+                        outline(tmp_array, "toon")
         outline(visible_objects, "toon_ink")
 
         # shader_to_rgb_A = mat_world.node_tree.nodes.new(type='ShaderNodeShaderToRGB')
@@ -4712,7 +4720,7 @@ class BR_OT_add_blackout(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         selected_objects = bpy.context.selected_objects
         for mesh_object in selected_objects:
-            if mesh_object.type == 'MESH':
+            if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' :
                 try:
                     del mesh_object["is_toon_shaded"]
                 except:
@@ -4780,7 +4788,7 @@ class BR_OT_add_whiteout(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         selected_objects = bpy.context.selected_objects
         for mesh_object in selected_objects:
-            if mesh_object.type == 'MESH':
+            if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' :
                 hasVertexColor = False
 
                 try:
@@ -4807,8 +4815,9 @@ class BR_OT_add_whiteout(bpy.types.Operator):
                         bpy.ops.object.material_slot_remove({'object': mesh_object})
 
                 if mesh_object.active_material is None:
-                    if mesh_object.data.vertex_colors:
-                        hasVertexColor = True
+                    if mesh_object.type == 'MESH':
+                        if mesh_object.data.vertex_colors:
+                            hasVertexColor = True
                     assetName = mesh_object.name
                     matName = (assetName + "Mat")
                     mat = bpy.data.materials.new(name=matName)
