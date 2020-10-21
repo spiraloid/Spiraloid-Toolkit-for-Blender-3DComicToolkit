@@ -58,7 +58,7 @@ last_applied_pose_index = 0
 isChildLock = False
 previous_sky_color_index = 0
 previous_random_int = 0 
-isToggleSubd = True
+isWorkmodeToggled = True
 isWireframe = False
 previous_mode = 'EDIT'
 previous_selection = ""
@@ -478,48 +478,204 @@ def validate_naming():
                 #     ob.name = 'Letters_french.'+ str(paddedSceneNumber)
 
 
-
-def toggle_workmode(self, context):
-    global isToggleSubd
+def toggle_workmode(self, context, rendermode):
+    global isWorkmodeToggled
+    global currentSubdLevel
     global previous_mode
     global previous_selection
     global isWireframe
+
+    if rendermode:
+        isWorkmodeToggled = True        
+
+    if bpy.context.mode == 'OBJECT':
+        previous_mode =  'OBJECT'
+    if bpy.context.mode == 'EDIT_MESH':
+        previous_mode =  'EDIT'
+        bpy.context.space_data.overlay.show_overlays = False
+    if bpy.context.mode == 'POSE':
+        previous_mode =  'POSE'
+        bpy.context.space_data.overlay.show_bones = True
+    if bpy.context.mode == 'SCULPT':
+        previous_mode =  'SCULPT'
+    if bpy.context.mode == 'PAINT_VERTEX':
+        previous_mode =  'VERTEX_PAINT'
+    if bpy.context.mode == 'WEIGHT_PAINT':
+        previous_mode =  'WEIGHT_PAINT'
+    if bpy.context.mode == 'TEXTURE_PAINT':
+        previous_mode =  'TEXTURE_PAINT'
+
     my_areas = bpy.context.workspace.screens[0].areas
-    my_shading = 'WIREFRAME'  # 'WIREFRAME' 'SOLID' 'MATERIAL' 'RENDERED'
-    
+    for area in my_areas:
+        for space in area.spaces:
+            if space.type == 'VIEW_3D':
+                my_shading = 'WIREFRAME'  # 'WIREFRAME' 'SOLID' 'MATERIAL' 'RENDERED'
+                space.overlay.show_overlays = True
+                space.overlay.show_floor = True
+                space.overlay.show_axis_x = True
+                space.overlay.show_axis_y = True
+                space.overlay.show_outline_selected = True
+                space.overlay.show_cursor = True
+                space.overlay.show_extras = True
+                space.overlay.show_relationship_lines = True
+                space.overlay.show_bones = True
+                space.overlay.show_motion_paths = True
+                space.overlay.show_object_origins = True
+                space.overlay.show_annotation = True
+                space.overlay.show_text = True
+                space.overlay.show_stats = True
 
-    # context = bpy.context.copy()
-    # for area in bpy.context.screen.areas:
-    #     if area.type == 'VIEW_3D':
-    #         for region in area.regions:
-    #             if region.type == 'WINDOW':
-    #                 context['area'] = area
-    #                 context['region'] = region
-    #                 break
-    #         break
+
+                if isWorkmodeToggled:
+                    previous_selection = bpy.context.selected_objects
+
+                    space.overlay.show_overlays = True
+                    space.overlay.show_floor = False
+                    space.overlay.show_axis_x = False
+                    space.overlay.show_axis_y = False
+                    space.overlay.show_cursor = False
+                    space.overlay.show_relationship_lines = False
+                    space.overlay.show_bones = False
+                    space.overlay.show_motion_paths = False
+                    space.overlay.show_object_origins = False
+                    space.overlay.show_annotation = False
+                    space.overlay.show_text = False
+                    space.overlay.show_text = False
+                    space.overlay.show_outline_selected = False
+                    space.overlay.show_extras = False
+                    space.show_gizmo = False
+                    space.overlay.show_text = True
 
 
-    # for area in bpy.context.screen.areas:
-    # if area.type == 'VIEW_3D':
-    #     override = bpy.context.copy()
-    #     override['area'] = area
-    #     # bpy.ops.image.view_all(override, fit_view=False)
-    #     break
+                    selected_objects = bpy.context.selected_objects
+                    if not selected_objects:
+                        space.overlay.show_outline_selected = True
 
-    bpy.context.space_data.overlay.show_overlays = True
-    bpy.context.space_data.overlay.show_floor = True
-    bpy.context.space_data.overlay.show_axis_x = True
-    bpy.context.space_data.overlay.show_axis_y = True
-    bpy.context.space_data.overlay.show_outline_selected = True
-    bpy.context.space_data.overlay.show_cursor = True
-    bpy.context.space_data.overlay.show_extras = True
-    bpy.context.space_data.overlay.show_relationship_lines = True
-    bpy.context.space_data.overlay.show_bones = True
-    bpy.context.space_data.overlay.show_motion_paths = True
-    bpy.context.space_data.overlay.show_object_origins = True
-    bpy.context.space_data.overlay.show_annotation = True
-    bpy.context.space_data.overlay.show_text = True
-    bpy.context.space_data.overlay.show_text = True
+
+                    space.overlay.wireframe_threshold = 1
+                    if space.overlay.show_wireframes:
+                        isWireframe = True
+                        space.overlay.show_outline_selected = True
+                        space.overlay.show_extras = True
+                        # bpy.context.space_data.overlay.show_cursor = True
+                    else:
+                        isWireframe = False
+                        # bpy.context.space_data.overlay.show_outline_selected = False
+                        # bpy.context.space_data.overlay.show_extras = False
+
+                    # bpy.context.space_data.overlay.show_wireframes = False
+
+                    if bpy.context.scene.render.engine == 'BLENDER_EEVEE':
+                        # bpy.context.scene.eevee.use_bloom = True
+                        # bpy.context.scene.eevee.use_ssr = True
+                        my_shading =  'MATERIAL'
+
+                        lights = [o for o in bpy.context.scene.objects if o.type == 'LIGHT']
+                        if (lights):
+                            space.shading.use_scene_lights = True
+                            space.shading.use_scene_world = True
+                        else:
+                            space.shading.use_scene_lights = True
+                            space.shading.use_scene_world = False
+
+                        if bpy.context.scene.world:
+                            space.shading.use_scene_world = True
+                        else:
+                            space.shading.use_scene_world = False
+
+
+                    if bpy.context.scene.render.engine == 'CYCLES':
+                        my_shading =  'RENDERED'
+                        lights = [o for o in bpy.context.scene.objects if o.type == 'LIGHT']
+                        # if (lights):
+                        #     bpy.context.space_data.shading.use_scene_lights_render = True
+                        # else:
+                        #     bpy.context.space_data.shading.use_scene_lights = False
+                        #     bpy.context.space_data.shading.studiolight_intensity = 1
+
+
+                        if bpy.context.scene.world is None:
+                            if (lights):
+                                space.shading.use_scene_world_render = False
+                                space.shading.studiolight_intensity = 0.01
+                            else:
+                                space.shading.use_scene_world_render = False
+                                space.shading.studiolight_intensity = 1
+                        else:
+                            space.shading.use_scene_world_render = True
+                            if (lights):
+                                space.shading.use_scene_lights_render = True
+                else:
+                    space.overlay.show_overlays = True
+                    space.overlay.show_cursor = True
+                    space.overlay.show_floor = True
+                    space.overlay.show_axis_x = True
+                    space.overlay.show_axis_y = True
+                    space.overlay.show_extras = True
+                    space.overlay.show_relationship_lines = False
+                    space.overlay.show_bones = True
+                    space.overlay.show_motion_paths = True
+                    space.overlay.show_object_origins = True
+                    space.overlay.show_annotation = True
+                    space.overlay.show_text = True
+                    space.overlay.show_stats = True
+                    space.overlay.wireframe_threshold = 1
+                    space.show_gizmo = True
+
+   
+
+                    if previous_mode == 'EDIT':
+                        if not len(bpy.context.selected_objects):
+                            bpy.ops.object.editmode_toggle()
+                        # else:
+                        #     for ob in previous_selection :
+                        #         # if ob.type == 'MESH' : 
+                        #         ob.select_set(state=True)
+                        #         bpy.context.view_layer.objects.active = ob
+                        #     bpy.ops.object.editmode_toggle()
+
+
+
+                    if previous_mode == 'VERTEX_PAINT':
+                        my_shading = 'SOLID'
+                        space.shading.light = 'FLAT'
+
+
+                    if previous_mode == 'SCULPT':
+                        my_shading =  'SOLID'
+                        space.shading.color_type = 'MATERIAL'
+                        space.overlay.show_floor = False
+                        space.overlay.show_axis_x = False
+                        space.overlay.show_axis_y = False
+                        space.overlay.show_cursor = False
+                        space.overlay.show_relationship_lines = False
+                        space.overlay.show_bones = False
+                        space.overlay.show_motion_paths = False
+                        space.overlay.show_object_origins = False
+                        space.overlay.show_annotation = False
+                        space.overlay.show_text = False
+                        space.overlay.show_text = False
+                        space.overlay.show_outline_selected = False
+                        space.overlay.show_extras = False
+                        space.overlay.show_overlays = True
+                        space.show_gizmo = False
+
+                    if previous_mode == 'EDIT' or previous_mode == 'OBJECT' or previous_mode == 'POSE':
+                        my_shading = 'SOLID'
+                        # for ob in bpy.context.scene.objects:
+                        #     if ob.type == 'MESH':
+                        #         if ob.data.vertex_colors:
+                        #             bpy.context.space_data.shading.color_type = 'VERTEX'
+                        #         else:
+                        #             bpy.context.space_data.shading.color_type = 'RANDOM'
+
+
+                    if isWireframe:
+                        space.overlay.show_wireframes = True
+                    else:
+                        space.overlay.show_wireframes = False
+                    space.shading.color_type = 'RANDOM'
+
 
 
     for obj in bpy.context.scene.objects:
@@ -528,11 +684,11 @@ def toggle_workmode(self, context):
             
             # for mod in [m for m in obj.modifiers if m.type == 'MULTIRES']:
             #     mod_max_level = mod.render_levels
-            #     if isToggleSubd:
+            #     if isWorkmodeToggled:
             #         currentSubdLevel = mod.levels
             #         mod.levels = mod_max_level
             #         mod.sculpt_levels = mod_max_level
-            #     if not isToggleSubd:
+            #     if not isWorkmodeToggled:
             #         mod.levels = currentSubdLevel
             #         mod.sculpt_levels = currentSubdLevel
             #         if currentSubdLevel != 0:
@@ -541,162 +697,26 @@ def toggle_workmode(self, context):
 
             # for mod in [m for m in obj.modifiers if m.type == 'SUBSURF']:
             #     mod_max_level = mod.render_levels
-            #     if isToggleSubd:
+            #     if isWorkmodeToggled:
             #         currentSubdLevel = mod.levels
             #         mod.levels = mod_max_level
-            #     if not isToggleSubd:
+            #     if not isWorkmodeToggled:
             #         mod.levels = currentSubdLevel
             #         if currentSubdLevel != 0:
             #             bpy.context.space_data.overlay.show_wireframes = False
-            is_toon_shaded = obj.get("is_toon_shaded")
-            if is_toon_shaded:
-                for mod in obj.modifiers:
-                    if 'InkThickness' in mod.name:
-                        obj.modifiers["InkThickness"].show_viewport = True
-                    if 'WhiteOutline' in mod.name:
-                        obj.modifiers["WhiteOutline"].show_viewport = True
-                    if 'BlackOutline' in mod.name:
-                        obj.modifiers["BlackOutline"].show_viewport = True
 
-            if isToggleSubd:
-                previous_selection = bpy.context.selected_objects
-
-                bpy.context.space_data.overlay.show_overlays = True
-                bpy.context.space_data.overlay.show_floor = False
-                bpy.context.space_data.overlay.show_axis_x = False
-                bpy.context.space_data.overlay.show_axis_y = False
-                bpy.context.space_data.overlay.show_cursor = False
-                bpy.context.space_data.overlay.show_relationship_lines = False
-                bpy.context.space_data.overlay.show_bones = False
-                bpy.context.space_data.overlay.show_motion_paths = False
-                bpy.context.space_data.overlay.show_object_origins = False
-                bpy.context.space_data.overlay.show_annotation = False
-                bpy.context.space_data.overlay.show_text = False
-                bpy.context.space_data.overlay.show_text = False
-                bpy.context.space_data.overlay.show_outline_selected = False
-                bpy.context.space_data.overlay.show_extras = False
-                bpy.context.space_data.show_gizmo = False
-
-                selected_objects = bpy.context.selected_objects
-                if not selected_objects:
-                    bpy.context.space_data.overlay.show_outline_selected = True
-
-
-                bpy.context.space_data.overlay.wireframe_threshold = 1
-                if bpy.context.space_data.overlay.show_wireframes:
-                    isWireframe = True
-                    bpy.context.space_data.overlay.show_outline_selected = True
-                    bpy.context.space_data.overlay.show_extras = True
-                    # bpy.context.space_data.overlay.show_cursor = True
-                else:
-                    isWireframe = False
-                    # bpy.context.space_data.overlay.show_outline_selected = False
-                    # bpy.context.space_data.overlay.show_extras = False
-
-                # bpy.context.space_data.overlay.show_wireframes = False
-
-                if bpy.context.scene.render.engine == 'BLENDER_EEVEE':
-                    # bpy.context.scene.eevee.use_gtao = True
-                    # bpy.context.scene.eevee.use_bloom = True
-                    # bpy.context.scene.eevee.use_ssr = True
-                    my_shading =  'MATERIAL'
-                    bpy.context.space_data.shading.use_scene_world_render = False
-
-                    lights = [o for o in bpy.context.scene.objects if o.type == 'LIGHT']
-                    if (lights):
-                        bpy.context.space_data.shading.use_scene_lights = True
-                        bpy.context.space_data.shading.use_scene_world = True
-                    else:
-                        bpy.context.space_data.shading.use_scene_lights = False
-                        bpy.context.space_data.shading.use_scene_world = False
-
-                    if bpy.context.scene.world:
-                        bpy.context.space_data.shading.use_scene_world = True
-
-
-
-
-
-                if bpy.context.scene.render.engine == 'CYCLES':
-                    my_shading =  'RENDERED'
-
-
-                    lights = [o for o in bpy.context.scene.objects if o.type == 'LIGHT']
-                    # if (lights):
-                    #     bpy.context.space_data.shading.use_scene_lights_render = True
-                    # else:
-                    #     bpy.context.space_data.shading.use_scene_lights = False
-                    #     bpy.context.space_data.shading.studiolight_intensity = 1
-
-
-                    if bpy.context.scene.world is None:
-                        if (lights):
-                            bpy.context.space_data.shading.use_scene_world_render = False
-                            bpy.context.space_data.shading.studiolight_intensity = 0.01
-                        else:
-                            bpy.context.space_data.shading.use_scene_world_render = False
-                            bpy.context.space_data.shading.studiolight_intensity = 1
-                    else:
-                        bpy.context.space_data.shading.use_scene_world_render = True
-                        if (lights):
-                            bpy.context.space_data.shading.use_scene_lights_render = True
-
-
-
-                if bpy.context.mode == 'OBJECT':
-                    previous_mode =  'OBJECT'
-                if bpy.context.mode == 'EDIT_MESH':
-                    previous_mode =  'EDIT'
-                    bpy.context.space_data.overlay.show_overlays = False
-                if bpy.context.mode == 'POSE':
-                    previous_mode =  'POSE'
-                    bpy.context.space_data.overlay.show_bones = True
-                if bpy.context.mode == 'SCULPT':
-                    previous_mode =  'SCULPT'
-                if bpy.context.mode == 'PAINT_VERTEX':
-                    previous_mode =  'VERTEX_PAINT'
-                if bpy.context.mode == 'WEIGHT_PAINT':
-                    previous_mode =  'WEIGHT_PAINT'
-                if bpy.context.mode == 'TEXTURE_PAINT':
-                    previous_mode =  'TEXTURE_PAINT'
-
-
-                # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-
-
-                
-            if not isToggleSubd:    
-                bpy.context.space_data.overlay.show_overlays = True
-                bpy.context.space_data.overlay.show_cursor = True
-                bpy.context.space_data.overlay.show_floor = True
-                bpy.context.space_data.overlay.show_axis_x = True
-                bpy.context.space_data.overlay.show_axis_y = True
-                bpy.context.space_data.overlay.show_extras = True
-                bpy.context.space_data.overlay.show_relationship_lines = True
-                bpy.context.space_data.overlay.show_bones = True
-                bpy.context.space_data.overlay.show_motion_paths = True
-                bpy.context.space_data.overlay.show_object_origins = True
-                bpy.context.space_data.overlay.show_annotation = True
-                bpy.context.space_data.overlay.show_text = True
-                bpy.context.space_data.overlay.show_text = True
-                bpy.context.space_data.overlay.wireframe_threshold = 1
-                bpy.context.space_data.show_gizmo = True
-
-                if isWireframe:
-                    bpy.context.space_data.overlay.show_wireframes = True
-                else:
-                    bpy.context.space_data.overlay.show_wireframes = False
-                bpy.context.space_data.shading.color_type = 'RANDOM'
-
-                if previous_mode == 'EDIT' or previous_mode == 'OBJECT' or previous_mode == 'POSE':
-                    my_shading = 'SOLID'
-                    for ob in bpy.context.scene.objects:
-                        if ob.type == 'MESH':
-                            if ob.data.vertex_colors:
-                                bpy.context.space_data.shading.color_type = 'VERTEX'
-                            else:
-                                bpy.context.space_data.shading.color_type = 'RANDOM'
-
+            scene = bpy.context.scene
+            if isWorkmodeToggled:
+                is_toon_shaded = obj.get("is_toon_shaded")
+                if is_toon_shaded:
+                    for mod in obj.modifiers:
+                        if 'InkThickness' in mod.name:
+                            obj.modifiers["InkThickness"].show_viewport = True
+                        if 'WhiteOutline' in mod.name:
+                            obj.modifiers["WhiteOutline"].show_viewport = True
+                        if 'BlackOutline' in mod.name:
+                            obj.modifiers["BlackOutline"].show_viewport = True
+            else:
                 is_toon_shaded = obj.get("is_toon_shaded")
                 if is_toon_shaded:
                     for mod in obj.modifiers:
@@ -706,72 +726,35 @@ def toggle_workmode(self, context):
                             obj.modifiers["WhiteOutline"].show_viewport = False
                         if 'BlackOutline' in mod.name:
                             obj.modifiers["BlackOutline"].show_viewport = False
-                        
-
-                if previous_mode == 'EDIT':
-                    if not len(bpy.context.selected_objects):
-                        bpy.ops.object.editmode_toggle()
-                    # else:
-                    #     for ob in previous_selection :
-                    #         # if ob.type == 'MESH' : 
-                    #         ob.select_set(state=True)
-                    #         bpy.context.view_layer.objects.active = ob
-                    #     bpy.ops.object.editmode_toggle()
-
-
-
-                if previous_mode == 'VERTEX_PAINT':
-                    my_shading = 'SOLID'
-                    bpy.context.space_data.shading.light = 'FLAT'
-
-
-                if previous_mode == 'SCULPT':
-                    my_shading =  'SOLID'
-                    bpy.context.space_data.shading.color_type = 'MATERIAL'
-                    bpy.context.space_data.overlay.show_floor = False
-                    bpy.context.space_data.overlay.show_axis_x = False
-                    bpy.context.space_data.overlay.show_axis_y = False
-                    bpy.context.space_data.overlay.show_cursor = False
-                    bpy.context.space_data.overlay.show_relationship_lines = False
-                    bpy.context.space_data.overlay.show_bones = False
-                    bpy.context.space_data.overlay.show_motion_paths = False
-                    bpy.context.space_data.overlay.show_object_origins = False
-                    bpy.context.space_data.overlay.show_annotation = False
-                    bpy.context.space_data.overlay.show_text = False
-                    bpy.context.space_data.overlay.show_text = False
-                    bpy.context.space_data.overlay.show_outline_selected = False
-                    bpy.context.space_data.overlay.show_extras = False
-                    bpy.context.space_data.overlay.show_overlays = True
-                    bpy.context.space_data.show_gizmo = False
+                     
         
 
                 # bpy.ops.object.mode_set(mode=previous_mode, toggle=False)
 
 
-            scene = bpy.context.scene
             # for area in my_areas:
             #     for space in area.spaces:
             #         if space.type == 'VIEW_3D':
             #             space.shading.type = my_shading
 
-            # set viewport display
-            for area in  bpy.context.screen.areas:  # iterate through areas in current screen
-                if area.type == 'VIEW_3D':
-                    for space in area.spaces:  # iterate through spaces in current VIEW_3D area
-                        if space.type == 'VIEW_3D':  # check if space is a 3D view
-                            # space.shading.type = 'MATERIAL'  # set the viewport shading to material
-                            space.shading.type = my_shading
-                            if scene.world is not None:
-                                space.shading.use_scene_world = True
-                                space.shading.use_scene_lights = True
+    # set viewport display
+    for area in  bpy.context.screen.areas:  # iterate through areas in current screen
+        if area.type == 'VIEW_3D':
+            for space in area.spaces:  # iterate through spaces in current VIEW_3D area
+                if space.type == 'VIEW_3D':  # check if space is a 3D view
+                    # space.shading.type = 'MATERIAL'  # set the viewport shading to material
+                    space.shading.type = my_shading
+                    if scene.world is not None:
+                        space.shading.use_scene_world = True
+                        space.shading.use_scene_lights = True
 
 
                             
 
-            for image in bpy.data.images:
-                image.reload()
+    for image in bpy.data.images:
+        image.reload()
 
-    isToggleSubd = not isToggleSubd
+    isWorkmodeToggled = not isWorkmodeToggled
     return {'FINISHED'}
 
 
@@ -1614,6 +1597,10 @@ def empty_trash(self, context):
         if block.users == 0:
             bpy.data.worlds.remove(block)
 
+    for block in bpy.data.particles:
+        if block.users == 0:
+            bpy.data.particles.remove(block)
+
     return {'FINISHED'}
 
 
@@ -2176,37 +2163,39 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                     panels.append(scene)
 
         for scene in panels:
-            bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
+            # turn off all collections in every scene.
             for general_scene in bpy.data.scenes:
                 bpy.context.window.scene = general_scene
-
-                # turn off all collections.
                 scene_collections = general_scene.collection.children
                 for col in scene_collections:
                     col_name = col.name
                     bpy.context.view_layer.layer_collection.children[col_name].exclude = True
                 bpy.ops.object.select_all(action='DESELECT')
 
-
+            # initialize the scene
             bpy.context.window.scene = scene 
-
-
             startFrame = bpy.context.scene.frame_start
             endFrame = bpy.context.scene.frame_end
             bpy.context.scene.frame_current = startFrame
+            bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
+            if bpy.context.object:
+                starting_mode = bpy.context.object.mode
+                if "OBJECT" not in starting_mode:
+                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                    bpy.ops.object.select_all(action='DESELECT')
+            toggle_workmode(self, context, True)
 
-            prep_letters_export(self, context, scene)
-
-
+            # set the context to be the view_3d in object mode.
             C=bpy.context
             old_area_type = C.area.type
             C.area.type='VIEW_3D'
 
 
+            # prepare the letters for export
+            prep_letters_export(self, context, scene)
 
-            # activate export collection.
+            # verify and activate export collection.
             export_collection = getCurrentExportCollection()
-
             if not export_collection:
                 self.report({'WARNING'}, "Export Collection " + export_collection.name + "was not found in scene, skipping export of" + scene.name)
             else:
@@ -2225,6 +2214,12 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                 export_objects = export_collection.all_objects
                 for obj in export_objects:
                     if obj is not None:
+                        if bpy.context.object:
+                            starting_mode = bpy.context.object.mode
+                            if "OBJECT" not in starting_mode:
+                                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                                bpy.ops.object.select_all(action='DESELECT')
+
                         if "Camera." in obj.name:
                             if "Camera." in active_camera.name:
                                 active_camera.select_set(state=True)
@@ -2240,7 +2235,20 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                             obj.keyframe_insert(data_path="location", index=-1, frame=startFrame)
                             bpy.context.scene.frame_set(endFrame)
                             obj.keyframe_insert(data_path="location", index=-1, frame=endFrame)
-                            
+
+                        # # make instances real                           
+                        # bpy.ops.object.select_all(action='DESELECT')
+                        # obj.select_set(state=True)
+                        # bpy.context.view_layer.objects.active = obj
+                        # bpy.ops.object.duplicates_make_real()
+
+                        # freshly_deinstanced_selected_objects = bpy.context.selected_objects
+                        # for ob in freshly_deinstanced_selected_objects:
+                        #     if ob.type == 'MESH':
+                        #         bpy.ops.object.select_all(action='DESELECT')
+                        #         ob.select_set(state=True)
+                        #         bpy.context.view_layer.objects.active = ob
+                        #         bpy.ops.object.convert(target='MESH')
 
 
                 objects = export_collection.all_objects
@@ -2265,10 +2273,17 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                                     obj.modifiers["BlackOutline"].show_viewport = True
 
                         if obj.visible_get and  obj.type == 'GPENCIL':
+                            # bpy.ops.gpencil.editmode_toggle(False)
+                            bpy.ops.object.mode_set(mode='OBJECT')
+
+
+
                             bpy.ops.object.select_all(action='DESELECT')
                             obj.select_set(state=True)
                             bpy.context.view_layer.objects.active = obj
-
+                            if obj.active_material is not None:
+                                gp_mat =  obj.active_material
+                                gp_color = gp_mat.grease_pencil.color
                             # set a temporary context to poll correctly
                             context = bpy.context.copy()
                             for area in bpy.context.screen.areas:
@@ -2292,18 +2307,25 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                             bpy.ops.object.select_all(action='DESELECT')
                             gp_mesh.select_set(state=True)
                             bpy.context.view_layer.objects.active = gp_mesh
-                            bpy.ops.object.modifier_add(type='DECIMATE')
-                            gp_mesh.modifiers["Decimate"].decimate_type = 'DISSOLVE'
-                            gp_mesh.modifiers["Decimate"].angle_limit = 0.0610865
-                            bpy.ops.object.modifier_add(type='DECIMATE')
-                            gp_mesh.modifiers["Decimate.001"].ratio = 0.2
+
+                            if len(gp_mesh.data.polygons) >= 2000:
+                                bpy.ops.object.modifier_add(type='DECIMATE')
+                                gp_mesh.modifiers["Decimate"].decimate_type = 'DISSOLVE'
+                                gp_mesh.modifiers["Decimate"].angle_limit = 0.0610865
+                                bpy.ops.object.modifier_add(type='DECIMATE')
+                                gp_mesh.modifiers["Decimate.001"].ratio = 0.5
+
                             matName = (gp_mesh.name + "Mat")
                             mat = bpy.data.materials.new(name=matName)
                             mat.use_nodes = True
                             mat.node_tree.nodes.clear()
                             mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
                             shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                            shader.inputs[0].default_value =  [0, 0, 0, 1]
+                            if gp_mat:
+                                shader.inputs[0].default_value =  gp_color
+                            else:
+                                shader.inputs[0].default_value =  [0, 0, 0, 1]
+
                             shader.name = "Background"
                             shader.label = "Background"
                             mat_output = mat.node_tree.nodes.get('Material Output')
@@ -3118,54 +3140,54 @@ class BR_OT_insert_comic_scene(bpy.types.Operator):
 
 
 
-class BR_OT_export_comic_scene(bpy.types.Operator):
+class BR_OT_extract_comic_scene(bpy.types.Operator):
     """export current panel scene"""
-    bl_idname = "view3d.spiraloid_3d_comic_export_panel"
-    bl_label ="Export Panel Scene..."
+    bl_idname = "view3d.spiraloid_3d_comic_extract_panel"
+    bl_label ="Extract Panel Scene..."
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        if bpy.data.is_dirty:
-            # self.report({'WARNING'}, "You must save your file first!")
-            bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
+        # if bpy.data.is_dirty:
+        #     # self.report({'WARNING'}, "You must save your file first!")
+        #     bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
 
-        else:
-            currSceneIndex = getCurrentSceneIndex()
-            sceneNumber = "%04d" % currSceneIndex
-            current_scene = bpy.context.scene
-            current_scene_name = current_scene.name
-            file_path = bpy.data.filepath
-            file_name = bpy.path.display_name_from_filepath(file_path)
-            file_ext = '.blend'
-            file_dir = file_path.replace(file_name + file_ext, '')
-            
-            panels_dir = file_dir+"\\panels\\"
-            if not os.path.exists(panels_dir):
-                os.makedirs(panels_dir)
+        # else:
+        currSceneIndex = getCurrentSceneIndex()
+        sceneNumber = "%04d" % currSceneIndex
+        current_scene = bpy.context.scene
+        current_scene_name = current_scene.name
+        file_path = bpy.data.filepath
+        file_name = bpy.path.display_name_from_filepath(file_path)
+        file_ext = '.blend'
+        file_dir = file_path.replace(file_name + file_ext, '')
+        
+        panels_dir = file_dir+"\\panels\\"
+        if not os.path.exists(panels_dir):
+            os.makedirs(panels_dir)
 
-            export_file = (panels_dir + current_scene_name + ".blend") 
+        export_file = (panels_dir + current_scene_name + ".blend") 
 
-            for scene in bpy.data.scenes :
-                scene_name = scene.name
-                if scene is not current_scene :
-                    # bpy.ops.scene.delete({'scene': bpy.data.scenes[current_scene_name]})  
-                    # bpy.context.screen.scene = bpy.data.scenes[scene_name]
-                    bpy.context.window.scene = bpy.data.scenes[scene_name]
-                    bpy.ops.scene.delete()
-                    empty_trash(self, context)
+        for scene in bpy.data.scenes :
+            scene_name = scene.name
+            if scene is not current_scene :
+                # bpy.ops.scene.delete({'scene': bpy.data.scenes[current_scene_name]})  
+                # bpy.context.screen.scene = bpy.data.scenes[scene_name]
+                bpy.context.window.scene = bpy.data.scenes[scene_name]
+                bpy.ops.scene.delete()
+                empty_trash(self, context)
 
-            bpy.ops.wm.save_as_mainfile(filepath=export_file)
-            ## reopen scene from before build comic
-            bpy.ops.wm.open_mainfile(filepath=file_path)
-            self.report({'INFO'}, 'Exported  ./panels/' + current_scene_name + '.blend!')
+        bpy.ops.wm.save_as_mainfile(filepath=export_file)
+        ## reopen scene from before build comic
+        bpy.ops.wm.open_mainfile(filepath=file_path)
+        self.report({'INFO'}, 'Exported  ./panels/' + current_scene_name + '.blend!')
 
 
         return {'FINISHED'}
 
-class BR_OT_import_comic_scene(Operator, ImportHelper):
+class BR_OT_inject_comic_scene(Operator, ImportHelper):
     """import current panel scene"""
-    bl_idname = "view3d.spiraloid_3d_comic_import_panel"
-    bl_label ="Import Panel Scene..."
+    bl_idname = "view3d.spiraloid_3d_comic_inject_panel"
+    bl_label ="Inject Panel Scene..."
     bl_options = {'REGISTER', 'UNDO'}
 
     filename_ext = ".blend"  # ExportHelper mixin class uses this
@@ -4245,6 +4267,14 @@ class BR_OT_panel_cycle_sky(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        objects = bpy.context.selected_objects
+        if objects is not None :
+            for obj in objects:
+                starting_mode = bpy.context.object.mode
+                if "OBJECT" not in starting_mode:
+                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+
+
         # sky_color = (1, 1, 1, 1)
         13, 21, 29
         colorSwatch = [(0.0,0.0,0.0,1.0), (1.0,1.0,1.0,1.0), (0.05,0.08,0.11,1.0) ]
@@ -4355,13 +4385,14 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        starting_mode = bpy.context.object.mode
-        if "POSE" in starting_mode:
-            selected_bones = bpy.context.selected_pose_bones
-        if "EDIT" in starting_mode:
-            selected_elementes = bpy.context.selected
-
-        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)                
+        if bpy.context.object:
+            starting_mode = bpy.context.object.mode
+            if "OBJECT" not in starting_mode:
+                if "POSE" in starting_mode:
+                    selected_bones = bpy.context.selected_pose_bones
+                if "EDIT" in starting_mode:
+                    selected_elementes = bpy.context.selected
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)                
         # sky_color = (1, 1, 1, 1)
         sky_color = (0, 0, 0, 1)
         currSceneIndex = getCurrentSceneIndex()
@@ -4618,7 +4649,7 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
         visible_objects = []
         for obj in bpy.context.view_layer.objects:
             if obj.visible_get: 
-                if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' :
+                if obj.type == 'MESH' or obj.type == 'CURVE' :
                     if not "ground" in obj.name: 
                         visible_objects.append(obj)
                     else:
@@ -4938,7 +4969,7 @@ class BuildComicSettings(bpy.types.PropertyGroup):
 class BR_MT_export_3d_comic_all(bpy.types.Operator):
     """Print to Audience.  Export all 3D Comic panels and start a local server.  Existing panels will be overwritten"""
     bl_idname = "view3d.spiraloid_export_3d_comic_all"
-    bl_label ="Export 3D Comic"
+    bl_label ="Export Complete 3D Comic"
     bl_options = {'REGISTER', 'UNDO'}
     # config: bpy.props.PointerProperty(type=BuildComicSettings)
 
@@ -4994,7 +5025,7 @@ class BR_MT_export_3d_comic_all(bpy.types.Operator):
 class BR_MT_export_3d_comic_current(bpy.types.Operator):
     """Export current 3D Comic panel scene and start a local server.  Existing panel will be overwritten"""
     bl_idname = "view3d.spiraloid_export_3d_comic_current"
-    bl_label ="Export Current 3D Comic Panel"
+    bl_label ="Export Panel"
     bl_options = {'REGISTER', 'UNDO'}
     # config: bpy.props.PointerProperty(type=BuildComicSettings)
 
@@ -6830,9 +6861,9 @@ class OBJECT_OT_add_ground_rocks(Operator, AddObjectHelper):
 
 
 
-class BR_OT_subd_toggle(bpy.types.Operator):
+class BR_OT_spiraloid_toggle_workmode(bpy.types.Operator):
     """Toggle Workmode"""
-    bl_idname = "view3d.subd_toggle"
+    bl_idname = "wm.spiraloid_toggle_workmode"
     bl_label = "Toggle Workmode"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -6841,7 +6872,7 @@ class BR_OT_subd_toggle(bpy.types.Operator):
         return True #context.space_data.type == 'VIEW_3D'
 
     def execute(self, context):
-        toggle_workmode(self, context)
+        toggle_workmode(self, context, False)
         return {'FINISHED'}
 
 
@@ -6864,7 +6895,7 @@ def menu_draw_bake(self, context):
 def menu_draw_view(self, context):
     layout = self.layout
     layout.separator()
-    self.layout.operator(BR_OT_subd_toggle.bl_idname)
+    self.layout.operator(BR_OT_spiraloid_toggle_workmode.bl_idname)
 
 class BR_MT_3d_comic_menu(bpy.types.Menu):
     bl_idname = "view3d.spiraloid_3d_comic_menu"
@@ -6882,8 +6913,8 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
         layout.separator()
         layout.menu(BR_MT_3d_comic_submenu_utilities.bl_idname, icon="PREFERENCES")
         layout.separator()
-        layout.operator("view3d.spiraloid_export_3d_comic_current", icon="FILE_BLANK")
         layout.operator("view3d.spiraloid_export_3d_comic_all", icon="NODE_COMPOSITING")
+        layout.operator("view3d.spiraloid_export_3d_comic_current", icon="FILE_BLANK")
         layout.separator()
         layout.operator("view3d.spiraloid_read_3d_comic", icon="HIDE_OFF")
 
@@ -6900,8 +6931,8 @@ class BR_MT_3d_comic_submenu_panels(bpy.types.Menu):
         layout.operator("screen.spiraloid_3d_comic_reorder_scene_earlier", icon="REW")
         layout.operator("screen.spiraloid_3d_comic_reorder_scene_later", icon="FF")
         layout.separator()
-        layout.operator("view3d.spiraloid_3d_comic_import_panel", icon="IMPORT")
-        layout.operator("view3d.spiraloid_3d_comic_export_panel", icon="EXPORT")
+        layout.operator("view3d.spiraloid_3d_comic_inject_panel", icon="IMPORT")
+        layout.operator("view3d.spiraloid_3d_comic_extract_panel", icon="EXPORT")
         layout.separator()
         layout.operator("screen.spiraloid_3d_comic_first_panel", icon="TRIA_UP")
         layout.operator("screen.spiraloid_3d_comic_next_panel", icon="TRIA_RIGHT")
@@ -6959,7 +6990,7 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
         layout.operator("wm.spiraloid_pose_cycle_next", icon="ARMATURE_DATA")
         layout.operator("wm.spiraloid_pose_cycle_previous", icon="ARMATURE_DATA")
         layout.separator()
-        layout.operator("view3d.subd_toggle", icon="SEQ_PREVIEW")
+        layout.operator("wm.spiraloid_toggle_workmode", icon="SEQ_PREVIEW")
         layout.separator()
         layout.operator("wm.spiraloid_pose_add", icon="ARMATURE_DATA")
         layout.operator("wm.spiraloid_pose_overwrite", icon="ARMATURE_DATA")
@@ -7076,8 +7107,8 @@ classes = (
     BakePanelSettings,
     NewComicSettings,
     ComicSettings,
-    BR_OT_import_comic_scene,
-    BR_OT_export_comic_scene,
+    BR_OT_inject_comic_scene,
+    BR_OT_extract_comic_scene,
     OBJECT_OT_add_inksplat,
     OBJECT_OT_add_ground,
     OBJECT_OT_add_ground_rocks,
@@ -7086,7 +7117,7 @@ classes = (
     OBJECT_OT_add_inkbot_shuffle,
     BR_OT_pose_cycle_next,
     BR_OT_pose_cycle_previous,
-    BR_OT_subd_toggle
+    BR_OT_spiraloid_toggle_workmode
 )
 
     # ComicPreferences,
