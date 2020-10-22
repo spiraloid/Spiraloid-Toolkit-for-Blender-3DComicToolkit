@@ -35,6 +35,9 @@ https://gumroad.com/l/3dcomictoolkit
 
 Be warned, This is a tool I use and update frequently so there may be bugs.   
 
+installation:  download and install the addon as you would normally.  
+note: do not rename the zip or the addon folder that gets installed in your in addons directory. The load resources commands are hardcoded to assume the addon folder is named "Spiraloid-Toolkit-for-Blender-3DComicToolkit-master"
+
 I'll try not to break things, but if you get stuck feel free to dig into the code yourseld orreport the issue here, and I'll see what I can do as I find the time  (it's free afterall).  
 
 You may also find good tips and tricks by connecting with others interested who are also making 3D Comics in these Communities:
