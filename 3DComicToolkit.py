@@ -2136,22 +2136,26 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         # copy template reader files
         if not export_only_current:            
             if not os.path.exists(file_dir+'index.html'):
-                # copy 3D Comic Html
-                user_dir = os.path.expanduser("~")
-                common_subdir = "2.90/scripts/addons/3DComicToolkit/Resources/Reader"
-                if system() == 'Linux':
-                    addon_path = "/.config/blender/" + common_subdir
-                elif system() == 'Windows':
-                    addon_path = (
-                        "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
-                        + common_subdir.replace("/", "\\")
-                    )
-                    # os.path.join()
-                elif system() == 'Darwin':
-                    addon_path = "/Library/Application Support/Blender/" + common_subdir
-                addon_dir = user_dir + addon_path
-                copy_tree(addon_dir, file_dir)        
+                # # copy 3D Comic Html
+                # user_dir = os.path.expanduser("~")
+                # reader_subdir = "/Reader"
+                # if system() == 'Linux':
+                #     addon_path = "/.config/blender/" + common_subdir
+                # elif system() == 'Windows':
+                #     addon_path = (
+                #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
+                #         + common_subdir.replace("/", "\\")
+                #     )
+                #     # os.path.join()
+                # elif system() == 'Darwin':
+                #     addon_path = "/Library/Application Support/Blender/" + common_subdir
+                # addon_dir = user_dir + addon_path
 
+                scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
+                addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
+                addon_dir = scripts_dir + addon_resources_subdir
+                addon_reader_dir = addon_dir + "/Reader"
+                copy_tree(addon_reader_dir, file_dir)        
 
 
         if not export_only_current:
