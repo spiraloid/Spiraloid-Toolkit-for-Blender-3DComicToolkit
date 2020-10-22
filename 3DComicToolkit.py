@@ -243,7 +243,7 @@ def load_resource(self, context, blendFileName, is_random):
 
 
     scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
-    addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit/Resources/"        
+    addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
     addon_dir = scripts_dir + addon_resources_subdir
 
 
