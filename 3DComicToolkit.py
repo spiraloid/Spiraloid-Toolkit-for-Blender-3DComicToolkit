@@ -227,18 +227,26 @@ def load_resource(self, context, blendFileName, is_random):
     #     bpy.ops.object.select_all(action='DESELECT')
 
     user_dir = os.path.expanduser("~")
-    common_subdir = "2.90/scripts/addons/3DComicToolkit/Resources/"
-    if system() == 'Linux':
-        addon_path = "/.config/blender/" + common_subdir
-    elif system() == 'Windows':
-        addon_path = (
-            "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
-            + common_subdir.replace("/", "\\")
-        )
-        # os.path.join()
-    elif system() == 'Darwin':
-        addon_path = "/Library/Application Support/Blender/" + common_subdir
-    addon_dir = user_dir + addon_path
+    # common_subdir = "2.90/scripts/addons/3DComicToolkit/Resources/"   this fails on github installs because the name is Spiraloid-
+    # common_subdir = "2.90/scripts/addons/Spiraloid-Toolkit-for-Blender-3DComicToolkit/Resources/"
+    # if system() == 'Linux':
+    #     addon_path = "/.config/blender/" + common_subdir
+    # elif system() == 'Windows':
+    #     addon_path = (
+    #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
+    #         + common_subdir.replace("/", "\\")
+    #     )
+    #     # os.path.join()
+    # elif system() == 'Darwin':
+    #     addon_path = "/Library/Application Support/Blender/" + common_subdir
+    # addon_dir = user_dir + addon_path
+
+
+    scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
+    addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit/Resources/"        
+    addon_dir = scripts_dir + addon_resources_subdir
+
+
 
     if is_random:
         stringFragments = blendFileName.split('.')
