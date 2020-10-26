@@ -4329,8 +4329,8 @@ class BR_OT_panel_cycle_sky(bpy.types.Operator):
 
 
         # sky_color = (1, 1, 1, 1)
-        13, 21, 29
-        colorSwatch = [(0.0,0.0,0.0,1.0), (1.0,1.0,1.0,1.0), (0.05,0.08,0.11,1.0) ]
+        # 13, 21, 29
+        colorSwatch = [(1.0,1.0,1.0,1.0), (0.0,0.0,0.0,1.0), (0.05,0.08,0.11,1.0) ]
         global previous_sky_color_index
         if (previous_sky_color_index != 1):
             nextColorIndex = previous_sky_color_index + 1
@@ -6889,9 +6889,33 @@ class OBJECT_OT_add_ground(Operator, AddObjectHelper):
         load_resource(self, context, "ground_disc.blend", False)
         return {'FINISHED'}
 
-
-        
+class OBJECT_OT_add_speedlines(Operator, AddObjectHelper):
+    """Create a new exterior street Object"""
+    bl_idname = "mesh.spiraloid_add_speedlines"
+    bl_label = "Speedlines"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        load_resource(self, context, "speedlines.blend", False)
         return {'FINISHED'}
+
+class OBJECT_OT_add_speedlines_radial(Operator, AddObjectHelper):
+    """Create a new exterior street Object"""
+    bl_idname = "mesh.spiraloid_add_speedlines_radial"
+    bl_label = "Speedlines Radial"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        load_resource(self, context, "speedlines_radial.blend", False)
+        return {'FINISHED'}
+
+class OBJECT_OT_add_speedlines_ground(Operator, AddObjectHelper):
+    """Create a new exterior street Object"""
+    bl_idname = "mesh.spiraloid_add_speedlines_ground"
+    bl_label = "Speedlines Ground"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        load_resource(self, context, "speedlines_ground.blend", False)
+        return {'FINISHED'}
+
 
 class OBJECT_OT_add_ground_rocks(Operator, AddObjectHelper):
     """Create a new exterior street Object"""
@@ -7032,6 +7056,9 @@ class BR_MT_3d_comic_submenu_assets(bpy.types.Menu):
         # layout.operator(OBJECT_OT_add_inkbot.bl_idname, icon='FILE_3D')
         # layout.operator(OBJECT_OT_add_inkbot_puppet.bl_idname, icon='FILE_3D')
         layout.operator(OBJECT_OT_add_ground.bl_idname, icon='FILE_3D')
+        layout.operator(OBJECT_OT_add_speedlines.bl_idname, icon='FILE_3D')
+        layout.operator(OBJECT_OT_add_speedlines_radial.bl_idname, icon='FILE_3D')
+        layout.operator(OBJECT_OT_add_speedlines_ground.bl_idname, icon='FILE_3D')
         layout.operator(OBJECT_OT_add_ground_rocks.bl_idname, icon='FILE_3D')
         layout.operator(OBJECT_OT_add_inksplat.bl_idname, icon='FILE_3D')
 
@@ -7099,6 +7126,9 @@ def add_object_button(self, context):
     layout.separator()
     layout.operator(OBJECT_OT_add_inkbot.bl_idname, icon='GHOST_DISABLED')
     layout.operator(OBJECT_OT_add_ground.bl_idname, icon='AXIS_TOP')
+    layout.operator(OBJECT_OT_add_speedlines.bl_idname, icon='AXIS_TOP')
+    layout.operator(OBJECT_OT_add_speedlines_radial.bl_idname, icon='AXIS_TOP')
+    layout.operator(OBJECT_OT_add_speedlines_ground.bl_idname, icon='AXIS_TOP')
     layout.separator()
 
 def add_3dcomic_menu(self, context):
@@ -7172,7 +7202,10 @@ classes = (
     BR_OT_extract_comic_scene,
     OBJECT_OT_add_inksplat,
     OBJECT_OT_add_ground,
-    OBJECT_OT_add_ground_rocks,
+    OBJECT_OT_add_speedlines,
+    OBJECT_OT_add_speedlines_radial,
+    OBJECT_OT_add_speedlines_ground,
+    # OBJECT_OT_add_ground_rocks,
     # OBJECT_OT_add_inkbot,  
     # OBJECT_OT_add_inkbot_puppet,
     OBJECT_OT_add_inkbot_shuffle,
