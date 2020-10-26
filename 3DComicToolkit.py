@@ -68,8 +68,6 @@ previous_selection = ""
 
 #------------------------------------------------------
 
-
-
 def warn_not_saved(self, context):
     self.layout.label(text= "You must save your file first!")
 
@@ -219,94 +217,104 @@ def scene_mychosenobject_poll(self, object):
 
 def load_resource(self, context, blendFileName, is_random):
     global previous_random_int
-    currSceneIndex = getCurrentSceneIndex()
-    scene_collections = bpy.data.scenes[currSceneIndex].collection.children
-    # objects = context.selected_objects
-    # if objects is not None :
-    #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    #     bpy.ops.object.select_all(action='DESELECT')
-
-    user_dir = os.path.expanduser("~")
-    # common_subdir = "2.90/scripts/addons/3DComicToolkit/Resources/"   this fails on github installs because the name is Spiraloid-
-    # common_subdir = "2.90/scripts/addons/Spiraloid-Toolkit-for-Blender-3DComicToolkit/Resources/"
-    # if system() == 'Linux':
-    #     addon_path = "/.config/blender/" + common_subdir
-    # elif system() == 'Windows':
-    #     addon_path = (
-    #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
-    #         + common_subdir.replace("/", "\\")
-    #     )
-    #     # os.path.join()
-    # elif system() == 'Darwin':
-    #     addon_path = "/Library/Application Support/Blender/" + common_subdir
-    # addon_dir = user_dir + addon_path
-
-
-    scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
-    addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
-    addon_dir = scripts_dir + addon_resources_subdir
-
-
-
-    if is_random:
-        stringFragments = blendFileName.split('.')
-        index = []     
-        for file in os.listdir(addon_dir):
-            if file.startswith(stringFragments[0]+"."):
-                if not file.endswith(".blend1"):
-                    index.append(file)
-
-        if (len(index) > 1):
-            random_int = random.randint(0, len(index) -1)
-            while (random_int == previous_random_int):
-                random_int = random.randint(0, len(index) -1)
-                if (random_int != previous_random_int):
-                    break
-        else:
-            random_int = 0
-        padded_random_int = "%03d" % random_int
-        filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".blend"
-        previous_random_int = random_int
-
-    else:
-        filepath = addon_dir + blendFileName
-
-
-    context = bpy.context
-    resourceSceneIndex = 0
-    scenes = []
-    mainCollection = context.scene.collection
-    with bpy.data.libraries.load(filepath ) as (data_from, data_to):
-        for name in data_from.scenes:
-            scenes.append({'name': name})
-        action = bpy.ops.wm.append
-        action(directory=filepath + "/Scene/", files=scenes, use_recursive=True)
-        scenes = bpy.data.scenes[-len(scenes):]
-
-    resourceSceneIndex = -len(scenes)
-    if resourceSceneIndex != 0 :
-        nextScene =  bpy.data.scenes[resourceSceneIndex]
-        loaded_scene_collections = bpy.data.scenes[resourceSceneIndex].collection.children
-        
-        for coll in loaded_scene_collections:
-            bpy.ops.object.make_local(type='ALL')
+    if bpy.context.object:
+        if "OBJECT" not in bpy.context.object.mode:
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
             bpy.ops.object.select_all(action='DESELECT')
-            for obj in coll.all_objects:
-                bpy.context.collection.objects.link(obj)  
-                obj.select_set(state=True)
-                bpy.context.view_layer.objects.active = obj
 
-        bpy.data.scenes.remove(nextScene)
+    currSceneIndex = getCurrentSceneIndex()
+    export_collection = getCurrentExportCollection()
+    if export_collection:
+        export_collection_name = export_collection.name
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[export_collection_name]
+
+        scene_collections = bpy.data.scenes[currSceneIndex].collection.children
+        # objects = context.selected_objects
+        # if objects is not None :
+        #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        #     bpy.ops.object.select_all(action='DESELECT')
+
+        user_dir = os.path.expanduser("~")
+        # common_subdir = "2.90/scripts/addons/3DComicToolkit/Resources/"   this fails on github installs because the name is Spiraloid-
+        # common_subdir = "2.90/scripts/addons/Spiraloid-Toolkit-for-Blender-3DComicToolkit/Resources/"
+        # if system() == 'Linux':
+        #     addon_path = "/.config/blender/" + common_subdir
+        # elif system() == 'Windows':
+        #     addon_path = (
+        #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
+        #         + common_subdir.replace("/", "\\")
+        #     )
+        #     # os.path.join()
+        # elif system() == 'Darwin':
+        #     addon_path = "/Library/Application Support/Blender/" + common_subdir
+        # addon_dir = user_dir + addon_path
 
 
-        # for scene in scenes:
-        #     for coll in scene.collection.children:
-        #         bpy.ops.object.select_all(action='DESELECT')
-        #         for obj in coll.all_objects:
-        #             bpy.context.collection.objects.link(obj)  
-        #             obj.select_set(state=True)
-        #             bpy.context.view_layer.objects.active = obj
-        #     bpy.data.scenes.remove(scene)
+        scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
+        addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
+        addon_dir = scripts_dir + addon_resources_subdir
+
+
+
+        if is_random:
+            stringFragments = blendFileName.split('.')
+            index = []     
+            for file in os.listdir(addon_dir):
+                if file.startswith(stringFragments[0]+"."):
+                    if not file.endswith(".blend1"):
+                        index.append(file)
+
+            if (len(index) > 1):
+                random_int = random.randint(0, len(index) -1)
+                while (random_int == previous_random_int):
+                    random_int = random.randint(0, len(index) -1)
+                    if (random_int != previous_random_int):
+                        break
+            else:
+                random_int = 0
+            padded_random_int = "%03d" % random_int
+            filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".blend"
+            previous_random_int = random_int
+
+        else:
+            filepath = addon_dir + blendFileName
+
+
+        context = bpy.context
+        resourceSceneIndex = 0
+        scenes = []
+        mainCollection = context.scene.collection
+        with bpy.data.libraries.load(filepath ) as (data_from, data_to):
+            for name in data_from.scenes:
+                scenes.append({'name': name})
+            action = bpy.ops.wm.append
+            action(directory=filepath + "/Scene/", files=scenes, use_recursive=True)
+            scenes = bpy.data.scenes[-len(scenes):]
+
+        resourceSceneIndex = -len(scenes)
+        if resourceSceneIndex != 0 :
+            nextScene =  bpy.data.scenes[resourceSceneIndex]
+            loaded_scene_collections = bpy.data.scenes[resourceSceneIndex].collection.children
+            
+            for coll in loaded_scene_collections:
+                bpy.ops.object.make_local(type='ALL')
+                bpy.ops.object.select_all(action='DESELECT')
+                for obj in coll.all_objects:
+                    bpy.context.collection.objects.link(obj)  
+                    obj.select_set(state=True)
+                    bpy.context.view_layer.objects.active = obj
+
+            bpy.data.scenes.remove(nextScene)
+
+
+            # for scene in scenes:
+            #     for coll in scene.collection.children:
+            #         bpy.ops.object.select_all(action='DESELECT')
+            #         for obj in coll.all_objects:
+            #             bpy.context.collection.objects.link(obj)  
+            #             obj.select_set(state=True)
+            #             bpy.context.view_layer.objects.active = obj
+            #     bpy.data.scenes.remove(scene)
 
     return {'FINISHED'}
 
@@ -835,13 +843,20 @@ def automap(mesh_objects, decimate_ratio):
             bpy.context.view_layer.objects.active = mesh_object
 
             bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+            # for area in bpy.context.screen.areas:
+            #         if area.type == 'VIEW_3D':
+            #             for region in area.regions:
+            #                 if region.type == 'WINDOW':
+            #                     override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
+            #                     bpy.ops.uv.pack_islands(override , margin=0.017)
+
             bpy.ops.mesh.select_all(action='SELECT')
-            for area in bpy.context.screen.areas:
-                    if area.type == 'VIEW_3D':
-                        for region in area.regions:
-                            if region.type == 'WINDOW':
-                                override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
-                                bpy.ops.uv.pack_islands(override , margin=0.017)
+            C=bpy.context
+            old_area_type = C.area.type
+            C.area.type='IMAGE_EDITOR'
+            bpy.ops.uv.pack_islands(margin=0.017)
+            C.area.type=old_area_type
+
 
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
@@ -2745,31 +2760,44 @@ class NewComicSettings(bpy.types.PropertyGroup):
     url : bpy.props.StringProperty(name="Author URL", description="where do you want readers to visit", default="https://3dcomic.shop/inkbots")
     start_panel_count : bpy.props.IntProperty(name="How Many Panels?",  description="Create a number of blank panels to start", min=1, max=99, default=1 )
 
-class BR_OT_new_3d_comic(bpy.types.Operator):
+class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
     """Start a new 3D Comic from scratch"""
-    bl_idname = "view3d.spiraloid_new_3d_comic"
-    bl_label = "New 3D Comic..."
+    bl_idname = "wm.spiraloid_new_3d_comic"
+    bl_label = "Save 3D Comic"
     bl_options = {'REGISTER', 'UNDO'}
-    config: bpy.props.PointerProperty(type=NewComicSettings)
-        
+    # config: bpy.props.PointerProperty(type=NewComicSettings)
+    filepath = bpy.props.StringProperty(name="file path", description="3D Comic webite root folder")
+    # directory = bpy.props.StringProperty(name="file path", description="3D Comic webite root folder")
+    filter_glob: StringProperty( default='*.blend', options={'HIDDEN'} )
 
-    def draw(self, context):
-        layout = self.layout
-        scene = context.scene
-        new_3d_comic_settings = scene.new_3d_comic_settings
-        layout.prop(new_3d_comic_settings, "title")
-        layout.prop(new_3d_comic_settings, "author")
-        layout.prop(new_3d_comic_settings, "url")
-        # layout.prop(new_3d_comic_settings, "start_panel_count")
-        layout.separator()
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}   
+
+    # def draw(self, context):
+    #     layout = self.layout
+    #     scene = context.scene
+    #     new_3d_comic_settings = scene.new_3d_comic_settings
+    #     layout.prop(new_3d_comic_settings, "title")
+    #     layout.prop(new_3d_comic_settings, "author")
+    #     layout.prop(new_3d_comic_settings, "url")
+    #     # layout.prop(new_3d_comic_settings, "start_panel_count")
+    #     layout.separator()
 
     def execute(self, context):
+        filename, extension = os.path.splitext(self.filepath)
         scene = context.scene
-        settings = scene.new_3d_comic_settings
-        start_panel_count = settings.start_panel_count
+        # settings = scene.new_3d_comic_settings
+        # start_panel_count = settings.start_panel_count
+        start_panel_count = 1
 
-        title_name = settings.title
+
+        # title_name = settings.title
+        title_name = "Cover"
         bpy.ops.wm.read_homefile(use_empty=True)
+
+
+        
 
         # load_resource("comic_default.blend")
         # context.window.scene = scene
@@ -2881,13 +2909,18 @@ class BR_OT_new_3d_comic(bpy.types.Operator):
         #     bpy.ops.object.select_all(action='DESELECT')
         #     bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
 
+        # save_filepath = str(self.directory) + "." +  str(title_name) + ".blend"
+        # bpy.ops.wm.save_as_mainfile(filepath=save_filepath)
+        # print (self.directory)
+        # bpy.ops.wm.save_as_mainfile(filepath=self.directory)
+        bpy.ops.wm.save_as_mainfile(filepath=self.filepath)
 
-
-
+        # BR_OT_new_panel_row.execute(self, context) # why does this crash......
+        
         return {'FINISHED'}
         
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
+    # def invoke(self, context, event):
+    #     return context.window_manager.invoke_props_dialog(self)
 
 class BR_OT_first_panel_scene(bpy.types.Operator):
     """make first panel scene the active scene"""
@@ -3051,9 +3084,10 @@ def insert_comic_panel(self, context):
         renameAllScenesAfter()
         newSceneIndex = currSceneIndex + 1
         newSceneIndexPadded = "%04d" % newSceneIndex
-        newSceneName = 'p.'+ str(newSceneIndexPadded) + ".w" + str(panel_width) + "h100"
+        newSceneName = 'p.'+ str(newSceneIndexPadded) + ".w" + str(panel_width) + "h"  + str(panel_width)
         newScene = bpy.ops.scene.new(type='NEW')
         bpy.context.scene.name = newSceneName
+        bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
         BR_OT_panel_init.execute(self, context)
         BR_OT_panel_validate_naming_all.execute(self, context)
         for v in bpy.context.window.screen.areas:
@@ -3066,7 +3100,7 @@ def insert_comic_panel(self, context):
                 if bpy.ops.view3d.view_center_camera.poll(override):
                     bpy.ops.view3d.view_center_camera(override)
         bpy.ops.object.select_all(action='DESELECT')
-        bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
+        
 
     # return {'FINISHED'}
 
@@ -3075,7 +3109,7 @@ class NewPanelRowSettings(bpy.types.PropertyGroup):
     new_panel_count : bpy.props.IntProperty(name="number of new panels:",  description="number of side-by-side panels to insert in new row", min=1, max=4, default=1 )
 
 
-class BR_OT_new_panel_row(bpy.types.Operator):
+class BR_OT_new_panel_row(bpy.types.Operator, ImportHelper):
     """Merge all meshes in active collection, unwrap and toggle_workmodeing and textures into a new "Export" collection"""
     bl_idname = "view3d.spiraloid_new_panel_row"
     bl_label = "Insert Row..."
@@ -3090,7 +3124,12 @@ class BR_OT_new_panel_row(bpy.types.Operator):
         layout.prop(new_panel_row_settings, "new_panel_count")
 
     def execute(self, context):
+        # current_scene_name = context.scene.name
+        # if "p." in bpy.context.scene.name:    
         insert_comic_panel(self, context)
+        # else:
+            # self.report({'ERROR'}, "No Active Comic Found")
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -3835,7 +3874,9 @@ class BR_OT_panel_init(bpy.types.Operator):
 
     def execute(self, context):
         currSceneIndex = getCurrentSceneIndex()
-        sceneNumber = "%04d" % currSceneIndex
+        numString = getCurrentPanelNumber()
+        sceneNumber = "%04d" % numString
+        # sceneNumber = "%04d" % currSceneIndex
         current_scene_name = bpy.data.scenes[currSceneIndex].name
 
         stringFragments = current_scene_name.split('.')
@@ -6744,7 +6785,6 @@ class OBJECT_OT_add_inkbot(Operator, AddObjectHelper):
     bl_label = "Inkbot"
     bl_options = {'REGISTER', 'UNDO'}
     def execute(self, context):
-        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         load_resource(self, context, "inkbot_mesh.blend", False)
         return {'FINISHED'}
 
@@ -6779,9 +6819,6 @@ class OBJECT_OT_add_inkbot_shuffle(Operator, AddObjectHelper):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        objects = bpy.context.selected_objects
-        if objects:
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         load_resource(self, context, "inkbot.000.blend", True)
 
         # aim at viewport camera.
@@ -6824,9 +6861,6 @@ class OBJECT_OT_add_inksplat(Operator, AddObjectHelper):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        objects = bpy.context.selected_objects
-        if objects:
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         load_resource(self, context, "inksplat.blend", False)
         return {'FINISHED'}
 
@@ -6836,20 +6870,24 @@ class OBJECT_OT_add_ground(Operator, AddObjectHelper):
     bl_label = "Ground"
     bl_options = {'REGISTER', 'UNDO'}
     def execute(self, context):
-        objects = bpy.context.selected_objects
-        if objects:
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        # export_collection = getCurrentExportCollection()
+        # bpy.context.view_layer.active_layer_collection = export_collection
+
+        # objects = bpy.context.selected_objects
+        # if objects:
+        #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        # load_resource(self, context, "ground_disc.blend", False)
+
+        # imported_objects = bpy.context.selected_objects
+        # if not export_collection:
+        #     self.report({'WARNING'}, "Export Collection " + export_collection.name + "was not found in scene, skipping export of" + scene.name)
+        # else:
+        #     for obj in imported_objects:
+        #         bpy.context.collection.objects.unlink(obj) 
+        #         export_collection.objects.link(obj)
+
         load_resource(self, context, "ground_disc.blend", False)
-
-        export_collection = getCurrentExportCollection()
-        imported_objects = bpy.context.selected_objects
-        if not export_collection:
-            self.report({'WARNING'}, "Export Collection " + export_collection.name + "was not found in scene, skipping export of" + scene.name)
-        else:
-            for obj in imported_objects:
-                bpy.context.collection.objects.unlink(obj) 
-                export_collection.objects.link(obj)
-
+        return {'FINISHED'}
 
 
         
@@ -6861,13 +6899,23 @@ class OBJECT_OT_add_ground_rocks(Operator, AddObjectHelper):
     bl_label = "Ground Rocks"
     bl_options = {'REGISTER', 'UNDO'}
     def execute(self, context):
-        objects = bpy.context.selected_objects
-        if objects:
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         load_resource(self, context, "ground_rocks.blend", False)
         return {'FINISHED'}
        
 
+class BR_OT_spiraloid_automap(bpy.types.Operator):
+    """Automatically UV unwrap selected objects"""
+    bl_idname = "wm.spiraloid_automap"
+    bl_label = "Automap"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    # @classmethod
+    # def poll(cls, context):
+    #     return True #context.space_data.type == 'VIEW_3D'
+
+    def execute(self, context):
+        automap(bpy.context.selected_objects, 1)
+        return {'FINISHED'}
 
 
 
@@ -6916,7 +6964,7 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
 
     def draw(self, context):
         layout = self.layout
-        layout.operator("view3d.spiraloid_new_3d_comic", icon="NODE_COMPOSITING")
+        layout.operator("wm.spiraloid_new_3d_comic", icon="NODE_COMPOSITING", text="New 3D Comic...")
         layout.separator()
         layout.menu(BR_MT_3d_comic_submenu_panels.bl_idname, icon="VIEW_ORTHO")
         layout.menu(BR_MT_3d_comic_submenu_letters.bl_idname, icon="INFO")
@@ -6997,12 +7045,13 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
 
     def draw(self, context):
         layout = self.layout
+        layout.operator("wm.spiraloid_toggle_workmode", icon="SEQ_PREVIEW")
+        layout.separator()
         layout.operator("view3d.spiraloid_bake_panel", icon="TEXTURE_DATA")
+        layout.operator("wm.spiraloid_automap", icon="UV_VERTEXSEL")
         layout.separator()
         layout.operator("wm.spiraloid_pose_cycle_next", icon="ARMATURE_DATA")
         layout.operator("wm.spiraloid_pose_cycle_previous", icon="ARMATURE_DATA")
-        layout.separator()
-        layout.operator("wm.spiraloid_toggle_workmode", icon="SEQ_PREVIEW")
         layout.separator()
         layout.operator("wm.spiraloid_pose_add", icon="ARMATURE_DATA")
         layout.operator("wm.spiraloid_pose_overwrite", icon="ARMATURE_DATA")
@@ -7129,7 +7178,8 @@ classes = (
     OBJECT_OT_add_inkbot_shuffle,
     BR_OT_pose_cycle_next,
     BR_OT_pose_cycle_previous,
-    BR_OT_spiraloid_toggle_workmode
+    BR_OT_spiraloid_toggle_workmode,
+    BR_OT_spiraloid_automap
 )
 
     # ComicPreferences,
