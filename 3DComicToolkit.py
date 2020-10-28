@@ -352,7 +352,7 @@ def operator_exists(idname):
 
     return {'FINISHED'}
 
-def validate_naming():
+def validate_naming(self, context):
         currSceneIndex = getCurrentSceneIndex()
         currScene =  bpy.data.scenes[currSceneIndex]
         sceneNumber = getCurrentPanelNumber()
@@ -386,113 +386,115 @@ def validate_naming():
 
 
         export_collection = getCurrentExportCollection()
-        for c in export_collection.children:
-            if "Lighting." in c.name:
-                c.name = "Lighting." + str(paddedSceneNumber) 
+        if export_collection:
+            for c in export_collection.children:
+                if "Lighting." in c.name:
+                    c.name = "Lighting." + str(paddedSceneNumber) 
 
-        objects = export_collection.objects
-        for obj in objects:
-            if "Camera." in obj.name:
-                bpy.context.scene.camera = bpy.data.objects[obj.name]
-                obj.name = 'Camera.'+ str(paddedSceneNumber)
-            if "Camera_aim." in obj.name:
-                obj.name = 'Camera_aim.'+ str(paddedSceneNumber)
-            if "Lighting." in obj.name:
-                obj.name = 'Lighting.'+ str(paddedSceneNumber)
+            objects = export_collection.objects
+            for obj in objects:
+                if "Camera." in obj.name:
+                    bpy.context.scene.camera = bpy.data.objects[obj.name]
+                    obj.name = 'Camera.'+ str(paddedSceneNumber)
+                if "Camera_aim." in obj.name:
+                    obj.name = 'Camera_aim.'+ str(paddedSceneNumber)
+                if "Lighting." in obj.name:
+                    obj.name = 'Lighting.'+ str(paddedSceneNumber)
 
-        letters_collection = getCurrentLettersCollection()
-        letters_objects = letters_collection.objects
-        for obj in letters_objects:
+            letters_collection = getCurrentLettersCollection()
+            letters_objects = letters_collection.objects
+            for obj in letters_objects:
 
-            has_letters_english = False
-            has_letters_spanish = False
-            has_letters_japanese = False
-            has_letters_korean = False
-            has_letters_german = False
-            has_letters_french = False
-            has_letters_dutch = False
+                has_letters_english = False
+                has_letters_spanish = False
+                has_letters_japanese = False
+                has_letters_korean = False
+                has_letters_german = False
+                has_letters_french = False
+                has_letters_dutch = False
 
-            if "Letters_spanish." in obj.name:
-                obj.name = 'Letters_spanish.'+ str(paddedSceneNumber)
-                has_letters_spanish = True
-                active_language_abreviated = 'es'
-            if "Letters_japanese." in obj.name:
-                obj.name = 'Letters_japanese.'+ str(paddedSceneNumber)
-                has_letters_japanese = True
-                active_language_abreviated = 'ja'
-            if "Letters_korean." in obj.name:
-                obj.name = 'Letters_korean.'+ str(paddedSceneNumber)  
-                has_letters_korean = True
-                active_language_abreviated = 'ko'
+                if "Letters_spanish." in obj.name:
+                    obj.name = 'Letters_spanish.'+ str(paddedSceneNumber)
+                    has_letters_spanish = True
+                    active_language_abreviated = 'es'
+                if "Letters_japanese." in obj.name:
+                    obj.name = 'Letters_japanese.'+ str(paddedSceneNumber)
+                    has_letters_japanese = True
+                    active_language_abreviated = 'ja'
+                if "Letters_korean." in obj.name:
+                    obj.name = 'Letters_korean.'+ str(paddedSceneNumber)  
+                    has_letters_korean = True
+                    active_language_abreviated = 'ko'
 
-            if "Letters_german." in obj.name:
-                obj.name = 'Letters_german.'+ str(paddedSceneNumber)
-                has_letters_german = True
-                active_language_abreviated = 'de'
+                if "Letters_german." in obj.name:
+                    obj.name = 'Letters_german.'+ str(paddedSceneNumber)
+                    has_letters_german = True
+                    active_language_abreviated = 'de'
 
-            if "Letters_french." in obj.name:
-                obj.name = 'Letters_french.'+ str(paddedSceneNumber)  
-                has_letters_french = True
-                active_language_abreviated = 'fr'
+                if "Letters_french." in obj.name:
+                    obj.name = 'Letters_french.'+ str(paddedSceneNumber)  
+                    has_letters_french = True
+                    active_language_abreviated = 'fr'
 
-            if "Letters_dutch." in obj.name:
-                obj.name = 'Letters_dutch.'+ str(paddedSceneNumber)  
-                has_letters_dutch = True
-                active_language_abreviated = 'da'
+                if "Letters_dutch." in obj.name:
+                    obj.name = 'Letters_dutch.'+ str(paddedSceneNumber)  
+                    has_letters_dutch = True
+                    active_language_abreviated = 'da'
 
-            if "Letters_eng." in obj.name:
-                obj.name = 'Letters_english.'+ str(paddedSceneNumber)
+                if "Letters_eng." in obj.name:
+                    obj.name = 'Letters_english.'+ str(paddedSceneNumber)
 
-            if "Letters_english." in obj.name:
-                obj.name = 'Letters_english.'+ str(paddedSceneNumber)
-                has_letters_english = True
-                active_language_abreviated = 'en-US'
+                if "Letters_english." in obj.name:
+                    obj.name = 'Letters_english.'+ str(paddedSceneNumber)
+                    has_letters_english = True
+                    active_language_abreviated = 'en-US'
 
-                # if not has_letters_spanish:
-                #     bpy.ops.object.select_all(action='DESELECT')
-                #     obj.select_set(state=True)
-                #     bpy.context.view_layer.objects.active = obj
-                #     ob = obj.copy()
-                #     object_collection = obj.users_collection[0].name
-                #     bpy.data.collections[object_collection].objects.link(ob)
-                #     ob.name = 'Letters_spanish.'+ str(paddedSceneNumber)
+                    # if not has_letters_spanish:
+                    #     bpy.ops.object.select_all(action='DESELECT')
+                    #     obj.select_set(state=True)
+                    #     bpy.context.view_layer.objects.active = obj
+                    #     ob = obj.copy()
+                    #     object_collection = obj.users_collection[0].name
+                    #     bpy.data.collections[object_collection].objects.link(ob)
+                    #     ob.name = 'Letters_spanish.'+ str(paddedSceneNumber)
 
-                # if not has_letters_japanese:
-                #     bpy.ops.object.select_all(action='DESELECT')
-                #     obj.select_set(state=True)
-                #     bpy.context.view_layer.objects.active = obj
-                #     ob = obj.copy()
-                #     object_collection = obj.users_collection[0].name
-                #     bpy.data.collections[object_collection].objects.link(ob)
-                #     ob.name = 'Letters_japanese.'+ str(paddedSceneNumber)
+                    # if not has_letters_japanese:
+                    #     bpy.ops.object.select_all(action='DESELECT')
+                    #     obj.select_set(state=True)
+                    #     bpy.context.view_layer.objects.active = obj
+                    #     ob = obj.copy()
+                    #     object_collection = obj.users_collection[0].name
+                    #     bpy.data.collections[object_collection].objects.link(ob)
+                    #     ob.name = 'Letters_japanese.'+ str(paddedSceneNumber)
 
-                # if not has_letters_korean:
-                #     bpy.ops.object.select_all(action='DESELECT')
-                #     obj.select_set(state=True)
-                #     bpy.context.view_layer.objects.active = obj
-                #     ob = obj.copy()
-                #     object_collection = obj.users_collection[0].name
-                #     bpy.data.collections[object_collection].objects.link(ob)
-                #     ob.name = 'Letters_korean.'+ str(paddedSceneNumber)
+                    # if not has_letters_korean:
+                    #     bpy.ops.object.select_all(action='DESELECT')
+                    #     obj.select_set(state=True)
+                    #     bpy.context.view_layer.objects.active = obj
+                    #     ob = obj.copy()
+                    #     object_collection = obj.users_collection[0].name
+                    #     bpy.data.collections[object_collection].objects.link(ob)
+                    #     ob.name = 'Letters_korean.'+ str(paddedSceneNumber)
 
-                # if not has_letters_german:
-                #     bpy.ops.object.select_all(action='DESELECT')
-                #     obj.select_set(state=True)
-                #     bpy.context.view_layer.objects.active = obj
-                #     ob = obj.copy()
-                #     object_collection = obj.users_collection[0].name
-                #     bpy.data.collections[object_collection].objects.link(ob)
-                #     ob.name = 'Letters_german.'+ str(paddedSceneNumber)
+                    # if not has_letters_german:
+                    #     bpy.ops.object.select_all(action='DESELECT')
+                    #     obj.select_set(state=True)
+                    #     bpy.context.view_layer.objects.active = obj
+                    #     ob = obj.copy()
+                    #     object_collection = obj.users_collection[0].name
+                    #     bpy.data.collections[object_collection].objects.link(ob)
+                    #     ob.name = 'Letters_german.'+ str(paddedSceneNumber)
 
-                # if not has_letters_french:
-                #     bpy.ops.object.select_all(action='DESELECT')
-                #     obj.select_set(state=True)
-                #     bpy.context.view_layer.objects.active = obj
-                #     ob = obj.copy()
-                #     object_collection = obj.users_collection[0].name
-                #     bpy.data.collections[object_collection].objects.link(ob)
-                #     ob.name = 'Letters_french.'+ str(paddedSceneNumber)
-
+                    # if not has_letters_french:
+                    #     bpy.ops.object.select_all(action='DESELECT')
+                    #     obj.select_set(state=True)
+                    #     bpy.context.view_layer.objects.active = obj
+                    #     ob = obj.copy()
+                    #     object_collection = obj.users_collection[0].name
+                    #     bpy.data.collections[object_collection].objects.link(ob)
+                    #     ob.name = 'Letters_french.'+ str(paddedSceneNumber)
+        else:
+            self.report({'ERROR'}, 'No Export Collection Found!  Scene Must be reinitialized')
 
 def toggle_workmode(self, context, rendermode):
     global isWorkmodeToggled
@@ -1284,7 +1286,7 @@ def outline(mesh_objects, mode):
 
     for mesh_object in mesh_objects:
         is_toon_shaded = mesh_object.get("is_toon_shaded")
-        if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' :
+        if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' or mesh_object.type == 'FONT':
             if not is_toon_shaded:
                 is_insensitive = False
 
@@ -1352,14 +1354,14 @@ def outline(mesh_objects, mode):
 
                     white_outline_mod = mesh_object.modifiers.new(name = 'WhiteOutline', type = 'SOLIDIFY')
                     white_outline_mod.use_flip_normals = True
-                    white_outline_mod.thickness = ink_thickness / 3
+                    white_outline_mod.thickness = ink_thickness / 4
                     white_outline_mod.offset = -1
                     white_outline_mod.material_offset = 2
                     if mesh_object.type == 'MESH':
                         white_outline_mod.vertex_group = ink_thickness_vgroup.name
                     white_outline_mod.show_in_editmode = False
                     white_outline_mod.thickness_clamp = 0.5
-                    white_outline_mod.thickness_vertex_group = 0.5
+                    white_outline_mod.thickness_vertex_group = 0.1
 
                     black_outline_mod = mesh_object.modifiers.new(name = 'BlackOutline', type = 'SOLIDIFY')
                     black_outline_mod.use_flip_normals = True
@@ -1372,7 +1374,16 @@ def outline(mesh_objects, mode):
                     newVar.type = 'SINGLE_PROP'
                     newVar.targets[0].id = mesh_object 
                     newVar.targets[0].data_path = 'modifiers["WhiteOutline"].thickness'
-                    thicknessDriver.driver.expression =  "thickness * 3"
+                    thicknessDriver.driver.expression =  "(thickness  * 1.15) - .02"
+
+                    factorDriver = black_outline_mod.driver_add('thickness_vertex_group')
+                    factorDriver.driver.type = 'SCRIPTED'
+                    newVar = factorDriver.driver.variables.new()
+                    newVar.name = "thickness_vertex_group"
+                    newVar.type = 'SINGLE_PROP'
+                    newVar.targets[0].id = mesh_object 
+                    newVar.targets[0].data_path = 'modifiers["WhiteOutline"].thickness_vertex_group'
+                    factorDriver.driver.expression =  "thickness_vertex_group"
 
 
                     black_outline_mod.offset = -1
@@ -1381,7 +1392,7 @@ def outline(mesh_objects, mode):
                         black_outline_mod.vertex_group = ink_thickness_vgroup.name
                     black_outline_mod.show_in_editmode = False
                     black_outline_mod.thickness_clamp = 0
-                    black_outline_mod.thickness_vertex_group = 0.2
+                    # black_outline_mod.thickness_vertex_group = 0.2
 
                     decimators = []
                     for i in range(len(mesh_object.modifiers)):
@@ -1623,6 +1634,19 @@ def empty_trash(self, context):
     for block in bpy.data.particles:
         if block.users == 0:
             bpy.data.particles.remove(block)
+
+    try:
+        bpy.ops.outliner.orphans_purge()
+    except:
+        pass
+    try:
+        bpy.ops.outliner.orphans_purge()
+    except:
+        pass
+    try:
+        bpy.ops.outliner.orphans_purge()
+    except:
+        pass
 
     return {'FINISHED'}
 
@@ -2770,6 +2794,7 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
     # directory = bpy.props.StringProperty(name="file path", description="3D Comic webite root folder")
     filter_glob: StringProperty( default='*.blend', options={'HIDDEN'} )
 
+
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}   
@@ -3082,9 +3107,11 @@ def insert_comic_panel(self, context):
         panel_width = int(100 / new_panel_count)
         currSceneIndex = getCurrentSceneIndex()
         renameAllScenesAfter()
+        numString = getCurrentPanelNumber()
         newSceneIndex = currSceneIndex + 1
-        newSceneIndexPadded = "%04d" % newSceneIndex
-        newSceneName = 'p.'+ str(newSceneIndexPadded) + ".w" + str(panel_width) + "h"  + str(panel_width)
+        newPanelIndex = numString + 1
+        newPanelIndexPadded = "%04d" % newPanelIndex
+        newSceneName = 'p.'+ str(newPanelIndexPadded) + ".w" + str(panel_width) + "h"  + str(panel_width)
         newScene = bpy.ops.scene.new(type='NEW')
         bpy.context.scene.name = newSceneName
         bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
@@ -3348,9 +3375,9 @@ class BR_OT_reorder_scene_later(bpy.types.Operator):
                 bpy.context.window.scene = bpy.data.scenes[currSceneIndex]
 
         bpy.context.window.scene = bpy.data.scenes[currSceneIndex]
-        validate_naming()
+        validate_naming(self, context)
         bpy.context.window.scene = bpy.data.scenes[nextSceneIndex]
-        validate_naming()
+        validate_naming(self, context)
 
 
         return {'FINISHED'}
@@ -3370,7 +3397,7 @@ class BR_OT_reorder_scene_earlier(bpy.types.Operator):
         bpy.data.scenes[previousSceneIndex].name = tmp_name
         currSceneIndex = getCurrentSceneIndex()
         bpy.data.scenes[currSceneIndex].name = previous_scene_name
-        validate_naming()
+        validate_naming(self, context)
 
 
         # bpy.data.scenes[currSceneIndex].name = previous_scene_name
@@ -3379,7 +3406,7 @@ class BR_OT_reorder_scene_earlier(bpy.types.Operator):
             if bpy.data.scenes[i].name == tmp_name:
                 bpy.data.scenes[i].name = current_scene_name
                 bpy.context.window.scene = bpy.data.scenes[currSceneIndex + 1]
-                validate_naming()
+                validate_naming(self, context)
 
         bpy.context.window.scene = bpy.data.scenes[currSceneIndex]
 
@@ -3492,6 +3519,12 @@ class BR_OT_add_letter_wordballoon(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        if bpy.context.object:
+            starting_mode = bpy.context.object.mode
+            if "OBJECT" not in starting_mode:
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                bpy.ops.object.select_all(action='DESELECT')
+
         export_collection = getCurrentExportCollection()
         active_camera = bpy.context.scene.camera
         if active_camera is not None :
@@ -3537,6 +3570,9 @@ class BR_OT_add_letter_wordballoon(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         letter.select_set(state=True)
         bpy.context.view_layer.objects.active = letter
+        for v in bpy.context.window.screen.areas:
+            if v.type=='VIEW_3D':
+                bpy.ops.view3d.snap_cursor_to_selected()
 
 
         return {'FINISHED'}
@@ -3549,6 +3585,12 @@ class BR_OT_add_letter_wordballoon_double(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        if bpy.context.object:
+            starting_mode = bpy.context.object.mode
+            if "OBJECT" not in starting_mode:
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                bpy.ops.object.select_all(action='DESELECT')
+
         export_collection = getCurrentExportCollection()
         active_camera = bpy.context.scene.camera
         if active_camera is not None :
@@ -3594,6 +3636,10 @@ class BR_OT_add_letter_wordballoon_double(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         letter.select_set(state=True)
         bpy.context.view_layer.objects.active = letter
+        for v in bpy.context.window.screen.areas:
+            if v.type=='VIEW_3D':
+                bpy.ops.view3d.snap_cursor_to_selected()
+
 
 
         return {'FINISHED'}
@@ -3607,6 +3653,11 @@ class BR_OT_add_letter_wordballoon_triple(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        if bpy.context.object:
+            starting_mode = bpy.context.object.mode
+            if "OBJECT" not in starting_mode:
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                bpy.ops.object.select_all(action='DESELECT')
         export_collection = getCurrentExportCollection()
         active_camera = bpy.context.scene.camera
         if active_camera is not None :
@@ -3652,6 +3703,10 @@ class BR_OT_add_letter_wordballoon_triple(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         letter.select_set(state=True)
         bpy.context.view_layer.objects.active = letter
+        for v in bpy.context.window.screen.areas:
+            if v.type=='VIEW_3D':
+                bpy.ops.view3d.snap_cursor_to_selected()
+
 
 
         return {'FINISHED'}
@@ -3667,6 +3722,11 @@ class BR_OT_add_letter_wordballoon_quadruple(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        if bpy.context.object:
+            starting_mode = bpy.context.object.mode
+            if "OBJECT" not in starting_mode:
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                bpy.ops.object.select_all(action='DESELECT')
         export_collection = getCurrentExportCollection()
         active_camera = bpy.context.scene.camera
         if active_camera is not None :
@@ -3712,6 +3772,10 @@ class BR_OT_add_letter_wordballoon_quadruple(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         letter.select_set(state=True)
         bpy.context.view_layer.objects.active = letter
+        for v in bpy.context.window.screen.areas:
+            if v.type=='VIEW_3D':
+                bpy.ops.view3d.snap_cursor_to_selected()
+
 
 
         return {'FINISHED'}
@@ -3739,6 +3803,11 @@ class BR_OT_add_letter_sfx(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        if bpy.context.object:
+            starting_mode = bpy.context.object.mode
+            if "OBJECT" not in starting_mode:
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                bpy.ops.object.select_all(action='DESELECT')
         export_collection = getCurrentExportCollection()
         letters_collection = getCurrentLettersCollection()
         objects = bpy.context.selected_objects
@@ -3781,12 +3850,13 @@ class BR_OT_add_letter_sfx(bpy.types.Operator):
                 camera_position = active_camera.matrix_world.to_translation()
 
 
+        bpy.ops.object.select_all(action='DESELECT')
+        letter.select_set(state=True)
+        bpy.context.view_layer.objects.active = letter
+        for v in bpy.context.window.screen.areas:
+            if v.type=='VIEW_3D':
+                bpy.ops.view3d.snap_cursor_to_selected()
 
-
-
-            bpy.ops.object.select_all(action='DESELECT')
-            letter.select_set(state=True)
-            bpy.context.view_layer.objects.active = letter
 
         return {'FINISHED'}
 
@@ -3837,7 +3907,7 @@ class BR_OT_panel_validate_naming(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        validate_naming()
+        validate_naming(self, context)
         return {'FINISHED'}
 
 
@@ -3859,11 +3929,13 @@ class BR_OT_panel_validate_naming_all(bpy.types.Operator):
             for i in range(len(bpy.data.scenes)):
                 if bpy.data.scenes[i].name == panel:
                     bpy.context.window.scene = bpy.data.scenes[i]                
-                    validate_naming()
+                    validate_naming(self, context)
 
         bpy.context.window.scene = bpy.data.scenes[currSceneIndex]
 
         return {'FINISHED'}
+
+
 
 
 class BR_OT_panel_init(bpy.types.Operator):
@@ -3873,177 +3945,326 @@ class BR_OT_panel_init(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        objects = bpy.context.selected_objects
+        if objects is not None :
+            for obj in objects:
+                starting_mode = bpy.context.object.mode
+                if "OBJECT" not in starting_mode:
+                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                    bpy.ops.object.select_all(action='DESELECT')
+
+
         currSceneIndex = getCurrentSceneIndex()
-        numString = getCurrentPanelNumber()
-        sceneNumber = "%04d" % numString
-        # sceneNumber = "%04d" % currSceneIndex
-        current_scene_name = bpy.data.scenes[currSceneIndex].name
-
-        stringFragments = current_scene_name.split('.')
-        x_stringFragments = stringFragments[2]
-        xx_stringFragments = x_stringFragments.split('h')
-        current_panel_height = xx_stringFragments[1]
-        xxx_stringFragments = xx_stringFragments[0].split('w')
-        current_panel_width = xxx_stringFragments[1]
-        # print (stringFragments)
-        # print (x_stringFragments)
-        # print (xx_stringFragments)
-        # print (xxx_stringFragments)
-
-
-        bpy.ops.object.select_all(action='DESELECT')
-        active_camera = bpy.context.scene.camera
-
-        # panels = []
-        # for scene in bpy.data.scenes:
-        #     if "p." in scene.name:
-        #         panels.append(scene.name)
-
-        # for panel in panels :
-        #     for i in range(len(bpy.data.scenes)):
-        #         if bpy.data.scenes[i].name == panel:
-        #             m = currSceneIndex - 1
-        #             if m > currSceneIndex:
-        #                 sceneNumber = "%04d" % m
-        #                 bpy.data.scenes[m].name = 'p.'+ str(sceneNumber)
-
-
         currScene =  bpy.data.scenes[currSceneIndex]
         currsceneName = currScene.name
-        # panelSceneName = 'p.'+ str(sceneNumber) + ".w100h100"
-        panelSceneName = 'p.'+ str(sceneNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
+        currPanelIndex = getCurrentPanelNumber()
+        panelNumber = "%04d" % currPanelIndex
+        existing_prefix_name = "previously_existing_"
 
-        # if panelSceneName != currsceneName:
+        active_camera = bpy.context.scene.camera
+
+
+
+        current_scene_name = bpy.data.scenes[currSceneIndex].name
+        stringFragments = current_scene_name.split('.')
+        if len(stringFragments) >= 2:
+            x_stringFragments = stringFragments[2]
+            xx_stringFragments = x_stringFragments.split('h')
+            current_panel_height = xx_stringFragments[1]
+            xxx_stringFragments = xx_stringFragments[0].split('w')
+            current_panel_width = xxx_stringFragments[1]
+            panelSceneName = 'p.'+ str(panelNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
+        else:
+            panelSceneName = 'p.'+ str(panelNumber) + '.w100h100'
+
         bpy.data.scenes[currSceneIndex].name = panelSceneName
-        # currsceneName = currScene.name
 
-        # for c in bpy.data.collections:
-        #     if c.name is export_collection_name:
-
-
-        wip_collection_name = "Wip." + sceneNumber
-        export_collection_name = "Export." + sceneNumber
-        letters_collection_name = "Letters." + sceneNumber
+        wip_collection_name = "Wip." + panelNumber
+        export_collection_name = "Export." + panelNumber
+        letters_collection_name = "Letters." + panelNumber
         scene_collections = bpy.data.scenes[currSceneIndex].collection.children
 
+        # for c in scene_collections:
+        #     c.name = existing_prefix_name + c.name
+
+        objects = bpy.context.scene.objects
+        pcamera = []
+        pcamera_aim = []
+        if active_camera:
+            for obj in objects:
+                if obj.type == 'CAMERA':
+                    obj.name = existing_prefix_name + "Camera"
+                    pcamera.append(obj)
+                if "Camera_aim." in obj.name:
+                    obj.name = existing_prefix_name + "Camera_aim"
+                    pcamera_aim.append(obj)
+
+
+        # wip_collection = bpy.data.collections.new(wip_collection_name)
+        # bpy.context.scene.collection.children.link(wip_collection)
+
+
+        hasExportCollection = False
+        hasLettersCollection = False
+        scene_collections = bpy.data.scenes[currSceneIndex].collection.children
         for c in scene_collections:
-            if c.name == export_collection_name:
-                print ("Removing existing export collection")
-                bpy.data.scenes[currSceneIndex].collection.children.unlink(c)
-                bpy.data.collections.remove(c)
-                bpy.ops.outliner.orphans_purge()
+            collectionNameStringFragments = c.name.split('.')
+
+            if "Export" in collectionNameStringFragments[0]:
+                c.name = export_collection_name
+                hasExportCollection = True
+                export_collection = c
+
+            if "Letters" in collectionNameStringFragments[0]:
+                c.name = letters_collection_name
+                hasLettersCollection = True
+                letters_collection = c
+
+        # # stop to see what's going on
+        # raise KeyboardInterrupt()
 
 
-        wip_collection = bpy.data.collections.new(wip_collection_name)
-        export_collection =  bpy.data.collections.new(export_collection_name)
-        letters_collection =  bpy.data.collections.new(letters_collection_name)
-        bpy.context.scene.collection.children.link(wip_collection)
-        bpy.context.scene.collection.children.link(export_collection)
-        bpy.context.scene.collection.children.link(letters_collection)
-        # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[wip_collection_name]
 
-        # load selected scene
+        if  hasExportCollection:
+            export_collection = bpy.data.collections.get(export_collection_name)
+        else:
+            export_collection =  bpy.data.collections.new(export_collection_name)
+            bpy.context.scene.collection.children.link(export_collection)
+
+        # # stop to see what's going on
+        # raise KeyboardInterrupt()
+
+
+        if hasLettersCollection:
+            letters_collection = bpy.data.collections.get(letters_collection_name)
+        else:
+            letters_collection =  bpy.data.collections.new(letters_collection_name)
+            bpy.context.scene.collection.children.link(letters_collection)
+
+
+
+        # existing_export_collection = bpy.data.collections.get(export_collection_name)
+        # existing_letters_collection = bpy.data.collections.get(letters_collection_name)
+
+
+
+        # load default scene
         load_resource(self, context, "panel_default.blend", False)
 
         # link imported collection to scene so it shows up in outliner
         loaded_export_collection_name =  "Export.TEMPLATE"
         loaded_export_collection = bpy.data.collections.get(loaded_export_collection_name)
-
         loaded_letter_collection_name =  "Letters.TEMPLATE"
         loaded_letter_collection = bpy.data.collections.get(loaded_letter_collection_name)
 
-        # bpy.data.scenes[currSceneIndex].collection.children.link(export_collection_name)
+        bpy.context.scene.collection.children.link(loaded_export_collection)
+        bpy.context.scene.collection.children.link(loaded_letter_collection)
 
-        objects = bpy.context.scene.objects
-        # objects = loaded_export_collection.all_objects
-        for obj in objects:
-            # try :
-            #     # loaded_export_collection.objects.unlink(obj)
-            #     bpy.data.collections[loaded_export_collection_name].objects.unlink(obj)
-            # except:
-            #     pass
-            try:
-                bpy.context.scene.collection.objects.unlink(obj)
-            except:
-                pass
+
+
+
+
+
+        if active_camera:
+            for obj in objects:
+                if obj.type == 'CAMERA':
+                    if "Camera.TEMPLATE" in obj.name:
+                        camera_name = 'Camera.'+ str(panelNumber)
+                        obj.name = camera_name
+                        bpy.context.scene.camera = bpy.data.objects[obj.name]   
+                        letters_collection = getCurrentLettersCollection()
+                        obj.location[0] = active_camera.location[0]
+                        obj.location[1] = active_camera.location[1]
+                        obj.location[2] = active_camera.location[2]
+                        if letters_collection:
+                            letters_objects = letters_collection.objects
+                            for letter_group in letters_objects:
+                                if letter_group.type == 'EMPTY':
+                                    if "Letters_" in letter_group.name:
+                                        scene_camera = bpy.context.scene.objects[camera_name]
+                                        bpy.ops.object.select_all(action='DESELECT')
+                                        letter_group.select_set(state=True)
+                                        scene_camera.select_set(state=True)
+                                        bpy.context.view_layer.objects.active = scene_camera
+                                        bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
+                        obj.data.lens = active_camera.data.lens
+                        obj.data.clip_start = active_camera.data.clip_start
+                        obj.data.clip_end = active_camera.data.clip_end
+                        obj.data.dof.use_dof = active_camera.data.dof.use_dof
+                        obj.data.sensor_fit = active_camera.data.sensor_fit
+                        obj.data.show_background_images = active_camera.data.show_background_images
+                        obj.data.show_safe_areas = active_camera.data.show_safe_areas
+                        bpy.data.objects.remove(bpy.data.objects[active_camera.name], do_unlink=True)
+                        # bpy.context.scene.camera = obj
+               
+                if "Camera_aim." in obj.name:
+                    obj.name = 'Camera_aim.'+ str(panelNumber)
+
+                # if pcamera_aim:
+                    # obj = pcamera_aim[0]
+                    # bpy.data.objects.remove(bpy.data.objects[obj.name], do_unlink=True)
+        else:
+            for obj in objects:
+                if obj.type == 'CAMERA':
+                    if "Camera.TEMPLATE" in obj.name:
+                        obj.name = 'Camera.'+ str(panelNumber)
+                        bpy.context.scene.camera = bpy.data.objects[obj.name]   
+                if obj.type == 'EMPTY':                
+                    if "Camera_aim.TEMPLATE" in obj.name:
+                        obj.name = 'Camera_aim.'+ str(panelNumber)
+
+
+
+        if letters_collection:
+            letters_objects = letters_collection.objects
+            template_letters_objects = loaded_letter_collection.objects
+            for tobj in template_letters_objects:
+                isMatchFound = False
+                templateStringFragments = tobj.name.split('.TEMPLATE')
+                new_letter_group_name = templateStringFragments[0] + "." + str(panelNumber) 
+                for lobj in letters_objects:
+                    if lobj.type == 'EMPTY':
+                        if "Letters_" in lobj.name:
+                            letterNameStringFragments = lobj.name.split('.')
+                            if letterNameStringFragments[0] == templateStringFragments[0]:
+                                isMatchFound = True
+                if isMatchFound:
+                    bpy.data.objects.remove(bpy.data.objects[tobj.name], do_unlink=True)
+                else:
+                    letters_collection.objects.link(tobj)
+                    tobj.name = new_letter_group_name
+
+            for obj in letters_objects:
+                if obj.type == 'EMPTY':
+                    if "Letters_" in obj.name:
+                        letterPrefixStringFragments = lobj.name.split('.')
+                        new_letter_group_name = letterPrefixStringFragments[0] + "." + str(panelNumber) 
+
+                        # letters_collection.objects.link(obj)
+
+                        if "TEMPLATE" in obj.name:
+                            isMatchFound = False
+                            languageStringFragments = obj.name.split('.TEMPLATE')
+                            new_letter_group_name = languageStringFragments[0] + "." + str(panelNumber) 
+                            for o in letters_objects:
+                                if o.name == new_letter_group_name:
+                                    bpy.data.objects.remove(bpy.data.objects[obj.name], do_unlink=True)
+                                    isMatchFound = True
+                            if not isMatchFound:
+                                obj.name = new_letter_group_name
+
+                        try:
+                            loaded_letter_collection.objects.unlink(obj)
+                            export_collection.objects.unlink(obj)
+                        except:
+                            pass
+
+            scene_collections = bpy.data.scenes[currSceneIndex].collection.children
+            for c in scene_collections:
+                if c.name == loaded_letter_collection_name:                        
+                    bpy.data.scenes[currSceneIndex].collection.children.unlink(c)
+                if c.name == loaded_export_collection_name:                        
+                    bpy.data.scenes[currSceneIndex].collection.children.unlink(c)
+
+
+            coll = bpy.data.collections.get(loaded_letter_collection_name)
+            if coll:
+                obs = [o for o in coll.objects if o.users == 1]
+                while obs:
+                    bpy.data.objects.remove(obs.pop())
+                bpy.data.collections.remove(coll)
+
+            coll = bpy.data.collections.get(loaded_export_collection_name)
+            if coll:
+                obs = [o for o in coll.objects if o.users == 1]
+                while obs:
+                    bpy.data.objects.remove(obs.pop())
+                bpy.data.collections.remove(coll)
+
+
+
+
+            # shuffled_letters_objects = letters_collection.objects
+            # if shuffled_letters_objects:
+            #     for obj in shuffled_letters_objects:
+            #         if obj.type == 'EMPTY':
+            #                 if "TEMPLATE" in obj.name:
+            #                     languageStringFragments = obj.name.split('.TEMPLATE')
+            #                     for ob in shuffled_letters_objects:
+            #                         if "TEMPLATE" not in ob.name:
+            #                             if languageStringFragments[0] in ob.name:
+            #                                 bpy.data.objects.remove(bpy.data.objects[obj.name], do_unlink=True)
+            #                                 letterGroupStringFragments = ob.name.split('.')
+            #                                 ob.name = letterGroupStringFragments[0] + "." + str(panelNumber)
+
+
+
+        # objects = bpy.context.scene.objects
+        # for obj in objects:
+        #     try:
+        #         bpy.context.scene.collection.objects.unlink(obj)
+        #     except:
+        #         pass
             
-            for c in bpy.data.collections:
-                try:
-                    c.objects.unlink(obj)
-                except:
-                    pass
-            if "Letters_" not in obj.name:
-                export_collection.objects.link(obj)
-            else:
-                letters_collection.objects.link(obj)
-            # bpy.data.collections[export_collection_name].objects.link(obj)
-        objects = export_collection.objects
-        pcamera = []
-        pcamera_aim = []
-        for obj in objects:
-            if obj.type == 'CAMERA':
-                pcamera.append(obj)
-            if "Camera_aim." in obj.name:
-                pcamera_aim.append(obj)
+        #     for c in bpy.data.collections:
+        #         try:
+        #             c.objects.unlink(obj)
+        #         except:
+        #             pass
+        #     if "Letters_" not in obj.name:
+        #         export_collection.objects.link(obj)
+        #     else:
+        #         letters_collection.objects.link(obj)
+        # objects = export_collection.objects
+        # pcamera = []
+        # pcamera_aim = []
+        # for obj in objects:
+        #     if obj.type == 'CAMERA':
+        #         pcamera.append(obj)
+        #     if "Camera_aim." in obj.name:
+        #         pcamera_aim.append(obj)
 
 
-        if pcamera:
-            obj = pcamera[0]
-            # if "Camera." in obj.name:
+        # if pcamera:
+        #     obj = pcamera[0]
+        #     bpy.context.scene.camera = bpy.data.objects[obj.name]
 
-
-            # if active_camera:
-            #     active_camera.name = 'Camera.'+ str(sceneNumber)
-            #     bpy.data.objects[obj.name]
-            #     export_collection.objects.link(active_camera)
-
-            #     bpy.ops.object.select_all(action='DESELECT')
-            #     bpy.data.objects['Letters_eng.'+ str(sceneNumber)].select = True
-            #     active_camera.select = True
-            #     bpy.context.view_layer.objects.active = active_camera
-            #     bpy.ops.object.parent_set(type='OBJECT', keep_transform=False)
-
-            #     bpy.data.objects.remove(bpy.data.objects[obj.name], do_unlink=True)
-            #     # bpy.ops.object.delete(use_global=False)
-            # else:
-            bpy.context.scene.camera = bpy.data.objects[obj.name]
-            obj.name = 'Camera.'+ str(sceneNumber)
-
-            if active_camera:
-                obj.location[0] = active_camera.location[0]
-                obj.location[1] = active_camera.location[1]
-                obj.location[2] = active_camera.location[2]
-                bpy.data.objects.remove(bpy.data.objects[active_camera.name], do_unlink=True)
+        #     if active_camera:
+        #         obj.name = 'Camera.'+ str(panelNumber)
+        #         obj.location[0] = active_camera.location[0]
+        #         obj.location[1] = active_camera.location[1]
+        #         obj.location[2] = active_camera.location[2]
+        #         bpy.data.objects.remove(bpy.data.objects[active_camera.name], do_unlink=True)
 
             
-            if pcamera_aim:
-                obj = pcamera_aim[0]
-                obj.name = 'Camera_aim.'+ str(sceneNumber)
+        #     if pcamera_aim:
+        #         obj = pcamera_aim[0]
+        #         obj.name = 'Camera_aim.'+ str(panelNumber)
 
-        letters_objects = letters_collection.objects
-        for obj in letters_objects:
-            if "Letters_english." in obj.name:
-                obj.name = 'Letters_english.'+ str(sceneNumber)
-            if "Letters_spanish." in obj.name:
-                obj.name = 'Letters_spanish.'+ str(sceneNumber)
-            if "Letters_japanese." in obj.name:
-                obj.name = 'Letters_japanese.'+ str(sceneNumber)
-            if "Letters_korean." in obj.name:
-                obj.name = 'Letters_korean.'+ str(sceneNumber)  
-            if "Letters_german." in obj.name:
-                obj.name = 'Letters_german.'+ str(sceneNumber)  
-            if "Letters_french." in obj.name:
-                obj.name = 'Letters_french.'+ str(sceneNumber)  
-            if "Letters_dutch." in obj.name:
-                obj.name = 'Letters_dutch.'+ str(sceneNumber)  
+        # letters_objects = letters_collection.objects
+        # for obj in letters_objects:
+        #     if "Letters_english." in obj.name:
+        #         obj.name = 'Letters_english.'+ str(panelNumber)
+        #     if "Letters_spanish." in obj.name:
+        #         obj.name = 'Letters_spanish.'+ str(panelNumber)
+        #     if "Letters_japanese." in obj.name:
+        #         obj.name = 'Letters_japanese.'+ str(panelNumber)
+        #     if "Letters_korean." in obj.name:
+        #         obj.name = 'Letters_korean.'+ str(panelNumber)  
+        #     if "Letters_german." in obj.name:
+        #         obj.name = 'Letters_german.'+ str(panelNumber)  
+        #     if "Letters_french." in obj.name:
+        #         obj.name = 'Letters_french.'+ str(panelNumber)  
+        #     if "Letters_dutch." in obj.name:
+        #         obj.name = 'Letters_dutch.'+ str(panelNumber)  
 
 
-        # library = bpy.data.libraries['panel_default.blend']
-        # for usid in  library.users_id:
-        #     usid.user_clear()
+        # # library = bpy.data.libraries['panel_default.blend']
+        # # for usid in  library.users_id:
+        # #     usid.user_clear()
 
-        # for library in bpy.data.libraries:
-        #     bpy.data.libraries.
+        # # for library in bpy.data.libraries:
+        # #     bpy.data.libraries.
 
         bpy.context.scene.render.resolution_x = 1024
         bpy.context.scene.render.resolution_y = 1024
@@ -4052,7 +4273,222 @@ class BR_OT_panel_init(bpy.types.Operator):
         bpy.context.scene.cursor.location[2] = 1.52
 
 
+        #cleanup
+        for c in scene_collections:
+            if existing_prefix_name in c.name:
+                bpy.data.scenes[currSceneIndex].collection.children.unlink(c)
+                bpy.data.collections.remove(c)
+
+
+
+        objects = bpy.context.scene.objects
+        for obj in objects:
+            if existing_prefix_name in obj.name:
+                bpy.data.objects.remove(bpy.data.objects[obj.name], do_unlink=True)
+        empty_trash(self, context)
+
         return {'FINISHED'}
+
+
+
+# class BR_OT_panel_init(bpy.types.Operator):
+#     """Setup scene as a 3D comic panel"""
+#     bl_idname = "view3d.spiraloid_3d_comic_panel_init"
+#     bl_label ="Initialize Panel"
+#     bl_options = {'REGISTER', 'UNDO'}
+
+#     def execute(self, context):
+#         currSceneIndex = getCurrentSceneIndex()
+#         currPanelIndex = getCurrentPanelNumber()
+#         panelNumber = "%04d" % currPanelIndex
+#         # sceneNumber = "%04d" % currSceneIndex
+#         current_scene_name = bpy.data.scenes[currSceneIndex].name
+#         old_export_collection_name = "old_export_collection"
+
+#         stringFragments = current_scene_name.split('.')
+#         x_stringFragments = stringFragments[2]
+#         xx_stringFragments = x_stringFragments.split('h')
+#         current_panel_height = xx_stringFragments[1]
+#         xxx_stringFragments = xx_stringFragments[0].split('w')
+#         current_panel_width = xxx_stringFragments[1]
+#         # print (stringFragments)
+#         # print (x_stringFragments)
+#         # print (xx_stringFragments)
+#         # print (xxx_stringFragments)
+
+
+#         bpy.ops.object.select_all(action='DESELECT')
+#         active_camera = bpy.context.scene.camera
+
+#         # panels = []
+#         # for scene in bpy.data.scenes:
+#         #     if "p." in scene.name:
+#         #         panels.append(scene.name)
+
+#         # for panel in panels :
+#         #     for i in range(len(bpy.data.scenes)):
+#         #         if bpy.data.scenes[i].name == panel:
+#         #             m = currSceneIndex - 1
+#         #             if m > currSceneIndex:
+#         #                 sceneNumber = "%04d" % m
+#         #                 bpy.data.scenes[m].name = 'p.'+ str(sceneNumber)
+
+
+#         currScene =  bpy.data.scenes[currSceneIndex]
+#         currsceneName = currScene.name
+#         # panelSceneName = 'p.'+ str(sceneNumber) + ".w100h100"
+#         panelSceneName = 'p.'+ str(panelNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
+
+#         # if panelSceneName != currsceneName:
+#         bpy.data.scenes[currSceneIndex].name = panelSceneName
+#         # currsceneName = currScene.name
+
+#         # for c in bpy.data.collections:
+#         #     if c.name is export_collection_name:
+
+
+#         wip_collection_name = "Wip." + panelNumber
+#         export_collection_name = "Export." + panelNumber
+#         letters_collection_name = "Letters." + panelNumber
+#         scene_collections = bpy.data.scenes[currSceneIndex].collection.children
+
+#         for c in scene_collections:
+#             if c.name == export_collection_name:
+#                 c.name = old_export_collection_name
+#                 self.report({'INFO'}, 'Renaming Old Export Collection!')
+#                 # print ("Removing existing export collection")
+#                 # bpy.data.scenes[currSceneIndex].collection.children.unlink(c)
+#                 # bpy.data.collections.remove(c)
+#                 # bpy.ops.outliner.orphans_purge()
+
+
+#         wip_collection = bpy.data.collections.new(wip_collection_name)
+#         export_collection =  bpy.data.collections.new(export_collection_name)
+#         letters_collection =  bpy.data.collections.new(letters_collection_name)
+#         bpy.context.scene.collection.children.link(wip_collection)
+#         bpy.context.scene.collection.children.link(export_collection)
+#         bpy.context.scene.collection.children.link(letters_collection)
+#         # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[wip_collection_name]
+
+#         # load selected scene
+#         load_resource(self, context, "panel_default.blend", False)
+
+#         # link imported collection to scene so it shows up in outliner
+#         loaded_export_collection_name =  "Export.TEMPLATE"
+#         loaded_export_collection = bpy.data.collections.get(loaded_export_collection_name)
+
+#         loaded_letter_collection_name =  "Letters.TEMPLATE"
+#         loaded_letter_collection = bpy.data.collections.get(loaded_letter_collection_name)
+
+#         # bpy.data.scenes[currSceneIndex].collection.children.link(export_collection_name)
+
+#         objects = bpy.context.scene.objects
+#         # objects = loaded_export_collection.all_objects
+#         for obj in objects:
+#             # try :
+#             #     # loaded_export_collection.objects.unlink(obj)
+#             #     bpy.data.collections[loaded_export_collection_name].objects.unlink(obj)
+#             # except:
+#             #     pass
+#             try:
+#                 bpy.context.scene.collection.objects.unlink(obj)
+#             except:
+#                 pass
+            
+#             for c in bpy.data.collections:
+#                 try:
+#                     c.objects.unlink(obj)
+#                 except:
+#                     pass
+#             if "Letters_" not in obj.name:
+#                 export_collection.objects.link(obj)
+#             else:
+#                 letters_collection.objects.link(obj)
+#             # bpy.data.collections[export_collection_name].objects.link(obj)
+#         objects = export_collection.objects
+#         pcamera = []
+#         pcamera_aim = []
+#         for obj in objects:
+#             if obj.type == 'CAMERA':
+#                 pcamera.append(obj)
+#             if "Camera_aim." in obj.name:
+#                 pcamera_aim.append(obj)
+
+
+#         if pcamera:
+#             obj = pcamera[0]
+#             # if "Camera." in obj.name:
+
+
+#             # if active_camera:
+#             #     active_camera.name = 'Camera.'+ str(sceneNumber)
+#             #     bpy.data.objects[obj.name]
+#             #     export_collection.objects.link(active_camera)
+
+#             #     bpy.ops.object.select_all(action='DESELECT')
+#             #     bpy.data.objects['Letters_eng.'+ str(sceneNumber)].select = True
+#             #     active_camera.select = True
+#             #     bpy.context.view_layer.objects.active = active_camera
+#             #     bpy.ops.object.parent_set(type='OBJECT', keep_transform=False)
+
+#             #     bpy.data.objects.remove(bpy.data.objects[obj.name], do_unlink=True)
+#             #     # bpy.ops.object.delete(use_global=False)
+#             # else:
+#             bpy.context.scene.camera = bpy.data.objects[obj.name]
+
+#             if active_camera:
+#                 obj.name = 'Camera.'+ str(panelNumber)
+#                 obj.location[0] = active_camera.location[0]
+#                 obj.location[1] = active_camera.location[1]
+#                 obj.location[2] = active_camera.location[2]
+#                 bpy.data.objects.remove(bpy.data.objects[active_camera.name], do_unlink=True)
+
+            
+#             if pcamera_aim:
+#                 obj = pcamera_aim[0]
+#                 obj.name = 'Camera_aim.'+ str(panelNumber)
+
+#         letters_objects = letters_collection.objects
+#         for obj in letters_objects:
+#             if "Letters_english." in obj.name:
+#                 obj.name = 'Letters_english.'+ str(panelNumber)
+#             if "Letters_spanish." in obj.name:
+#                 obj.name = 'Letters_spanish.'+ str(panelNumber)
+#             if "Letters_japanese." in obj.name:
+#                 obj.name = 'Letters_japanese.'+ str(panelNumber)
+#             if "Letters_korean." in obj.name:
+#                 obj.name = 'Letters_korean.'+ str(panelNumber)  
+#             if "Letters_german." in obj.name:
+#                 obj.name = 'Letters_german.'+ str(panelNumber)  
+#             if "Letters_french." in obj.name:
+#                 obj.name = 'Letters_french.'+ str(panelNumber)  
+#             if "Letters_dutch." in obj.name:
+#                 obj.name = 'Letters_dutch.'+ str(panelNumber)  
+
+
+#         # library = bpy.data.libraries['panel_default.blend']
+#         # for usid in  library.users_id:
+#         #     usid.user_clear()
+
+#         # for library in bpy.data.libraries:
+#         #     bpy.data.libraries.
+
+#         bpy.context.scene.render.resolution_x = 1024
+#         bpy.context.scene.render.resolution_y = 1024
+#         bpy.context.scene.frame_start = 1 
+#         bpy.context.scene.frame_end = 72
+#         bpy.context.scene.cursor.location[2] = 1.52
+
+
+#         #cleanup
+#         for c in scene_collections:
+#             if c.name == old_export_collection_name:
+#                 bpy.data.scenes[currSceneIndex].collection.children.unlink(c)
+#                 bpy.data.collections.remove(c)
+#                 bpy.ops.outliner.orphans_purge()
+
+
+#         return {'FINISHED'}
 
 
 class BR_OT_panel_init_workshop_lighting(bpy.types.Operator):
@@ -4063,7 +4499,8 @@ class BR_OT_panel_init_workshop_lighting(bpy.types.Operator):
 
     def execute(self, context):
         currSceneIndex = getCurrentSceneIndex()
-        sceneNumber = "%04d" % currSceneIndex
+        numString = getCurrentPanelNumber()
+        sceneNumber = "%04d" % numString
 
         bpy.ops.object.select_all(action='DESELECT')
 
@@ -4566,16 +5003,16 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
         # bpy.ops.object.parent_no_inverse_set()
         bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
 
-        keylight.location[0] = 5
-        keylight.location[1] = -5
-        keylight.location[2] = 10
+        keylight.location[0] = 2.5
+        keylight.location[1] = -2.5
+        keylight.location[2] = 5
         keylight.rotation_euler[0] = -2.61799
         keylight.rotation_euler[1] = -2.61799
         keylight.rotation_euler[2] = -1.5708
         keylight.data.energy = 25000
         keylight.data.color = (1, 1, 1)
         keylight.data.use_contact_shadow = False
-        keylight.data.shadow_buffer_clip_start = 2
+        keylight.data.shadow_buffer_clip_start = .1
         keylight.data.spot_size =  2.26893
         keylight.data.shadow_soft_size = 0
         keylight.data.shadow_buffer_bias = 0.001

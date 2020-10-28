@@ -22,6 +22,6 @@
       xhr.setRequestHeader('pragma', 'no-cache');
       xhr.send();
     };
-    timeout(check, 5000);
+    timeout(check, 10000);
   }
 }());
