@@ -2139,6 +2139,16 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
 
     else:
+        if bpy.context.object:
+            if "OBJECT" not in bpy.context.object.mode:
+                if "DRAW" in bpy.context.object.mode :
+                    bpy.ops.gpencil.paintmode_toggle(back=False)
+                    bpy.ops.object.select_all(action='DESELECT')
+                else:
+                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                    bpy.ops.object.select_all(action='DESELECT')
+
+
         #make sure letter collection is active
         getCurrentLettersCollection()
 
