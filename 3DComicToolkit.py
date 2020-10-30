@@ -105,13 +105,20 @@ def getCurrentPanelNumber():
 
 
 def getCurrentExportCollection():
+    currSceneIndex = getCurrentSceneIndex()
     currScene =  bpy.context.scene
     numString = getCurrentPanelNumber()
     paddedNumString = "%04d" % numString
     export_collection_name = "Export." + paddedNumString
-    export_collection = bpy.data.collections.get(export_collection_name)
-    if export_collection:
-        return export_collection
+    # export_collection = bpy.data.collections.get(export_collection_name)
+
+    scene_cameras = currScene.collection.children
+    scene_collections = bpy.data.scenes[currSceneIndex].collection.children
+    for col in scene_collections:
+        if export_collection_name in col.name:
+            export_collection = bpy.data.collections.get(export_collection_name)
+            if export_collection:
+                return export_collection
     # else:
     #     report({'ERROR'}, 'No Export Collection named ' + export_collection_name + 'found in ' + currScene.name + '!')
 
@@ -166,48 +173,69 @@ def getCurrentLetterGroup():
 
 
 def renameAllScenesAfter():
-    currScene = getCurrentSceneIndex()
-        # panels = []
-        # for scene in bpy.data.scenes:
-        #     if "p." in scene.name:
-        #         panels.append(scene.name)
+    startingSceneIndex = getCurrentSceneIndex()
+    # panels = []
+    # for scene in bpy.data.scenes:
+    #     if "p." in scene.name:
+    #         panels.append(scene.name)
+    for iSceneIndex in range(len(bpy.data.scenes) -1,startingSceneIndex, -1 ):        
+        if "p." in bpy.data.scenes[iSceneIndex].name:
+            scene = bpy.data.scenes[iSceneIndex]
+            oldSceneIndex = iSceneIndex - 1
+            newPanelNumber = "%04d" % iSceneIndex
+            oldPanelNumber = "%04d" % oldSceneIndex
 
-    for currSceneIndex in range(len(bpy.data.scenes),currScene, -1 ):
-        m = currSceneIndex - 1
-        if m > currScene:
-            if "p." in bpy.data.scenes[m].name:
-                scene = bpy.data.scenes[m]
-                n = currSceneIndex
-                nn = currSceneIndex - 1
+            stringFragments = bpy.data.scenes[iSceneIndex].name.split('.')
+            x_stringFragments = stringFragments[2]
+            xx_stringFragments = x_stringFragments.split('h')
+            current_panel_height = xx_stringFragments[1]
+            xxx_stringFragments = xx_stringFragments[0].split('w')
+            current_panel_width = xxx_stringFragments[1]
+            scene.name = 'p.'+ str(newPanelNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
 
-                sceneNumber = "%04d" % n
-                oldSceneNumber = "%04d" % nn
-                # scene.name = 'p.'+ str(sceneNumber) + ".w100h100"
-
-                stringFragments = bpy.data.scenes[m].name.split('.')
-                x_stringFragments = stringFragments[2]
-                xx_stringFragments = x_stringFragments.split('h')
-                current_panel_height = xx_stringFragments[1]
-                xxx_stringFragments = xx_stringFragments[0].split('w')
-                current_panel_width = xxx_stringFragments[1]
+            # print("=======DEBUG: " + scene.name)
+            # raise KeyboardInterrupt()
 
 
-                scene.name = 'p.'+ str(sceneNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
+        # m = currSceneIndex -1
+        # if m > currScene:
+        #     if "p." in bpy.data.scenes[m].name:
+        #         scene = bpy.data.scenes[m]
+        #         n = currSceneIndex
+        #         nn = currSceneIndex - 1
 
-                scene_objects = scene.objects
-                for obj in scene_objects:
-                    if oldSceneNumber in obj.name:
-                        obj.name = obj.name.replace(oldSceneNumber, sceneNumber)
+        #         sceneNumber = "%04d" % n
+        #         oldSceneNumber = "%04d" % nn
 
-                scene_collections = scene.collection.children
-                for col in scene_collections:
-                    if oldSceneNumber in col.name:
-                        col.name = col.name.replace(oldSceneNumber, sceneNumber)
 
-                scene_cameras = scene.collection.children
-                for col in scene_collections:
-                    if oldSceneNumber in col.name:
-                        col.name = col.name.replace(oldSceneNumber, sceneNumber)
+
+
+        #         # scene.name = 'p.'+ str(sceneNumber) + ".w100h100"
+
+        #         stringFragments = bpy.data.scenes[m].name.split('.')
+        #         x_stringFragments = stringFragments[2]
+        #         xx_stringFragments = x_stringFragments.split('h')
+        #         current_panel_height = xx_stringFragments[1]
+        #         xxx_stringFragments = xx_stringFragments[0].split('w')
+        #         current_panel_width = xxx_stringFragments[1]
+
+
+            scene.name = 'p.'+ str(newPanelNumber) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
+
+            scene_objects = scene.objects
+            for obj in scene_objects:
+                if newPanelNumber in obj.name:
+                    obj.name = obj.name.replace(oldPanelNumber, newPanelNumber)
+
+            scene_collections = scene.collection.children
+            for col in scene_collections:
+                if oldPanelNumber in col.name:
+                    col.name = col.name.replace(oldPanelNumber, newPanelNumber)
+
+            scene_cameras = scene.collection.children
+            for col in scene_collections:
+                if oldPanelNumber in col.name:
+                    col.name = col.name.replace(oldPanelNumber, newPanelNumber)
 
 
     return {'FINISHED'}
@@ -3107,6 +3135,7 @@ def insert_comic_panel(self, context):
         panel_width = int(100 / new_panel_count)
         currSceneIndex = getCurrentSceneIndex()
         renameAllScenesAfter()
+
         numString = getCurrentPanelNumber()
         newSceneIndex = currSceneIndex + 1
         newPanelIndex = numString + 1
@@ -3115,6 +3144,8 @@ def insert_comic_panel(self, context):
         newScene = bpy.ops.scene.new(type='NEW')
         bpy.context.scene.name = newSceneName
         bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
+        # print("=======DEBUG: " + str(currSceneIndex))
+        # raise KeyboardInterrupt()
         BR_OT_panel_init.execute(self, context)
         BR_OT_panel_validate_naming_all.execute(self, context)
         for v in bpy.context.window.screen.areas:
