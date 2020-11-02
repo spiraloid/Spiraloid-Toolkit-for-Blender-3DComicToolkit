@@ -33,7 +33,7 @@ from math import pi
 import random
 
 from bpy.types import Operator
-from mathutils import Vector
+from mathutils import *
 from bpy.props import (
     StringProperty,
     BoolProperty,
@@ -66,7 +66,156 @@ previous_selection = ""
 # active_language_abreviated = "en"
 # active_language = "english"
 
+
 #------------------------------------------------------
+#################################################################
+
+
+def get_align_matrix(location, normal):
+    up = Vector((0,0,1))
+    angle = normal.angle(up)
+    axis = up.cross(normal)
+    mat_rot = Matrix.Rotation(angle, 4, axis)
+    mat_loc = Matrix.Translation(location)
+    mat_align = mat_rot @ mat_loc
+    return mat_align
+
+def transform_ground_to_world(layer, ground):
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    object_eval = ground.evaluated_get(depsgraph)
+    tmpMesh = bpy.data.meshes.new_from_object(object_eval)        
+    tmpMesh.transform(ground.matrix_world)
+    tmp_ground = bpy.data.objects.new(name='tmpGround', object_data=tmpMesh)
+    layer.objects.link(tmp_ground)
+    layer.objects.update()
+    return tmp_ground
+
+def get_lowest_world_co_from_mesh(ob, mat_parent=None):
+    bme = bmesh.new()
+    bme.from_mesh(ob.data)
+    mat_to_world = ob.matrix_world.copy()
+    if mat_parent:
+        mat_to_world = mat_parent @ mat_to_world
+    lowest=None
+    #bme.verts.index_update() #probably not needed
+    for v in bme.verts:
+        if not lowest:
+            lowest = v
+        if (mat_to_world @ v.co).z < (mat_to_world @ lowest.co).z:
+            lowest = v
+    lowest_co = mat_to_world @ lowest.co
+    bme.free()
+    return lowest_co
+
+def get_lowest_world_co(context, ob, mat_parent=None):
+    if ob.type == 'MESH':
+        return get_lowest_world_co_from_mesh(ob)
+
+    elif ob.type == 'EMPTY' and ob.dupli_type == 'GROUP':
+        if not ob.dupli_group:
+            return None
+
+        else:
+            lowest_co = None
+            for ob_l in ob.dupli_group.objects:
+                if ob_l.type == 'MESH':
+                    lowest_ob_l = get_lowest_world_co_from_mesh(ob_l, ob.matrix_world)
+                    if not lowest_co:
+                        lowest_co = lowest_ob_l
+                    if lowest_ob_l.z < lowest_co.z:
+                        lowest_co = lowest_ob_l
+
+            return lowest_co
+
+ #------------------------------------------------------
+   
+    
+    
+def drop_objects(self, context, use_origin, align):
+    ground = context.object
+    # ground_collection_name = bpy.context.object.users_collection[0].name
+    ground.select_set(state=False)
+    # bpy.context.view_layer.objects.active = context.selected_objects[0]
+
+    obs = context.selected_objects
+    # obs.remove(ground)
+    tmp_ground = transform_ground_to_world(context.scene.collection, ground)
+    down = Vector((0, 0, -10000))
+
+    for ob in obs:
+        if use_origin:
+            lowest_world_co = ob.location
+        else:
+            lowest_world_co = get_lowest_world_co(context, ob)
+        if not lowest_world_co:
+            print(ob.type, 'is not supported. Failed to drop', ob.name)
+            continue
+        is_hit, hit_location, hit_normal, hit_index = tmp_ground.ray_cast(lowest_world_co, down)
+        if not is_hit:
+            print(ob.name, 'didn\'t hit the ground')
+            continue
+
+        # simple drop down
+        to_ground_vec =  hit_location - lowest_world_co
+        ob.location += to_ground_vec
+
+        # drop with align to hit normal
+        if align:
+            to_center_vec = ob.location - hit_location #vec: hit_loc to origin
+            # rotate object to align with face normal
+            mat_normal = get_align_matrix(hit_location, hit_normal)
+            rot_euler = mat_normal.to_euler()
+            mat_ob_tmp = ob.matrix_world.copy().to_3x3()
+            mat_ob_tmp.rotate(rot_euler)
+            mat_ob_tmp = mat_ob_tmp.to_4x4()
+            ob.matrix_world = mat_ob_tmp
+            # move_object to hit_location
+            ob.location = hit_location
+            # move object above surface again
+            to_center_vec.rotate(rot_euler)
+            ob.location += to_center_vec
+
+
+    #cleanup
+    bpy.ops.object.select_all(action='DESELECT')
+    # bpy.context.active_object.select_set(state=True)
+    # bpy.ops.object.delete('EXEC_DEFAULT')
+    for ob in obs:
+        ob.select_set(state=True)
+    bpy.data.objects.remove(bpy.data.objects[tmp_ground.name], do_unlink=True)
+    empty_trash(self, context)
+
+#------------------------------------------------------
+
+class OBJECT_OT_drop_to_ground(Operator):
+    """Drop selected objects on active object"""
+    bl_idname = "object.drop_on_active"
+    bl_label = "Drop to Ground"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Drop selected objects on active object"
+
+    align = BoolProperty(
+            name="Align to ground",
+            description="Aligns the object to the ground",
+            default=True)
+    use_origin = BoolProperty(
+            name="Use Center",
+            description="Drop to objects origins",
+            default=False)
+
+    ##### POLL #####
+    @classmethod
+    def poll(cls, context):
+        return len(context.selected_objects) >= 2
+
+    ##### EXECUTE #####
+    def execute(self, context):
+        print('\nDropping Objects')
+        drop_objects(self, context)
+        return {'FINISHED'}
+
+#################################################################
+
 
 def warn_not_saved(self, context):
     self.layout.label(text= "You must save your file first!")
@@ -255,94 +404,100 @@ def load_resource(self, context, blendFileName, is_random):
     if export_collection:
         export_collection_name = export_collection.name
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[export_collection_name]
+    else:
+        currPanelIndex = getCurrentPanelNumber()
+        panelNumber = "%04d" % currPanelIndex
+        export_collection_name = "Export." + panelNumber
+        export_collection =  bpy.data.collections.new(export_collection_name)
+        bpy.context.scene.collection.children.link(export_collection)
 
-        scene_collections = bpy.data.scenes[currSceneIndex].collection.children
-        # objects = context.selected_objects
-        # if objects is not None :
-        #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        #     bpy.ops.object.select_all(action='DESELECT')
+    scene_collections = bpy.data.scenes[currSceneIndex].collection.children
+    # objects = context.selected_objects
+    # if objects is not None :
+    #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    #     bpy.ops.object.select_all(action='DESELECT')
 
-        user_dir = os.path.expanduser("~")
-        # common_subdir = "2.90/scripts/addons/3DComicToolkit/Resources/"   this fails on github installs because the name is Spiraloid-
-        # common_subdir = "2.90/scripts/addons/Spiraloid-Toolkit-for-Blender-3DComicToolkit/Resources/"
-        # if system() == 'Linux':
-        #     addon_path = "/.config/blender/" + common_subdir
-        # elif system() == 'Windows':
-        #     addon_path = (
-        #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
-        #         + common_subdir.replace("/", "\\")
-        #     )
-        #     # os.path.join()
-        # elif system() == 'Darwin':
-        #     addon_path = "/Library/Application Support/Blender/" + common_subdir
-        # addon_dir = user_dir + addon_path
-
-
-        scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
-        addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
-        addon_dir = scripts_dir + addon_resources_subdir
+    user_dir = os.path.expanduser("~")
+    # common_subdir = "2.90/scripts/addons/3DComicToolkit/Resources/"   this fails on github installs because the name is Spiraloid-
+    # common_subdir = "2.90/scripts/addons/Spiraloid-Toolkit-for-Blender-3DComicToolkit/Resources/"
+    # if system() == 'Linux':
+    #     addon_path = "/.config/blender/" + common_subdir
+    # elif system() == 'Windows':
+    #     addon_path = (
+    #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
+    #         + common_subdir.replace("/", "\\")
+    #     )
+    #     # os.path.join()
+    # elif system() == 'Darwin':
+    #     addon_path = "/Library/Application Support/Blender/" + common_subdir
+    # addon_dir = user_dir + addon_path
 
 
+    scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
+    addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
+    addon_dir = scripts_dir + addon_resources_subdir
 
-        if is_random:
-            stringFragments = blendFileName.split('.')
-            index = []     
-            for file in os.listdir(addon_dir):
-                if file.startswith(stringFragments[0]+"."):
-                    if not file.endswith(".blend1"):
-                        index.append(file)
 
-            if (len(index) > 1):
+
+    if is_random:
+        stringFragments = blendFileName.split('.')
+        index = []     
+        for file in os.listdir(addon_dir):
+            if file.startswith(stringFragments[0]+"."):
+                if not file.endswith(".blend1"):
+                    index.append(file)
+
+        if (len(index) > 1):
+            random_int = random.randint(0, len(index) -1)
+            while (random_int == previous_random_int):
                 random_int = random.randint(0, len(index) -1)
-                while (random_int == previous_random_int):
-                    random_int = random.randint(0, len(index) -1)
-                    if (random_int != previous_random_int):
-                        break
-            else:
-                random_int = 0
-            padded_random_int = "%03d" % random_int
-            filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".blend"
-            previous_random_int = random_int
-
+                if (random_int != previous_random_int):
+                    break
         else:
-            filepath = addon_dir + blendFileName
+            random_int = 0
+        padded_random_int = "%03d" % random_int
+        filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".blend"
+        previous_random_int = random_int
+
+    else:
+        filepath = addon_dir + blendFileName
 
 
-        context = bpy.context
-        resourceSceneIndex = 0
-        scenes = []
-        mainCollection = context.scene.collection
-        with bpy.data.libraries.load(filepath ) as (data_from, data_to):
-            for name in data_from.scenes:
-                scenes.append({'name': name})
-            action = bpy.ops.wm.append
-            action(directory=filepath + "/Scene/", files=scenes, use_recursive=True)
-            scenes = bpy.data.scenes[-len(scenes):]
+    context = bpy.context
+    resourceSceneIndex = 0
+    scenes = []
+    mainCollection = context.scene.collection
+    with bpy.data.libraries.load(filepath ) as (data_from, data_to):
+        for name in data_from.scenes:
+            scenes.append({'name': name})
+        action = bpy.ops.wm.append
+        action(directory=filepath + "/Scene/", files=scenes, use_recursive=True)
+        scenes = bpy.data.scenes[-len(scenes):]
 
-        resourceSceneIndex = -len(scenes)
-        if resourceSceneIndex != 0 :
-            nextScene =  bpy.data.scenes[resourceSceneIndex]
-            loaded_scene_collections = bpy.data.scenes[resourceSceneIndex].collection.children
-            
-            for coll in loaded_scene_collections:
-                bpy.ops.object.make_local(type='ALL')
-                bpy.ops.object.select_all(action='DESELECT')
-                for obj in coll.all_objects:
-                    bpy.context.collection.objects.link(obj)  
-                    obj.select_set(state=True)
-                    bpy.context.view_layer.objects.active = obj
+    resourceSceneIndex = -len(scenes)
+    if resourceSceneIndex != 0 :
+        nextScene =  bpy.data.scenes[resourceSceneIndex]
+        loaded_scene_collections = bpy.data.scenes[resourceSceneIndex].collection.children
+        
+        for coll in loaded_scene_collections:
+            bpy.ops.object.make_local(type='ALL')
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in coll.all_objects:
+                bpy.context.collection.objects.link(obj)  
+                obj.select_set(state=True)
+                bpy.context.view_layer.objects.active = obj
 
-            bpy.data.scenes.remove(nextScene)
+        bpy.data.scenes.remove(nextScene)
 
 
-            # for scene in scenes:
-            #     for coll in scene.collection.children:
-            #         bpy.ops.object.select_all(action='DESELECT')
-            #         for obj in coll.all_objects:
-            #             bpy.context.collection.objects.link(obj)  
-            #             obj.select_set(state=True)
-            #             bpy.context.view_layer.objects.active = obj
-            #     bpy.data.scenes.remove(scene)
+        # for scene in scenes:
+        #     for coll in scene.collection.children:
+        #         bpy.ops.object.select_all(action='DESELECT')
+        #         for obj in coll.all_objects:
+        #             bpy.context.collection.objects.link(obj)  
+        #             obj.select_set(state=True)
+        #             bpy.context.view_layer.objects.active = obj
+        #     bpy.data.scenes.remove(scene)
 
     return {'FINISHED'}
 
@@ -1402,7 +1557,8 @@ def outline(mesh_objects, mode):
                     newVar.type = 'SINGLE_PROP'
                     newVar.targets[0].id = mesh_object 
                     newVar.targets[0].data_path = 'modifiers["WhiteOutline"].thickness'
-                    thicknessDriver.driver.expression =  "(thickness  * 1.15) - .02"
+                    # thicknessDriver.driver.expression =  "(thickness  * 1.15) - .02"
+                    thicknessDriver.driver.expression =  "(thickness  * -1.15) - (thickness  * 1.05)"
 
                     factorDriver = black_outline_mod.driver_add('thickness_vertex_group')
                     factorDriver.driver.type = 'SCRIPTED'
@@ -3318,31 +3474,65 @@ class BR_OT_inject_comic_scene(Operator, ImportHelper):
 
 
     def execute(self, context):
+        objects = bpy.context.selected_objects
+        if objects is not None :
+            for obj in objects:
+                starting_mode = bpy.context.object.mode
+                if "OBJECT" not in starting_mode:
+                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                    bpy.ops.object.select_all(action='DESELECT')
+
         filepath = self.filepath
         file_path = bpy.data.filepath
 
+        # currSceneIndex = getCurrentSceneIndex()
+        # renameAllScenesAfter()
+        # newSceneIndex = currSceneIndex + 1
+        # newSceneIndexPadded = "%04d" % newSceneIndex
+        # imported_scene_name = 'temp.'+ str(newSceneIndexPadded) + ".w100h100"
+
+
+
         currSceneIndex = getCurrentSceneIndex()
         renameAllScenesAfter()
+        numString = getCurrentPanelNumber()
         newSceneIndex = currSceneIndex + 1
-        newSceneIndexPadded = "%04d" % newSceneIndex
-        imported_scene_name = 'temp.'+ str(newSceneIndexPadded) + ".w100h100"
+        newPanelIndex = numString + 1
+        newPanelIndexPadded = "%04d" % newPanelIndex
+        imported_scene_name = 'temp.'+ str(newPanelIndexPadded) + ".w100h100"
+
+
+        # scenes = []
+        # with bpy.data.libraries.load(filepath ) as (data_from, data_to):
+        #     for name in data_from.scenes:
+        #         scenes.append({'name': name})
+                        
+        #     action = bpy.ops.wm.append
+        #     action(directory=filepath + "/Scene/", files=scenes, use_recursive=True)
+        #     scenes = bpy.data.scenes[-len(scenes):]
 
         scenes = []
         with bpy.data.libraries.load(filepath ) as (data_from, data_to):
-            for name in data_from.scenes:
-                scenes.append({'name': name})
-            action = bpy.ops.wm.append
-            action(directory=filepath + "/Scene/", files=scenes, use_recursive=True)
-            scenes = bpy.data.scenes[-len(scenes):]
-                
-        importedSceneIndex = -len(scenes)
-        if importedSceneIndex != 0 :
-            imported_scene =  bpy.data.scenes[importedSceneIndex]
-            bpy.context.window.scene = bpy.data.scenes[importedSceneIndex]
-            imported_scene =  bpy.context.scene
-            imported_scene.name = imported_scene_name
+            data_to.scenes = [name for name in data_from.scenes if name.startswith("p.")]
+            for imported_scene_name in data_from.scenes:
+                if "p." in imported_scene_name:
+                    scenes.append({'name': imported_scene_name})
 
-        BR_OT_panel_init.execute(self, context)
+                    action = bpy.ops.wm.append
+                    action(directory=filepath + "/Scene/", files=scenes, use_recursive=True)
+                    # scenes = bpy.data.scenes[-len(scenes):]
+
+                else:
+                    self.report({'ERROR'}, 'No scene with "p." prefix found: ')
+         
+                # print("=======DEBUG: " + str(importedSceneIndex))
+                # raise KeyboardInterrupt()
+                imported_scene = bpy.data.scenes.get(imported_scene_name)
+                imported_scene.name = imported_scene_name
+
+        bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
+
+        # BR_OT_panel_init.execute(self, context)
         BR_OT_panel_validate_naming_all.execute(self, context)
         for v in bpy.context.window.screen.areas:
             if v.type=='VIEW_3D':
@@ -4097,6 +4287,9 @@ class BR_OT_panel_init(bpy.types.Operator):
         loaded_export_collection = bpy.data.collections.get(loaded_export_collection_name)
         loaded_letter_collection_name =  "Letters.TEMPLATE"
         loaded_letter_collection = bpy.data.collections.get(loaded_letter_collection_name)
+
+        # # stop to see what's going on
+        # raise KeyboardInterrupt()
 
         bpy.context.scene.collection.children.link(loaded_export_collection)
         bpy.context.scene.collection.children.link(loaded_letter_collection)
@@ -7396,12 +7589,29 @@ class OBJECT_OT_add_speedlines_ground(Operator, AddObjectHelper):
 
 
 class OBJECT_OT_add_ground_rocks(Operator, AddObjectHelper):
-    """Create a new exterior street Object"""
+    """Drop rocks on the active object"""
     bl_idname = "mesh.spiraloid_add_ground_rocks"
-    bl_label = "Ground Rocks"
+    bl_label = "Drop Rocks"
     bl_options = {'REGISTER', 'UNDO'}
+
+
+    ##### POLL #####
+    @classmethod
+    def poll(cls, context):
+        return len(context.selected_objects) >= 1
+
+
     def execute(self, context):
-        load_resource(self, context, "ground_rocks.blend", False)
+        active_ground = bpy.context.view_layer.objects.active
+        if active_ground:
+            load_resource(self, context, "ground_rocks.blend", False)
+            active_ground.select_set(state=True)
+            bpy.context.view_layer.objects.active = active_ground
+            drop_objects(self, context,  False, True)
+            bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+            bpy.ops.object.join()
+            bpy.context.selected_objects[0].name = "Dropped_Rocks"
+
         return {'FINISHED'}
        
 
@@ -7537,8 +7747,9 @@ class BR_MT_3d_comic_submenu_assets(bpy.types.Menu):
         layout.operator(OBJECT_OT_add_speedlines.bl_idname, icon='FILE_3D')
         layout.operator(OBJECT_OT_add_speedlines_radial.bl_idname, icon='FILE_3D')
         layout.operator(OBJECT_OT_add_speedlines_ground.bl_idname, icon='FILE_3D')
-        layout.operator(OBJECT_OT_add_ground_rocks.bl_idname, icon='FILE_3D')
         layout.operator(OBJECT_OT_add_inksplat.bl_idname, icon='FILE_3D')
+        layout.separator()
+        layout.operator(OBJECT_OT_add_ground_rocks.bl_idname, icon='OUTLINER_DATA_POINTCLOUD')
 
         layout.operator("view3d.spiraloid_3d_comic_workshop")
 
@@ -7608,6 +7819,8 @@ def add_object_button(self, context):
     layout.operator(OBJECT_OT_add_speedlines_radial.bl_idname, icon='AXIS_TOP')
     layout.operator(OBJECT_OT_add_speedlines_ground.bl_idname, icon='AXIS_TOP')
     layout.separator()
+    layout.operator(OBJECT_OT_add_ground_rocks.bl_idname, icon='AXIS_TOP')
+
 
 def add_3dcomic_menu(self, context):
     layout = self.layout
@@ -7683,14 +7896,15 @@ classes = (
     OBJECT_OT_add_speedlines,
     OBJECT_OT_add_speedlines_radial,
     OBJECT_OT_add_speedlines_ground,
-    # OBJECT_OT_add_ground_rocks,
+    OBJECT_OT_add_ground_rocks,
     # OBJECT_OT_add_inkbot,  
     # OBJECT_OT_add_inkbot_puppet,
     OBJECT_OT_add_inkbot_shuffle,
     BR_OT_pose_cycle_next,
     BR_OT_pose_cycle_previous,
     BR_OT_spiraloid_toggle_workmode,
-    BR_OT_spiraloid_automap
+    BR_OT_spiraloid_automap,
+    OBJECT_OT_drop_to_ground
 )
 
     # ComicPreferences,
@@ -7759,6 +7973,7 @@ def unregister():
     # bpy.types.VIEW3D_MT_mesh_add.remove(add_object_button)
     bpy.types.VIEW3D_MT_add.remove(add_3dcomic_menu)
     # handers.remove(bake_collection_composite)
+    bpy.types.VIEW3D_MT_view.remove(menu_draw_view)  
 
     if __name__ != "__main__":
         bpy.types.TOPBAR_MT_editor_menus.remove(menu_draw_bake)
