@@ -1487,7 +1487,7 @@ def outline(mesh_objects, mode):
                             bpy.ops.object.modifier_remove(modifier="BlackOutline")
 
                 if "ink" in mode:
-                    ink_thickness = mesh_object.dimensions[1] * -0.035
+                    ink_thickness = mesh_object.dimensions[1] * 0.035
                     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
                     bpy.ops.object.select_all(action='DESELECT')
                     mesh_object.select_set(state=True)
@@ -2501,6 +2501,11 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                     if obj is not None:
                         print (obj.name)
 
+                        if obj.visible_get and  obj.type == 'MESH':
+                            meshes.append(obj)
+
+                        if obj.visible_get and  obj.type == 'ARMATURE':
+                            armatures.append(obj)
 
                         if obj.animation_data:
                             if obj.type == 'OBJECT':
@@ -2519,9 +2524,10 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
                         if obj.visible_get and  obj.type == 'GPENCIL':
                             # bpy.ops.gpencil.editmode_toggle(False)
-                            bpy.ops.object.mode_set(mode='OBJECT')
+                            # bpy.ops.object.mode_set(mode='OBJECT')
 
-
+                            if "OBJECT" not in obj.mode:
+                                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
 
                             bpy.ops.object.select_all(action='DESELECT')
                             obj.select_set(state=True)
@@ -2581,6 +2587,13 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                             else:
                                 gp_mesh.data.materials.append(mat)  
 
+                            bpy.context.collection.objects.unlink(gp_mesh) 
+                            export_collection.objects.link(gp_mesh)
+                            meshes.append(gp_mesh)
+                            bpy.data.objects.remove(bpy.data.objects[obj.name], do_unlink=True)
+                            # raise KeyboardInterrupt()
+                            
+
                         # if obj.visible_get and  obj.type == 'FONT':
                         #     bpy.ops.object.select_all(action='DESELECT')
                         #     obj.select_set(state=True)
@@ -2588,12 +2601,6 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                         #     bpy.ops.object.convert(target='MESH')
                         #     bpy.ops.object.select_all(action='DESELECT')
 
-
-                        if obj.visible_get and  obj.type == 'MESH':
-                            meshes.append(obj)
-
-                        if obj.visible_get and  obj.type == 'ARMATURE':
-                            armatures.append(obj)
 
                 # meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
 
@@ -2617,6 +2624,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                         bpy.context.view_layer.objects.active = mesh
                         print('>>>>> Scene: ' + scene.name)
                         print('>>>>> Mesh: ' + mesh.name)
+                        bpy.ops.object.make_local(type='ALL')
                         for mod in [m for m in mesh.modifiers]:
                             mod.show_viewport = True
                             try:
@@ -2625,7 +2633,28 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                                     mesh.driver_remove(dr.data_path, -1)
                             except:
                                 pass
-                            bpy.ops.object.modifier_apply(modifier=mod.name)     
+                            
+                            if (mesh.type == 'MESH'):
+                                bpy.ops.object.modifier_apply(modifier=mod.name)
+
+                        # bpy.ops.object.convert(target='MESH')
+
+
+                        if (mesh.type == 'CURVE'):
+                            C=bpy.context
+                            if (C):
+                                old_area_type = C.area.type
+                                C.area.type='VIEW_3D'
+                                bpy.ops.object.convert(target='MESH')
+                                C.area.type=old_area_type
+
+
+                        objectConstraints = mesh.constraints
+                        if (objectConstraints):
+                            for const in objectConstraints:
+                                bpy.ops.object.visual_transform_apply()
+                                bpy.ops.constraint.delete(constraint=const.name, owner='OBJECT')
+                                # mesh.constraints.remove(const)
 
 
                 # # delete all the skeletons to reduce file size
@@ -7525,6 +7554,40 @@ class OBJECT_OT_add_inkbot_shuffle(Operator, AddObjectHelper):
         return {'FINISHED'}
 
 
+class OBJECT_OT_add_bonus(Operator, AddObjectHelper):
+    """Add Bonus for Panel"""
+    bl_idname = "mesh.spiraloid_add_bonus"
+    bl_label = "Bonus"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        numString = getCurrentPanelNumber()
+        paddedNumString = "%04d" % numString
+        bonus_name = "Bonus_" + paddedNumString
+        load_resource(self, context, "panel_bonus.blend", False)
+
+        # aim at viewport camera.
+        objects = bpy.context.selected_objects
+        bonusObject = objects[0]
+        bonusObject.name = bonus_name
+        bpy.ops.view3d.snap_selected_to_cursor(use_offset=False)
+        active_camera = bpy.context.scene.camera
+        bpy.ops.object.select_all(action='DESELECT')
+        bonusObject.select_set(state=True)
+        bpy.context.view_layer.objects.active = bonusObject
+        bpy.ops.object.constraint_add(type='TRACK_TO')
+        c = bpy.context.object.constraints["Track To"]
+        c.target = bpy.data.objects[active_camera.name]
+        c.track_axis = 'TRACK_NEGATIVE_Y'
+        c.up_axis = 'UP_Z'
+        bpy.ops.object.select_all(action='DESELECT')
+        bonusObject.select_set(state=True)
+        bpy.context.view_layer.objects.active = bonusObject
+
+        return {'FINISHED'}
+
+
+
 class OBJECT_OT_add_inksplat(Operator, AddObjectHelper):
     """Create a new inksplat Object"""
     bl_idname = "mesh.spiraloid_add_inksplat"
@@ -7740,6 +7803,8 @@ class BR_MT_3d_comic_submenu_assets(bpy.types.Menu):
 
     def draw(self, context):
         layout = self.layout
+        layout.operator(OBJECT_OT_add_bonus.bl_idname, icon='KEYTYPE_BREAKDOWN_VEC')
+        layout.separator()
         layout.operator(OBJECT_OT_add_inkbot_shuffle.bl_idname, icon='FILE_3D')
         # layout.operator(OBJECT_OT_add_inkbot.bl_idname, icon='FILE_3D')
         # layout.operator(OBJECT_OT_add_inkbot_puppet.bl_idname, icon='FILE_3D')
@@ -7900,6 +7965,7 @@ classes = (
     # OBJECT_OT_add_inkbot,  
     # OBJECT_OT_add_inkbot_puppet,
     OBJECT_OT_add_inkbot_shuffle,
+    OBJECT_OT_add_bonus,
     BR_OT_pose_cycle_next,
     BR_OT_pose_cycle_previous,
     BR_OT_spiraloid_toggle_workmode,

@@ -31,6 +31,10 @@ html, body {
   -moz-user-select:none;
   -ms-user-select:none;
   user-select:none;
+  -moz-text-size-adjust: none;
+  -ms-text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 
@@ -67,10 +71,60 @@ html, body {
   max-height: 130px;
   width:4vmax;
   height:4vmax;
-  margin: 12px;
+  margin: 3px;
   z-index: 2001;
 
 }
+
+
+#bonus_badge {
+  position:fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  transform: translateY(4vmax);
+
+  max-width: 130px;
+  max-height: 130px;
+  width:4vmax;
+  height:4vmax;
+  margin: 3px;
+  z-index: 2001;
+  pointer-events: none;
+
+}
+
+
+/* Make the badge float in the top right corner of the button */
+#button_counter {
+  position:fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  transform: translate(2.6vmax, 3.6vmax );
+
+  max-width: 2.2em;
+  max-height: 2.2em;
+  width:2.2vmax;
+  height:2.2vmax;
+  margin: 3px;
+  z-index: 2005;
+
+  font-family: 'Source Sans Pro', sans-serif;
+  text-decoration: none;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: rgb(0, 197, 247);
+  color: rgb(153, 255, 70);
+  font-weight: bold;
+  font-size: 1.5vmax;
+  line-height: 2.2vmax;
+  pointer-events: none;
+  outline:none; 
+
+}
+
+
 
 
 #titlebar{
