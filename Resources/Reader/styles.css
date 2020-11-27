@@ -125,6 +125,75 @@ html, body {
 }
 
 
+@media only screen and (max-width: 1024px) {
+
+
+  #homebutton {
+    position:fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    transform: translateY(0.3vmax);
+
+    max-width: 120px;
+    max-height: 120px;
+    width:5vmax;
+    height:5vmax;
+    margin: 3px;
+    z-index: 2001;
+  
+  }
+
+
+  #bonus_badge {
+    position:fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    transform: translateY(5.4vmax);
+  
+    max-width: 120px;
+    max-height: 120px;
+    width:5vmax;
+    height:5vmax;
+    margin: 3px;
+    z-index: 2001;
+    pointer-events: none;
+  
+  }
+
+  #button_counter {
+    position:fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    transform: translate(3vmax, 4.5vmax );
+  
+    max-width: 5.2em;
+    max-height: 5.2em;
+    width: 2.5vmax;
+    height:2.5vmax;
+    margin: 3px;
+    z-index: 2005;
+  
+    font-family: 'Source Sans Pro', sans-serif;
+    text-decoration: none;
+    vertical-align: middle;
+    border-radius: 50%;
+    background: rgb(0, 197, 247);
+    color: rgb(255, 253, 145);
+    font-weight: bold;
+    font-size: 1.7vmax;
+    line-height: 2.5vmax;
+    pointer-events: none;
+    outline:none; 
+
+
+
+  
+  }
+}
+
 
 
 #titlebar{

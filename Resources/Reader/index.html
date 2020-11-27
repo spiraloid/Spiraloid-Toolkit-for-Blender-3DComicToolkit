@@ -29,18 +29,6 @@
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Audiowide">
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Courier Prime">
 
-		<!-- Global site tag (gtag.js) - Google Analytics -->
-		<script async src="https://www.googletagmanager.com/gtag/js?id=UA-180464130-1"></script>
-		<script>
-		window.dataLayer = window.dataLayer || [];
-		function gtag(){dataLayer.push(arguments);}
-		gtag('js', new Date());
-
-		gtag('config', 'UA-180464130-1');
-		</script>
-
-
-
 	</head>
 	<body class="body">
 			<!-- <span id="titlebar"></span> -->
@@ -210,6 +198,7 @@
 			var isPlayingSound = false;
 			var camera, scene, renderer, frustum;
 			var scenes = [];
+			var hasClicked = false;
 
 			var isPointerDown = false;
 			var pointer = new THREE.Vector2();
@@ -249,9 +238,6 @@
 				cameraSpeedScaler = 0.05
 			}
 
-
-
-
 			if ( window.location.search.substr( 0, 5 ) === '?lan=' ) {
 
 				language = window.location.search.substr( 5 );
@@ -282,9 +268,12 @@
 			}
 
 			function onPointerDown( event ) {
-				bonusSoundEffect.play();
-				bonusSoundEffect.pause();
-				bonusSoundEffect.currentTime = 0;
+				if (!hasClicked){
+					bonusSoundEffect.play();
+					bonusSoundEffect.pause();
+					bonusSoundEffect.currentTime = 0;
+					hasClicked = true
+				}
 
 				isPointerDown = true;
 				pointerOnDown.x = event.clientX;
@@ -309,15 +298,6 @@
 
 			}
 
-			// var delay = ( function() {
-			// 	var timer = 0;
-			// 	return function(callback, ms) {
-			// 		clearTimeout (timer);
-			// 		timer = setTimeout(callback, ms);
-			// 	};
-			// })();
-
-
 			function getScreenPos(object, camera) {
 				var pos = object.position.clone();
 				camera.updateMatrixWorld();
@@ -328,32 +308,20 @@
 			function awardBonus(object, camera) {
 				if (uncollectedBonuses > 0 )
 				{
-					bonusSoundEffect.src ='https://3dcomic.shop/inkbots/s01e01/bonus_achievement.mp3';
+					bonusSoundEffect.src ='./bonus_achievement.mp3';
 					uncollectedBonuses -= 1
 					document.getElementById("button_counter").innerHTML = uncollectedBonuses;
 
 				}
 				if (uncollectedBonuses == 0 )
 				{
-					bonusSoundEffect.src ='https://3dcomic.shop/inkbots/s01e01/bonus_achievement_all.mp3';
+					bonusSoundEffect.src ='./bonus_achievement_all.mp3';
 					document.getElementById("button_counter").style.visibility = "hidden";
 					document.getElementById("bonus_badge").src="./images/bonus_badge_complete.png";
 				}
 
 				bonusSoundEffect.loop = false;
 				bonusSoundEffect.play();
-				// var ts = calc_texture_size(size + size * 2 * margin) * 2;
-				// var img = new Image();
-				// var texture = new THREE.Texture(bonus_canvas);
-				// bonus_canvas.width = bonus_canvas.height = ts;
-				// context.fillStyle = back_color;
-				// context.fillRect(0, 0, bonus_canvas.width, bonus_canvas.height);
-				// var boonusLocation = getScreenPos(object, camera);
-				// img.addEventListener('load', function(){
-				// 	bonus_canvas.drawImage(img, boonusLocation[0], boonusLocation[1]);
-				// 	texture.needsUpdate = true;
-				// });
-				// img.src = './images/bonus_pop.png';
 
 			}
 
@@ -374,20 +342,6 @@
 					console.log(object.name + " is not visible !!");
 				}
 			}
-
-			// function isOccluded(object, scene, camera) {
-			// 	raycaster.setFromCamera(getScreenPos(object, camera), camera);
-			// 	var intersects = raycaster.intersectObjects(scene.children);
-			// 	if (intersects[0] && intersects[0].object === object) {
-			// 		return false;
-			// 		console.log(object.name + " is not occluded !!");
-
-			// 	} else {
-			// 		return true;
-			// 		console.log(object.name + " is occluded !!");
-
-			// 	}
-			// }
 
 			function inFrustum(object, frustum, camera) {
 				frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
@@ -542,10 +496,7 @@
 						cameraFovNormalized = normalize(camera.userData.vFov, 90, 0)
 						cameraDistanceNormalized = normalize(cameraTargetDistance, 0, 1)
 						cameraOrbitSpeed = cameraFovNormalized / cameraDistanceNormalized
-						// cameraOrbitSpeed = camera.userData.vFov / cameraTargetDistance
 						scene.userData.cameraOrbitSpeed =  Math.abs(cameraOrbitSpeed  *  (1 + cameraDistanceNormalized) * cameraSpeedScaler);						
-						// console.log("cameraOrbitSpeed for " + path + " = " + cameraOrbitSpeed );
-						// console.log("camera.userData.vFov for " + path + " = " + camera.userData.vFov );
 
 
 						if ( bonusGemstone ) {
@@ -600,8 +551,6 @@
 
 				updateSize();
 
-				// canvas.style.transform = `translateY(${window.scrollY}px)`;
-
 				renderer.setScissorTest( false );
 				renderer.clear();
 
@@ -646,8 +595,6 @@
 					mixer.setTime( time * duration );
 					delta = 0; // for bonus collection
 
-					//
-
 					var isPointerInFrameX = pointer.x < rect.right && pointer.x > rect.left;
 					var isPointerInFrameY = pointer.y < rect.bottom && pointer.y > rect.top;
 					var isPointerInFrame;
@@ -668,17 +615,6 @@
 					var cameraOrbitSpeed = scene.userData.cameraOrbitSpeed
 
 					if ( cameraOrigin ) {
-
-						// if ( isPointerDown && isPointerInFrame) { 
-
-						// 	// cameraTargetDistanceScaler =  cameraOrbitSpeed * 0.015 * (cameraOrbitSpeed * 0.015);
-						// 	camera.position.x = cameraOrigin.position.x - ( ( pointer.x - pointerOnDown.x ) * cameraOrbitSpeed );
-						// 	camera.position.y = cameraOrigin.position.y + ( ( pointer.y - pointerOnDown.y ) * cameraOrbitSpeed );
-						// 	camera.position.z = cameraOrigin.position.z;
-
-						// 	// console.log("pointer.x = " + pointer.x );
-
-						// 	scene.userData.activePanel = true;
 
 						if ( isPointerInFrame && isPointerDown && !isDragging) { 
 							isDragging = true;
@@ -725,23 +661,6 @@
 										}
 									}
 								}
-								
-								// if (isBonusFound){
-									// vanishScale = 0.0001
-									// delta = clock.getDelta();
-									// if (bonusGemstone.scale.x > vanishScale) {
-									// 	bonusGemstone.scale.x += speed * delta ;
-									// 	bonusGemstone.scale.y += speed * delta ;
-									// 	bonusGemstone.scale.z += speed * delta ;
-									// }
-									// else{
-									// 	bonusGemstone.scale.x = vanishScale;
-									// 	bonusGemstone.scale.y = vanishScale;
-									// 	bonusGemstone.scale.z = vanishScale;
-									// }
-									// console.log("Clock: " + bonusGemstone.scale.x);
-								// }
-								
 							}
 						}
 						
@@ -756,6 +675,13 @@
 						camera.lookAt( cameraTarget.position );
 
 					}
+					if ( isPointerDown ) { 
+						if ( bonusGemstone ) {
+							bonusGemstone.lookAt( camera.position );
+						}
+					}
+
+
 
 					renderer.render( scene, camera );
 
