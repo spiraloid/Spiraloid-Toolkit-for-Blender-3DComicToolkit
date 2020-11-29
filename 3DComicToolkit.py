@@ -502,6 +502,122 @@ def load_resource(self, context, blendFileName, is_random):
     return {'FINISHED'}
 
 
+
+
+def load_shared_resource(self, context, blendFileName, is_random, category_name):
+    global previous_random_int
+    if bpy.context.object:
+        if "OBJECT" not in bpy.context.object.mode:
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+            bpy.ops.object.select_all(action='DESELECT')
+
+    currSceneIndex = getCurrentSceneIndex()
+    export_collection = getCurrentExportCollection()
+    if export_collection:
+        export_collection_name = export_collection.name
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[export_collection_name]
+    else:
+        currPanelIndex = getCurrentPanelNumber()
+        panelNumber = "%04d" % currPanelIndex
+        export_collection_name = "Export." + panelNumber
+        export_collection =  bpy.data.collections.new(export_collection_name)
+        bpy.context.scene.collection.children.link(export_collection)
+
+    scene_collections = bpy.data.scenes[currSceneIndex].collection.children
+    user_dir = os.path.expanduser("~")
+
+    scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
+    addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
+    addon_dir = scripts_dir + addon_resources_subdir
+
+    stringFragments = blendFileName.split('.')
+    if is_random:
+        index = []     
+        for file in os.listdir(addon_dir):
+            if file.startswith(stringFragments[0]+"."):
+                if not file.endswith(".blend1"):
+                    index.append(file)
+        if (len(index) > 1):
+            random_int = random.randint(0, len(index) -1)
+            while (random_int == previous_random_int):
+                random_int = random.randint(0, len(index) -1)
+                if (random_int != previous_random_int):
+                    break
+        else:
+            random_int = 0
+        padded_random_int = "%03d" % random_int
+        filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".blend"
+        previous_random_int = random_int
+    else:
+        filepath = addon_dir + blendFileName
+
+    context = bpy.context
+    resourceSceneIndex = 0
+    # scenes = []
+    with bpy.data.libraries.load(filepath ) as (data_from, data_to):
+        data_to.collections = data_from.collections
+
+    for new_coll in data_to.collections:
+        if stringFragments[0] in new_coll.name:
+            instance = bpy.data.objects.new(new_coll.name, None)
+            instance.instance_type = 'COLLECTION'
+            instance.instance_collection = new_coll
+            export_collection.objects.link(instance)
+
+
+
+        # for name in data_from.scenes:
+        #     scenes.append({'name': name})
+        # action = bpy.ops.wm.link
+        # action(directory=filepath + "/Collection/" + stringFragments[0], files=scenes )
+        # scenes = bpy.data.scenes[-len(scenes):]
+
+
+
+
+        
+
+    # resourceSceneIndex = -len(scenes)
+    # if resourceSceneIndex != 0 :
+    #     nextScene =  bpy.data.scenes[resourceSceneIndex]
+    #     loaded_scene_collections = bpy.data.scenes[resourceSceneIndex].collection.children
+    #     shared_asset_collections = bpy.data.collections.get("Shared Assets")
+        
+    #     for coll in loaded_scene_collections:
+    #         bpy.ops.object.make_local(type='ALL')
+    #         bpy.ops.object.select_all(action='DESELECT')
+    #         for obj in coll.all_objects:
+    #             bpy.context.collection.objects.link(obj)  
+    #             obj.select_set(state=True)
+    #             bpy.context.view_layer.objects.active = obj
+
+    #             for shared_c in shared_asset_collections.children:
+    #                 if category_name in shared_c.name:
+    #                     shared_c.objects.link(obj)  
+
+    #     bpy.data.scenes.remove(nextScene)
+
+
+
+
+    return {'FINISHED'}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # def validateComicAssetNames():
 #     panels = []
 #     for scene in bpy.data.scenes:
@@ -1634,11 +1750,7 @@ def outline(mesh_objects, mode):
                             shader = mat.node_tree.nodes.new(type='ShaderNodeBsdfDiffuse')
 
                         shaderToRGB_A = mat.node_tree.nodes.new(type='ShaderNodeShaderToRGB')
-                        shaderToRGB_B = mat.node_tree.nodes.new(type='ShaderNodeShaderToRGB')
-                        shaderToRGB_C = mat.node_tree.nodes.new(type='ShaderNodeShaderToRGB')
                         ramp_A = mat.node_tree.nodes.new(type='ShaderNodeValToRGB')
-                        ramp_B = mat.node_tree.nodes.new(type='ShaderNodeValToRGB')
-                        ramp_C = mat.node_tree.nodes.new(type='ShaderNodeValToRGB')
                         light_path = mat.node_tree.nodes.new(type='ShaderNodeLightPath')
                         mix_shader = mat.node_tree.nodes.new(type='ShaderNodeMixShader')
 
@@ -1647,24 +1759,12 @@ def outline(mesh_objects, mode):
                         ramp_A.color_ramp.elements[0].position = 0.00
                         ramp_A.color_ramp.elements[1].position = 0.09
                         ramp_A.color_ramp.interpolation = 'CONSTANT'
-                        ramp_B.color_ramp.elements[0].position = 0.00
-                        ramp_B.color_ramp.elements[1].position = 0.09
-                        ramp_B.color_ramp.interpolation = 'CONSTANT'
-                        ramp_C.color_ramp.elements[0].position = 0.00
-                        ramp_C.color_ramp.elements[1].position = 0.09
-                        ramp_C.color_ramp.interpolation = 'CONSTANT'
-
-
 
                         mat.node_tree.links.new(shader.outputs[0], shaderToRGB_A.inputs[0])
-                        mat.node_tree.links.new(shaderToRGB_A.outputs[0], ramp_C.inputs[0])
-                        mat.node_tree.links.new(ramp_C.outputs[0], mix_shader.inputs[2])
+                        mat.node_tree.links.new(shaderToRGB_A.outputs[0], ramp_A.inputs[0])
+                        mat.node_tree.links.new(ramp_A.outputs[0], mix_shader.inputs[2])
                         mat.node_tree.links.new(light_path.outputs[0], mix_shader.inputs[0])
-                        mat.node_tree.links.new(mix_shader.outputs[0], shaderToRGB_B.inputs[0])
-                        mat.node_tree.links.new(shaderToRGB_B.outputs[0], ramp_A.inputs[0])
-                        mat.node_tree.links.new(ramp_A.outputs[0], shaderToRGB_C.inputs[0])
-                        mat.node_tree.links.new(shaderToRGB_C.outputs[0], ramp_B.inputs[0])
-                        mat.node_tree.links.new(ramp_B.outputs[0], mat_output.inputs[0])
+                        mat.node_tree.links.new(mix_shader.outputs[0], mat_output.inputs[0])
 
                         # for i in range(len(ob.material_slots)):
                         #     bpy.context.object.active_material_index = i
@@ -2656,6 +2756,19 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                                 bpy.ops.constraint.delete(constraint=const.name, owner='OBJECT')
                                 # mesh.constraints.remove(const)
 
+                        is_toon_shaded = mesh.get("is_toon_shaded")
+                        if is_toon_shaded:
+                            if mesh.material_slots[0].material is not None:
+                                matnodes = mesh.material_slots[0].material.node_tree.nodes
+                                background_shader = matnodes.get('Background')
+                                if not background_shader:
+                                    matnodes.clear()
+                                    mat_output = matnodes.new(type='ShaderNodeOutputMaterial')
+                                    shader = matnodes.new(type='ShaderNodeBsdfPrincipled')
+                                    mesh.material_slots[0].material.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+
+
+
 
                 # # delete all the skeletons to reduce file size
                 # if (remove_skeletons):
@@ -2820,13 +2933,11 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
                 path_to_export_file = (file_dir + 'panels/' + scene.name + "." + active_language_abreviated + ".glb")
                 bpy.ops.export_scene.gltf(
-                    export_nla_strips=False,  
-                    export_apply=True, # <-- Set true will crash        
                     export_format='GLB', 
                     ui_tab='GENERAL', 
-                    export_copyright="Bay Raitt", 
+                    export_copyright='', 
                     export_image_format='AUTO', 
-                    export_texture_dir="", 
+                    export_texture_dir='', 
                     export_texcoords=True, 
                     export_normals=True, 
                     export_draco_mesh_compression_enable=False, 
@@ -2836,30 +2947,32 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                     export_draco_texcoord_quantization=12, 
                     export_draco_generic_quantization=12, 
                     export_tangents=False, 
-                    export_materials=True, 
-                    export_colors=False, 
+                    export_materials='EXPORT', 
+                    export_colors=True, 
                     export_cameras=True, 
                     export_selected=False, 
                     use_selection=False, 
                     export_extras=True, 
                     export_yup=True, 
+                    export_apply=True, 
                     export_animations=True, 
                     export_frame_range=True, 
                     export_frame_step=1, 
                     export_force_sampling=False, 
+                    export_nla_strips=False, 
                     export_def_bones=False, 
                     export_current_frame=False, 
-                    export_skins=False, 
+                    export_skins=True, 
                     export_all_influences=False, 
-                    export_morph=False, 
+                    export_morph=True, 
                     export_morph_normal=False, 
                     export_morph_tangent=False, 
                     export_lights=True, 
                     export_displacement=False, 
-                    will_save_settings=False,  
+                    will_save_settings=False, 
                     filepath=(path_to_export_file), 
                     check_existing=True, 
-                    filter_glob="*.glb;*.gltf")
+                    filter_glob='*.glb;*.gltf')
                 # write the line for this file into the javascript file. 
 
                 if not export_only_current:            
@@ -3076,37 +3189,31 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
         cname = "Actors"
         c = bpy.data.collections.new(cname)
         shared_assets_collection.children.link(c)
-        cname = "Creatures"
-        c = bpy.data.collections.new(cname)
-        shared_assets_collection.children.link(c)
-        cname = "Figurines"
-        c = bpy.data.collections.new(cname)
-        shared_assets_collection.children.link(c)
-        cname = "Items"
-        c = bpy.data.collections.new(cname)
-        shared_assets_collection.children.link(c)
-        cname = "Lights"
-        c = bpy.data.collections.new(cname)
-        shared_assets_collection.children.link(c)
-        cname = "Materials"
+        cname = "Props"
         c = bpy.data.collections.new(cname)
         shared_assets_collection.children.link(c)
         cname = "Places"
         c = bpy.data.collections.new(cname)
         shared_assets_collection.children.link(c)
-        cname = "Props"
-        c = bpy.data.collections.new(cname)
-        shared_assets_collection.children.link(c)
-        cname = "Sounds"
+        cname = "Places_Props"
         c = bpy.data.collections.new(cname)
         shared_assets_collection.children.link(c)
         cname = "Vehicles"
         c = bpy.data.collections.new(cname)
         shared_assets_collection.children.link(c)
+        cname = "Creatures"
+        c = bpy.data.collections.new(cname)
+        shared_assets_collection.children.link(c)
         cname = "Vfx"
         c = bpy.data.collections.new(cname)
         shared_assets_collection.children.link(c)
-        cname = "World_Props"
+        cname = "Items"
+        c = bpy.data.collections.new(cname)
+        shared_assets_collection.children.link(c)
+        cname = "Figurines"
+        c = bpy.data.collections.new(cname)
+        shared_assets_collection.children.link(c)
+        cname = "Materials"
         c = bpy.data.collections.new(cname)
         shared_assets_collection.children.link(c)
 
@@ -3359,13 +3466,13 @@ def insert_comic_panel(self, context):
 
 
 class NewPanelRowSettings(bpy.types.PropertyGroup):
-    new_panel_count : bpy.props.IntProperty(name="number of new panels:",  description="number of side-by-side panels to insert in new row", min=1, max=4, default=1 )
+    new_panel_count : bpy.props.IntProperty(name="number of new panels in row:",  description="number of side-by-side panels to insert in new row", min=1, max=4, default=1 )
 
 
 class BR_OT_new_panel_row(bpy.types.Operator, ImportHelper):
-    """Merge all meshes in active collection, unwrap and toggle_workmodeing and textures into a new "Export" collection"""
+    """Insert a new empty comic panel scene or scenes side by side"""
     bl_idname = "view3d.spiraloid_new_panel_row"
-    bl_label = "Insert Row..."
+    bl_label = "Insert..."
     bl_options = {'REGISTER', 'UNDO'}
     config: bpy.props.PointerProperty(type=NewPanelRowSettings)
 
@@ -7554,9 +7661,52 @@ class OBJECT_OT_add_inkbot_shuffle(Operator, AddObjectHelper):
         return {'FINISHED'}
 
 
-class OBJECT_OT_add_bonus(Operator, AddObjectHelper):
+class OBJECT_OT_add_omnibot_shared(Operator, AddObjectHelper):
+    """Create a new InkBot Object"""
+    bl_idname = "mesh.spiraloid_add_omnibot_shared"
+    bl_label = "Omnibot"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        load_shared_resource(self, context, "omnibot.blend", False, "Actors")
+
+        # # aim at viewport camera.
+        # objects = bpy.context.selected_objects
+        # bpy.ops.view3d.snap_selected_to_cursor(use_offset=False)
+        # for v in bpy.context.window.screen.areas:
+        #     if v.type=='VIEW_3D':
+        #         M = v.spaces[0].region_3d.view_matrix
+        #         view_position = camera_position(M)
+        # target = bpy.data.objects.new("Empty", None)
+        # bpy.context.scene.collection.objects.link(target)
+        # target.location = view_position
+        # bpy.ops.object.select_all(action='DESELECT')
+        # objects[0].select_set(state=True)
+        # bpy.context.view_layer.objects.active = objects[0]
+        # bpy.ops.object.constraint_add(type='TRACK_TO')
+        # c = bpy.context.object.constraints["Track To"]
+        # c.target = bpy.data.objects[target.name]
+        # c.track_axis = 'TRACK_NEGATIVE_Y'
+        # c.up_axis = 'UP_Z'
+        # bpy.ops.object.visual_transform_apply()
+        # objects[0].constraints.remove(c)
+        # bpy.context.object.rotation_euler[0] = 0
+        # bpy.context.object.rotation_euler[1] = 0
+        # bpy.ops.object.select_all(action='DESELECT')
+        # target.select_set(state=True)
+        # bpy.context.view_layer.objects.active = target
+        # bpy.ops.object.delete() 
+        # bpy.ops.object.select_all(action='DESELECT')
+        # objects[0].select_set(state=True)
+        # bpy.context.view_layer.objects.active = objects[0]
+
+        return {'FINISHED'}
+
+
+
+class OBJECT_OT_add_bonus_shared(Operator, AddObjectHelper):
     """Add Bonus for Panel"""
-    bl_idname = "mesh.spiraloid_add_bonus"
+    bl_idname = "mesh.spiraloid_add_bonus_shared"
     bl_label = "Bonus"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -7564,7 +7714,7 @@ class OBJECT_OT_add_bonus(Operator, AddObjectHelper):
         numString = getCurrentPanelNumber()
         paddedNumString = "%04d" % numString
         bonus_name = "Bonus_" + paddedNumString
-        load_resource(self, context, "panel_bonus.blend", False)
+        load_shared_resource(self, context, "panel_bonus.blend", False, "Items")
 
         # aim at viewport camera.
         objects = bpy.context.selected_objects
@@ -7585,7 +7735,6 @@ class OBJECT_OT_add_bonus(Operator, AddObjectHelper):
         bpy.context.view_layer.objects.active = bonusObject
 
         return {'FINISHED'}
-
 
 
 class OBJECT_OT_add_inksplat(Operator, AddObjectHelper):
@@ -7744,6 +7893,7 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
         layout.menu(BR_MT_3d_comic_submenu_panels.bl_idname, icon="VIEW_ORTHO")
         layout.menu(BR_MT_3d_comic_submenu_letters.bl_idname, icon="INFO")
         layout.menu(BR_MT_3d_comic_submenu_assets.bl_idname, icon="FILE_3D")
+        layout.menu(BR_MT_3d_comic_submenu_assets_shared.bl_idname, icon="LINKED")
         layout.menu(BR_MT_3d_comic_submenu_lighting.bl_idname, icon="COLORSET_13_VEC")
         layout.separator()
         layout.menu(BR_MT_3d_comic_submenu_utilities.bl_idname, icon="PREFERENCES")
@@ -7803,7 +7953,7 @@ class BR_MT_3d_comic_submenu_assets(bpy.types.Menu):
 
     def draw(self, context):
         layout = self.layout
-        layout.operator(OBJECT_OT_add_bonus.bl_idname, icon='KEYTYPE_BREAKDOWN_VEC')
+        layout.operator(OBJECT_OT_add_bonus_shared.bl_idname, icon='KEYTYPE_BREAKDOWN_VEC')
         layout.separator()
         layout.operator(OBJECT_OT_add_inkbot_shuffle.bl_idname, icon='FILE_3D')
         # layout.operator(OBJECT_OT_add_inkbot.bl_idname, icon='FILE_3D')
@@ -7815,8 +7965,21 @@ class BR_MT_3d_comic_submenu_assets(bpy.types.Menu):
         layout.operator(OBJECT_OT_add_inksplat.bl_idname, icon='FILE_3D')
         layout.separator()
         layout.operator(OBJECT_OT_add_ground_rocks.bl_idname, icon='OUTLINER_DATA_POINTCLOUD')
-
         layout.operator("view3d.spiraloid_3d_comic_workshop")
+
+
+class BR_MT_3d_comic_submenu_assets_shared(bpy.types.Menu):
+    bl_idname = 'view3d.spiraloid_3d_comic_assets_shared'
+    bl_label = 'Assets Shared'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator(OBJECT_OT_add_bonus_shared.bl_idname, icon='KEYTYPE_BREAKDOWN_VEC')
+        layout.separator()
+        layout.operator(OBJECT_OT_add_omnibot_shared.bl_idname, icon='FILE_3D')
+        layout.operator(OBJECT_OT_add_ground.bl_idname, icon='FILE_3D')
+        layout.operator("view3d.spiraloid_3d_comic_workshop")
+
 
 
 
@@ -7944,6 +8107,7 @@ classes = (
     BR_OT_add_letter_sfx,
     # BR_OT_add_ground,
     BR_MT_3d_comic_submenu_assets,
+    BR_MT_3d_comic_submenu_assets_shared,
     BR_OT_regenerate_3d_comic_preview,
     BR_OT_delete_comic_scene,
     BR_MT_export_3d_comic_all,
@@ -7965,7 +8129,8 @@ classes = (
     # OBJECT_OT_add_inkbot,  
     # OBJECT_OT_add_inkbot_puppet,
     OBJECT_OT_add_inkbot_shuffle,
-    OBJECT_OT_add_bonus,
+    OBJECT_OT_add_bonus_shared,
+    OBJECT_OT_add_omnibot_shared,
     BR_OT_pose_cycle_next,
     BR_OT_pose_cycle_previous,
     BR_OT_spiraloid_toggle_workmode,
