@@ -11,6 +11,7 @@ bl_info = {
 
 import bpy
 import os
+import shutil
 import os.path
 from bpy_extras.io_utils import ImportHelper
 from bpy_extras.io_utils import ExportHelper
@@ -219,6 +220,10 @@ class OBJECT_OT_drop_to_ground(Operator):
 
 def warn_not_saved(self, context):
     self.layout.label(text= "You must save your file first!")
+
+def warn_folder_exists(self, context):
+    self.layout.label(text= "Folder Already Exists!")
+
 
 def warn_language_set(self, context):
     scene = context.scene
@@ -504,8 +509,9 @@ def load_resource(self, context, blendFileName, is_random):
 
 
 
-def load_shared_resource(self, context, blendFileName, is_random, category_name):
+def load_shared_resource(self, context, blendFileName, is_random):
     global previous_random_int
+    shared_asset_filepath = ""
     if bpy.context.object:
         if "OBJECT" not in bpy.context.object.mode:
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
@@ -546,56 +552,75 @@ def load_shared_resource(self, context, blendFileName, is_random, category_name)
         else:
             random_int = 0
         padded_random_int = "%03d" % random_int
-        filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".blend"
+        template_filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".blend"
         previous_random_int = random_int
     else:
-        filepath = addon_dir + blendFileName
+        template_filepath = addon_dir + blendFileName
 
-    context = bpy.context
-    resourceSceneIndex = 0
-    # scenes = []
-    with bpy.data.libraries.load(filepath ) as (data_from, data_to):
-        data_to.collections = data_from.collections
+    if os.path.exists(template_filepath):
+        root_folder = os.path.dirname(bpy.data.filepath)
+        shared_assets_folder = root_folder + '\\shared\\'
+        template_basefilename = os.path.basename(template_filepath) 
+        shared_asset_filepath = shared_assets_folder + template_basefilename
 
-    for new_coll in data_to.collections:
-        if stringFragments[0] in new_coll.name:
-            instance = bpy.data.objects.new(new_coll.name, None)
-            instance.instance_type = 'COLLECTION'
-            instance.instance_collection = new_coll
-            export_collection.objects.link(instance)
+        shutil.copy(template_filepath, shared_asset_filepath)
+
+    if os.path.exists(shared_asset_filepath):
+        context = bpy.context
+        resourceSceneIndex = 0
+        # scenes = []
+        with bpy.data.libraries.load(shared_asset_filepath, link=True, relative=True ) as (data_from, data_to):
+            data_to.collections = data_from.collections
+
+        for new_coll in data_to.collections:
+            if stringFragments[0] in new_coll.name:
+                # instance = bpy.data.collections.new(new_coll.name )
+                # instance.instance_type = 'COLLECTION'
+                # instance.instance_collection = new_coll
+                export_collection.children.link(new_coll)
+                new_coll_name = new_coll.name
+                for obj in new_coll.all_objects:
+                    if obj.type == 'ARMATURE':
+                        bpy.ops.object.select_all(action='DESELECT')
+                        obj.select_set(state=True)
+                        bpy.context.view_layer.objects.active = obj
+                        bpy.ops.object.make_override_library(collection=new_coll_name)
+                    # export_collection.children.link(linked_override)
+                bpy.data.collections.remove(new_coll)
+                linked_override_collection = bpy.context.selected_objects[0].users_collection[0]
+                export_collection.children.link(linked_override_collection)
+                bpy.data.scenes[currSceneIndex].collection.children.unlink(linked_override_collection)
+
+            # for name in data_from.scenes:
+            #     scenes.append({'name': name})
+            # action = bpy.ops.wm.link
+            # action(directory=filepath + "/Collection/" + stringFragments[0], files=scenes )
+            # scenes = bpy.data.scenes[-len(scenes):]
 
 
 
-        # for name in data_from.scenes:
-        #     scenes.append({'name': name})
-        # action = bpy.ops.wm.link
-        # action(directory=filepath + "/Collection/" + stringFragments[0], files=scenes )
-        # scenes = bpy.data.scenes[-len(scenes):]
 
+            
 
+        # resourceSceneIndex = -len(scenes)
+        # if resourceSceneIndex != 0 :
+        #     nextScene =  bpy.data.scenes[resourceSceneIndex]
+        #     loaded_scene_collections = bpy.data.scenes[resourceSceneIndex].collection.children
+        #     shared_asset_collections = bpy.data.collections.get("Shared Assets")
+            
+        #     for coll in loaded_scene_collections:
+        #         bpy.ops.object.make_local(type='ALL')
+        #         bpy.ops.object.select_all(action='DESELECT')
+        #         for obj in coll.all_objects:
+        #             bpy.context.collection.objects.link(obj)  
+        #             obj.select_set(state=True)
+        #             bpy.context.view_layer.objects.active = obj
 
+        #             for shared_c in shared_asset_collections.children:
+        #                 if category_name in shared_c.name:
+        #                     shared_c.objects.link(obj)  
 
-        
-
-    # resourceSceneIndex = -len(scenes)
-    # if resourceSceneIndex != 0 :
-    #     nextScene =  bpy.data.scenes[resourceSceneIndex]
-    #     loaded_scene_collections = bpy.data.scenes[resourceSceneIndex].collection.children
-    #     shared_asset_collections = bpy.data.collections.get("Shared Assets")
-        
-    #     for coll in loaded_scene_collections:
-    #         bpy.ops.object.make_local(type='ALL')
-    #         bpy.ops.object.select_all(action='DESELECT')
-    #         for obj in coll.all_objects:
-    #             bpy.context.collection.objects.link(obj)  
-    #             obj.select_set(state=True)
-    #             bpy.context.view_layer.objects.active = obj
-
-    #             for shared_c in shared_asset_collections.children:
-    #                 if category_name in shared_c.name:
-    #                     shared_c.objects.link(obj)  
-
-    #     bpy.data.scenes.remove(nextScene)
+        #     bpy.data.scenes.remove(nextScene)
 
 
 
@@ -1090,7 +1115,7 @@ def automap(mesh_objects, decimate_ratio):
                 bpy.ops.mesh.uv_texture_add()
                 bpy.ops.object.mode_set(mode='EDIT', toggle=False)
                 bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.uv.smart_project(angle_limit=66, island_margin=0.02, user_area_weight=0.75, use_aspect=True, stretch_to_bounds=True)
+                bpy.ops.uv.smart_project(angle_limit=66, island_margin=0.02, area_weight=0.75, correct_aspect=True, scale_to_bounds=True)
                 bpy.ops.uv.seams_from_islands()
                 bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
                 bpy.ops.uv.minimize_stretch(iterations=1024)
@@ -1144,19 +1169,23 @@ def automap(mesh_objects, decimate_ratio):
             bpy.context.view_layer.objects.active = mesh_object
 
             bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-            # for area in bpy.context.screen.areas:
-            #         if area.type == 'VIEW_3D':
-            #             for region in area.regions:
-            #                 if region.type == 'WINDOW':
-            #                     override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
-            #                     bpy.ops.uv.pack_islands(override , margin=0.017)
+            for area in bpy.context.screen.areas:
+                    if area.type == 'VIEW_3D':
+                        for region in area.regions:
+                            if region.type == 'WINDOW':
+                                override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
+                                bpy.ops.uv.select_all(action='SELECT')
+                                bpy.ops.uv.average_islands_scale(override)
+                                bpy.ops.uv.minimize_stretch(override, iterations=100)
+                                bpy.ops.uv.pack_islands(override , margin=0.05)
 
-            bpy.ops.mesh.select_all(action='SELECT')
-            C=bpy.context
-            old_area_type = C.area.type
-            C.area.type='IMAGE_EDITOR'
-            bpy.ops.uv.pack_islands(margin=0.017)
-            C.area.type=old_area_type
+
+            # bpy.ops.mesh.select_all(action='SELECT')
+            # C=bpy.context
+            # old_area_type = C.area.type
+            # C.area.type='IMAGE_EDITOR'
+            # bpy.ops.uv.pack_islands(margin=0.017)
+            # C.area.type=old_area_type
 
 
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
@@ -2544,12 +2573,22 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             if not export_collection:
                 self.report({'WARNING'}, "Export Collection " + export_collection.name + "was not found in scene, skipping export of" + scene.name)
             else:
+                linked_library_collections = []
                 export_collection_name = export_collection.name
                 bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = False
                 child_collections = bpy.context.view_layer.layer_collection.children[export_collection_name].collection.children
                 for col in child_collections:
                     col_name = col.name
-                    bpy.context.view_layer.layer_collection.children[export_collection_name].children[col_name].exclude = False
+                    is_override_library = col.override_library
+                    if is_override_library:
+                        export_collection.children.unlink(col)
+                        bpy.data.scenes[currSceneIndex].collection.children.link(col)
+                        bpy.context.view_layer.layer_collection.children[col_name].exclude = True
+
+                        linked_library_collections.append(col)
+                    else:
+                        bpy.context.view_layer.layer_collection.children[export_collection_name].children[col_name].exclude = False
+
 
                 meshes = []
                 armatures = []
@@ -2564,6 +2603,8 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                             if "OBJECT" not in starting_mode:
                                 bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
                                 bpy.ops.object.select_all(action='DESELECT')
+
+
 
                         if "Camera." in obj.name:
                             if "Camera." in active_camera.name:
@@ -2596,10 +2637,11 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                         #         bpy.ops.object.convert(target='MESH')
 
 
+
                 objects = export_collection.all_objects
                 for obj in objects:
                     if obj is not None:
-                        print (obj.name)
+                        # print (obj.name)
 
                         if obj.visible_get and  obj.type == 'MESH':
                             meshes.append(obj)
@@ -2926,8 +2968,33 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                 actions = bpy.data.actions
                 for action in actions:
                     if '3DComic_poses' in action.name:
-                        action.user_clear()
+                        try:
+                            action.user_clear()
+                        except:
+                            pass
                         # empty_trash(self, context)
+
+
+                # for collection in linked_library_collections:
+                #     #get shared blend file name
+                #     #get shared_asset_name
+                #     # delete existing shared assets
+                #     if os.path.exists(file_dir+'panels/shared/'):
+                #         for shared_files in glob.glob(file_dir +'panels/shared/'+ shared_asset_name + '.glb'):
+                #             print('os.remove(', shared_files, ')')
+                #             os.remove(shared_files)
+                #     else:
+                #         os.mkdir(file_dir+'panels/shared/')
+                #     path_to_shared_export_file = (file_dir + 'panels/shared/' + shared_asset_name + ".glb")
+
+                #     #copy existing (shared_asset_name + "".glb") file to panels/shared folder
+
+                #     #make apply ovveride and remove it so it can be edited.
+                #     #add object property with shared asset name to armature
+                #     #delete all meshes associated with armature
+                #     #move shared armature back into export collection for export
+
+                #     # set LOD level, set loadout rig settings. set thickness settings.
 
 
 
@@ -2974,6 +3041,10 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                     check_existing=True, 
                     filter_glob='*.glb;*.gltf')
                 # write the line for this file into the javascript file. 
+
+
+
+
 
                 if not export_only_current:            
                     # js_file.write('      "./panels/' + scene.name + '.' + active_language_abreviated + '.glb",' +'\n')  
@@ -3123,13 +3194,14 @@ class NewComicSettings(bpy.types.PropertyGroup):
 class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
     """Start a new 3D Comic from scratch"""
     bl_idname = "wm.spiraloid_new_3d_comic"
-    bl_label = "Save 3D Comic"
+    bl_label = "Create Comic Folder"
     bl_options = {'REGISTER', 'UNDO'}
     # config: bpy.props.PointerProperty(type=NewComicSettings)
     filepath = bpy.props.StringProperty(name="file path", description="3D Comic webite root folder")
-    # directory = bpy.props.StringProperty(name="file path", description="3D Comic webite root folder")
-    filter_glob: StringProperty( default='*.blend', options={'HIDDEN'} )
+    filter_glob: StringProperty( default='*.blend', options={'HIDDEN'}, )
 
+    # directory = bpy.props.StringProperty(name="file path", description="3D Comic webite root folder")
+    # comic_name = bpy.props.StringProperty(name="comic name", description="Name of 3D Comic Site", default= "s01e01")
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -3137,16 +3209,47 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
 
     # def draw(self, context):
     #     layout = self.layout
-    #     scene = context.scene
-    #     new_3d_comic_settings = scene.new_3d_comic_settings
-    #     layout.prop(new_3d_comic_settings, "title")
-    #     layout.prop(new_3d_comic_settings, "author")
-    #     layout.prop(new_3d_comic_settings, "url")
+    #     # scene = context.scene
+    #     # new_3d_comic_settings = scene.new_3d_comic_settings
+    #     layout.prop(comic_name, "title", description="Name of 3D Comic Site")
+    #     # layout.prop(new_3d_comic_settings, "author")
+    #     # layout.prop(new_3d_comic_settings, "url")
     #     # layout.prop(new_3d_comic_settings, "start_panel_count")
-    #     layout.separator()
+    #     # layout.separator()
+
 
     def execute(self, context):
-        filename, extension = os.path.splitext(self.filepath)
+        root_folder, extension = os.path.splitext(self.filepath)
+        comic_name = os.path.basename(self.filepath) 
+        issue_name = "s01e01"
+        issue_folder = root_folder + '\\' + issue_name 
+        working_folder = issue_folder + '\\blender'
+        shared_assets_folder = working_folder + '\\shared\\'
+
+        filename = working_folder + '\\' + comic_name + "_v.001.blend"
+        if os.path.exists(root_folder):
+            bpy.context.window_manager.popup_menu(warn_folder_exists, title="Warning", icon='ERROR')
+        else:
+            if os.path.exists(working_folder):
+                bpy.context.window_manager.popup_menu(warn_folder_exists, title="Warning", icon='ERROR')
+            else:
+                os.mkdir(root_folder)
+                os.mkdir(issue_folder)
+                os.mkdir(working_folder)
+                os.mkdir(shared_assets_folder)
+
+
+
+        # print(filepath)
+
+        # rootpath =  filepath + '\\' + filename + '\\' + filename
+
+
+
+
+
+
+
         scene = context.scene
         # settings = scene.new_3d_comic_settings
         # start_panel_count = settings.start_panel_count
@@ -3268,7 +3371,10 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
         # bpy.ops.wm.save_as_mainfile(filepath=save_filepath)
         # print (self.directory)
         # bpy.ops.wm.save_as_mainfile(filepath=self.directory)
-        bpy.ops.wm.save_as_mainfile(filepath=self.filepath)
+
+        # bpy.ops.wm.save_as_mainfile(filepath=self.filepath)
+        bpy.ops.wm.save_as_mainfile(filepath=filename)
+        
 
         # BR_OT_new_panel_row.execute(self, context) # why does this crash......
         
@@ -7668,7 +7774,7 @@ class OBJECT_OT_add_omnibot_shared(Operator, AddObjectHelper):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        load_shared_resource(self, context, "omnibot.blend", False, "Actors")
+        load_shared_resource(self, context, "omnibot.blend", False)
 
         # # aim at viewport camera.
         # objects = bpy.context.selected_objects
@@ -7714,7 +7820,7 @@ class OBJECT_OT_add_bonus_shared(Operator, AddObjectHelper):
         numString = getCurrentPanelNumber()
         paddedNumString = "%04d" % numString
         bonus_name = "Bonus_" + paddedNumString
-        load_shared_resource(self, context, "panel_bonus.blend", False, "Items")
+        load_shared_resource(self, context, "panel_bonus.blend", False)
 
         # aim at viewport camera.
         objects = bpy.context.selected_objects
