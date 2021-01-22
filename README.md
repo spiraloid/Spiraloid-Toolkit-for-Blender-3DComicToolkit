@@ -23,8 +23,8 @@ Features:
 https://3dcomic.shop/inkbots/s01e01/index.html?lan=es
 
 requirements:
-Blender 2.90 or later.
-https://www.blender.org/download/releases/2-90/
+Blender 2.91 or later.
+https://www.blender.org/download/releases/2-91/
 
 Python 3.8 or later. 
 (be sure to check the box to add python to your path on install.  this step is needed to make "read 3d comic" menu work since it runs a local python server)
