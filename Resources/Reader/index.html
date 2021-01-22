@@ -2,11 +2,11 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<title>3D Comic</title>
+		<title>Title - My 3D Comic - Chapter 1 - Beginning</title>
 
-		<meta name="author" content="3D Graphic Novelist Extrordinaire">
-		<meta name="description" content="Title">
-		<meta name="keywords" content="Inkbots, 3DComic, 3D Comic, Webtoon, Webcomic,  Spiraloid, Online Graphic Novel, Graphic Novel, 3D Art, 3D model, Concept Art, Digital Painting, VFX">
+		<meta name="author" content="3D Comic Creator Extraordaire">
+		<meta name="description" content="New 3D Comic - Chapter 1 - Beginning">
+		<meta name="keywords" content="3DComic, 3D Comic, Webtoon, Webcomic, Digital Comic, Spiraloid, Online Graphic Novel, Graphic Novel, 3D Art, 3D model, Concept Art, Digital Painting, VFX">
 
 		<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
 		<meta name="apple-mobile-web-app-capable" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1, minimal-ui">
@@ -29,9 +29,23 @@
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Audiowide">
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Courier Prime">
 
+
 	</head>
 	<body class="body">
-			<!-- <span id="titlebar"></span> -->
+
+
+		
+		<div class="loadingScreen" id="loadingscreen" style=display:block >
+			<div><img alt="" src="./images/loading_screen.gif" style="max-width:100%; height:auto; display: block; position: absolute; margin-right: -50%; top: 30%; left: 50%; transform: translate(-50%, -50%)"  href=""  ></div>
+			<div>
+				<span class="loadingspinner"><span class="loadingspinner-inner"></span></span>
+			</div>
+			<!-- <div><img alt="By Bay Raitt" src="./images/singature.gif" style="max-width:100%; height:auto; display: block; position: absolute;  top: 80%;  margin-right: -50%; margin-left: 50%; transform: translate(-65%, -80%)"  href="https://gumroad.com/l/3dcomictoolkit"></div> -->
+
+			
+		</div>
+
+
 		<canvas id="canvas"></canvas>
 			<!-- the main container is openned. -->
 			<div style="width:100%; max-width:690px; margin-right:auto; margin-left:auto; margin-top:0px; margin-bottom:0px; text-align:center; position:relative">
@@ -51,7 +65,7 @@
 						<a class="bonus_badge" >
 								<span id="button_counter">99</span>
 								<!-- <div id="homebutton">◄Home</div> -->
-								<img  id="bonus_badge" src="./images/bonus_badge.png" alt="" width="100%" style="display: block;">
+								<img  id="bonus_badge" src="./images/bonus_badge.png" alt="" width="100%" style="display: block;" href="">
 						</a>
 					</div>
 
@@ -117,9 +131,11 @@
 							<div id="wipchapterbox">
 									<div style="width:95%">
 										<center>
+											<!-- <img src="./images/thow_lo.gif" alt="" style="max-width:100%; height:auto; display: block; position: absolute; margin-right: -50%; top: 20%; left: 50%; transform: translate(-50%, -50%)"  href=""  > -->
 											<font style="font-size:1.35em;color:rgb(0, 0, 0);font-family:'Courier Prime';">
 												<b>You've arrived at the latest installment of Inkbots!</b>
 											</font>
+
 											<font style="color:rgb(0, 0, 0);font-family:'Courier Prime';">
 												<br>
 												<br>
@@ -129,7 +145,8 @@
 												</font>
 												<br>
 												<br>
-												<div><img alt="" height="50vmax"  width="50vmax" src="./images/bonus_badge_complete.png" style="display: block;"></div>
+					
+												<div><img alt="" height="50vmax"  width="50vmax" src="./images/bonus_badge_complete.png" style="display: block;"  href=""  ></div>
 												<br>
 												This chapter is
 												<font style="color:rgb(255, 255, 255);font-family:'Courier Prime';">
@@ -157,13 +174,13 @@
 													▼<b>Jump To Bottom</b>▼
 											</a>
 									</div>
-									<div style="width:100%">
+									<!-- <div style="width:100%">
 											<br>
 											<font style="color:rgb(0, 0, 0);font-family:'Courier Prime'; ">
 												If you plan to check this page for updates regularly,
 												bookmark so it always sends you to the bottom of the page!
 											</font>
-									</div>
+									</div> -->
 
 									<!-- <div style="width:100%; text-align:center; margin-top:16px; line-height: 10pt; font-size:1.875em; text-decoration: none">
 											<a href="https://3dcomic.shop/inkbots/s01e01/#bottom">
@@ -187,6 +204,61 @@
 		</div>
 
 
+
+
+		<div id="awardCertificate" class="modal">
+
+			<!-- Modal content -->
+			<div class="modal-content">
+				<span class="close">&times;</span>
+				<center>
+					<font style="font-size:1.25em;color:rgb(0, 0, 0);font-family:'Courier Prime';">
+						<b>Congratulations!</b>
+					</font>
+					<font style="font-size:1.25em;color:rgb(0, 0, 0);font-family:'Courier Prime';">
+						<br>
+						<br>
+						Collect prize 
+						<div style="width:100%; height:32px; margin-left:auto; margin-right:auto; text-align:center; ">
+							<a href="https://gum.co/inkbots_bonus_panel_prize">
+								&#187 <b>HERE</b> &#171;
+							</a>
+						</div>
+						<br>
+						and enter discount code: 
+						<br>
+						<br>
+						<font style="font-size:1.25em;color:rgb(185, 255, 200);font-family:'Courier Prime'; ">
+							<b>"42"</b>
+						</font>
+						<br>
+						<br>
+					</font>
+				</center>
+
+			</div>
+		</div>
+
+		<script>
+			// Get the modal
+			var modal = document.getElementById("awardCertificate");
+
+			// Get the <span> element that closes the modal
+			var span = document.getElementsByClassName("close")[0];
+		
+			// When the user clicks on <span> (x), close the modal
+			span.onclick = function() {
+				modal.style.display = "none";
+			}
+			
+			// When the user clicks anywhere outside of the modal, close it
+			window.onclick = function(event) {
+				if (event.target == modal) {
+				modal.style.display = "none";
+				}
+			}
+		</script>
+
 		<div id="content"></div>
 
 
@@ -199,6 +271,7 @@
 			var camera, scene, renderer, frustum;
 			var scenes = [];
 			var hasClicked = false;
+			var panelCount;
 
 			var isPointerDown = false;
 			var pointer = new THREE.Vector2();
@@ -231,6 +304,15 @@
 				}
 			};
 
+			// store the users scrolling location 
+			const progress = localStorage.getItem('progress');
+			window.addEventListener("scroll", (event) => {
+				let scroll = this.scrollY;
+				// console.log(scroll)
+				localStorage.setItem('progress', scroll);
+			});
+
+
 			var cameraSpeedScaler = 1;
 			if(isMobile.any()) {
 				cameraSpeedScaler = 0.125
@@ -238,11 +320,15 @@
 				cameraSpeedScaler = 0.05
 			}
 
+
+
+
 			if ( window.location.search.substr( 0, 5 ) === '?lan=' ) {
 
 				language = window.location.search.substr( 5 );
 
 			}
+
 
 			init();
 			loadFiles();
@@ -298,6 +384,15 @@
 
 			}
 
+			// var delay = ( function() {
+			// 	var timer = 0;
+			// 	return function(callback, ms) {
+			// 		clearTimeout (timer);
+			// 		timer = setTimeout(callback, ms);
+			// 	};
+			// })();
+
+
 			function getScreenPos(object, camera) {
 				var pos = object.position.clone();
 				camera.updateMatrixWorld();
@@ -318,14 +413,26 @@
 					bonusSoundEffect.src ='./bonus_achievement_all.mp3';
 					document.getElementById("button_counter").style.visibility = "hidden";
 					document.getElementById("bonus_badge").src="./images/bonus_badge_complete.png";
+					document.getElementById("awardCertificate").style.display = "block";
+
 				}
 
 				bonusSoundEffect.loop = false;
 				bonusSoundEffect.play();
+				// var ts = calc_texture_size(size + size * 2 * margin) * 2;
+				// var img = new Image();
+				// var texture = new THREE.Texture(bonus_canvas);
+				// bonus_canvas.width = bonus_canvas.height = ts;
+				// context.fillStyle = back_color;
+				// context.fillRect(0, 0, bonus_canvas.width, bonus_canvas.height);
+				// var boonusLocation = getScreenPos(object, camera);
+				// img.addEventListener('load', function(){
+				// 	bonus_canvas.drawImage(img, boonusLocation[0], boonusLocation[1]);
+				// 	texture.needsUpdate = true;
+				// });
+				// img.src = './images/bonus_pop.png';
 
 			}
-
-
 
 
 			function isOccludedBuffer(object, scene, camera, rendererm, width, height) {
@@ -343,6 +450,20 @@
 				}
 			}
 
+			// function isOccluded(object, scene, camera) {
+			// 	raycaster.setFromCamera(getScreenPos(object, camera), camera);
+			// 	var intersects = raycaster.intersectObjects(scene.children);
+			// 	if (intersects[0] && intersects[0].object === object) {
+			// 		return false;
+			// 		console.log(object.name + " is not occluded !!");
+
+			// 	} else {
+			// 		return true;
+			// 		console.log(object.name + " is occluded !!");
+
+			// 	}
+			// }
+
 			function inFrustum(object, frustum, camera) {
 				frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
 				return frustum.intersectsObject(object);
@@ -355,13 +476,23 @@
 			function loadFiles() {
 
 				var loader = new THREE.GLTFLoader();
+				panelCount = files.length;
 
 				for ( var i = 0; i < files.length; i ++ ) {
 
 					loadFile( files[ i ].replace( '${lan}', language ) );
-
 				}
 
+
+				async function importRef(scene, glb_file) {
+					var ref_data = loader.load( glb_file, function ( gltf ) {
+						scene.add( gltf.scene );
+					}) 
+					return { ref_data };
+				}
+
+
+				var loadedPanelCount = 0;
 				function loadFile( path ) {
 
 					var aspect = 1;
@@ -401,7 +532,8 @@
 						var scene = gltf.scene;
 
 						var camera, cameraOrigin, cameraTarget, cameraTargetDistance, bonusGemstone, frustum, cameraOrbitSpeed;
-						var letters;
+						var letters, ref_object, ref_glb_file;
+
 						var isBonusFound = false;
 
 						scene.traverse( function ( child ) {
@@ -410,6 +542,7 @@
 							if ( /^Camera_aim\d{4}$/.test( child.name ) ) cameraTarget = child;
 							if ( /^Letters_\w+\d{4}$/.test( child.name ) ) letters = child;
 							if ( /^Bonus_\d{4}$/.test( child.name ) ) bonusGemstone = child;
+							if ( /^ref_/.test( child.name ) ) ref_object = child;
 
 							//
 
@@ -488,6 +621,14 @@
 						}
 
 
+
+						if ( ref_object ) {
+							ref_glb_file = "./panels/" + ref_object.userData.ref_filename;
+							console.log(ref_glb_file);
+							importRef(scene, ref_glb_file)
+						}
+
+
 						scene.userData.activePanel = false;
 						scene.userData.camera = camera;
 						scene.userData.cameraOrigin = cameraOrigin;
@@ -496,7 +637,10 @@
 						cameraFovNormalized = normalize(camera.userData.vFov, 90, 0)
 						cameraDistanceNormalized = normalize(cameraTargetDistance, 0, 1)
 						cameraOrbitSpeed = cameraFovNormalized / cameraDistanceNormalized
+						// cameraOrbitSpeed = camera.userData.vFov / cameraTargetDistance
 						scene.userData.cameraOrbitSpeed =  Math.abs(cameraOrbitSpeed  *  (1 + cameraDistanceNormalized) * cameraSpeedScaler);						
+						// console.log("cameraOrbitSpeed for " + path + " = " + cameraOrbitSpeed );
+						// console.log("camera.userData.vFov for " + path + " = " + camera.userData.vFov );
 
 
 						if ( bonusGemstone ) {
@@ -512,9 +656,28 @@
 
 						scenes.push( scene );
 
+						loadedPanelCount++;
+
+
+						if (loadedPanelCount === panelCount){
+							console.log("LOAD COMPLETE")
+
+							// hide load screen
+							document.getElementById("loadingscreen").style.display = "none";
+
+							// enable scrolling
+							document.body.style.overflow = "scroll";
+
+
+							// scroll to last saved progress point
+							window.onload = function(){ window.scrollTo(0,progress); }
+
+						}
+
 					} );
 
 				}
+
 			}
 
 			function updateSize() {
@@ -550,6 +713,8 @@
 			function render() {
 
 				updateSize();
+
+				// canvas.style.transform = `translateY(${window.scrollY}px)`;
 
 				renderer.setScissorTest( false );
 				renderer.clear();
@@ -595,6 +760,8 @@
 					mixer.setTime( time * duration );
 					delta = 0; // for bonus collection
 
+					//
+
 					var isPointerInFrameX = pointer.x < rect.right && pointer.x > rect.left;
 					var isPointerInFrameY = pointer.y < rect.bottom && pointer.y > rect.top;
 					var isPointerInFrame;
@@ -615,6 +782,17 @@
 					var cameraOrbitSpeed = scene.userData.cameraOrbitSpeed
 
 					if ( cameraOrigin ) {
+
+						// if ( isPointerDown && isPointerInFrame) { 
+
+						// 	// cameraTargetDistanceScaler =  cameraOrbitSpeed * 0.015 * (cameraOrbitSpeed * 0.015);
+						// 	camera.position.x = cameraOrigin.position.x - ( ( pointer.x - pointerOnDown.x ) * cameraOrbitSpeed );
+						// 	camera.position.y = cameraOrigin.position.y + ( ( pointer.y - pointerOnDown.y ) * cameraOrbitSpeed );
+						// 	camera.position.z = cameraOrigin.position.z;
+
+						// 	// console.log("pointer.x = " + pointer.x );
+
+						// 	scene.userData.activePanel = true;
 
 						if ( isPointerInFrame && isPointerDown && !isDragging) { 
 							isDragging = true;
@@ -661,6 +839,23 @@
 										}
 									}
 								}
+								
+								// if (isBonusFound){
+									// vanishScale = 0.0001
+									// delta = clock.getDelta();
+									// if (bonusGemstone.scale.x > vanishScale) {
+									// 	bonusGemstone.scale.x += speed * delta ;
+									// 	bonusGemstone.scale.y += speed * delta ;
+									// 	bonusGemstone.scale.z += speed * delta ;
+									// }
+									// else{
+									// 	bonusGemstone.scale.x = vanishScale;
+									// 	bonusGemstone.scale.y = vanishScale;
+									// 	bonusGemstone.scale.z = vanishScale;
+									// }
+									// console.log("Clock: " + bonusGemstone.scale.x);
+								// }
+								
 							}
 						}
 						
@@ -696,5 +891,7 @@
 				<iframe src="https://3dcomic.shop/dev/footer/footer.html" width="100%" frameborder="0" scrolling="no" onload="this.height = this.offsetWidth"></iframe>
 			</span>
 		</div>
+
+
 	</body>
 </html>

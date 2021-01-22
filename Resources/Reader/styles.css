@@ -22,7 +22,7 @@
   box-sizing: border-box;
 }
 
-html, body {
+body {
   background-color: rgb(13, 21, 29);
   margin: 0px;
   height: 100%;
@@ -35,6 +35,8 @@ html, body {
   -ms-text-size-adjust: none;
   -webkit-text-size-adjust: none;
   text-size-adjust: none;
+  overflow: hidden;
+
 }
 
 
@@ -386,6 +388,278 @@ p {
   100% { opacity:0; transform: translateY(4vh); }
 }
 
+.loadingScreen {
+  position: fixed;
+  display: block;
+  background-color: rgb(0, 0, 0);
+  padding: 0 0;
+  width:100%;
+  height:100%;
+  margin-right: 0px;
+  margin-left: 0px;
+  z-index: 2800;
+}
+
+.loadingspinner{
+  position: fixed;
+  display: block; 
+  max-width: 120px;
+  max-height: 120px;
+  width:5vmax;
+  height:5vmax;
+
+  left: 46%;
+  top: 60%;
+  margin-right: auto;
+  margin-left: auto;
+  
+	border: 6px solid rgba(255,255,255);
+	animation: loadingspinner 3.8s infinite ease;
+		-o-animation: loadingspinner 3.8s infinite ease;
+		-ms-animation: loadingspinner 3.8s infinite ease;
+		-webkit-animation: loadingspinner 3.8s infinite ease;
+		-moz-animation: loadingspinner 3.8s infinite ease; 
+
+  z-index: 2801;  
+}
+
+.loadingspinner-inner {
+  display: block; 
+	vertical-align: top;
+	display: inline-block;
+	width: 100%;
+  background-color: rgb(255,255,255);
+
+	animation: loadingspinner-inner 3.8s infinite ease-in;
+		-o-animation: loadingspinner-inner 3.8s infinite ease-in;
+		-ms-animation: loadingspinner-inner 3.8s infinite ease-in;
+		-webkit-animation: loadingspinner-inner 3.8s infinite ease-in;
+		-moz-animation: loadingspinner-inner 3.8s infinite ease-in;
+}
+
+
+
+@keyframes loadingspinner {
+	0% {
+		transform: rotate(0deg);
+	}
+	
+	25% {
+		transform: rotate(180deg);
+	}
+	
+	50% {
+		transform: rotate(180deg);
+	}
+	
+	75% {
+		transform: rotate(360deg);
+	}
+	
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+@-o-keyframes loadingspinner {
+	0% {
+		transform: rotate(0deg);
+	}
+	
+	25% {
+		transform: rotate(180deg);
+	}
+	
+	50% {
+		transform: rotate(180deg);
+	}
+	
+	75% {
+		transform: rotate(360deg);
+	}
+	
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+@-ms-keyframes loadingspinner {
+	0% {
+		transform: rotate(0deg);
+	}
+	
+	25% {
+		transform: rotate(180deg);
+	}
+	
+	50% {
+		transform: rotate(180deg);
+	}
+	
+	75% {
+		transform: rotate(360deg);
+	}
+	
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+@-webkit-keyframes loadingspinner {
+	0% {
+		transform: rotate(0deg);
+	}
+	
+	25% {
+		transform: rotate(180deg);
+	}
+	
+	50% {
+		transform: rotate(180deg);
+	}
+	
+	75% {
+		transform: rotate(360deg);
+	}
+	
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+@-moz-keyframes loadingspinner {
+	0% {
+		transform: rotate(0deg);
+	}
+	
+	25% {
+		transform: rotate(180deg);
+	}
+	
+	50% {
+		transform: rotate(180deg);
+	}
+	
+	75% {
+		transform: rotate(360deg);
+	}
+	
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes loadingspinner-inner {
+	0% {
+		height: 0%;
+	}
+	
+	25% {
+		height: 0%;
+	}
+	
+	50% {
+		height: 100%;
+	}
+	
+	75% {
+		height: 100%;
+	}
+	
+	100% {
+		height: 0%;
+	}
+}
+
+@-o-keyframes loadingspinner-inner {
+	0% {
+		height: 0%;
+	}
+	
+	25% {
+		height: 0%;
+	}
+	
+	50% {
+		height: 100%;
+	}
+	
+	75% {
+		height: 100%;
+	}
+	
+	100% {
+		height: 0%;
+	}
+}
+
+@-ms-keyframes loadingspinner-inner {
+	0% {
+		height: 0%;
+	}
+	
+	25% {
+		height: 0%;
+	}
+	
+	50% {
+		height: 100%;
+	}
+	
+	75% {
+		height: 100%;
+	}
+	
+	100% {
+		height: 0%;
+	}
+}
+
+@-webkit-keyframes loadingspinner-inner {
+	0% {
+		height: 0%;
+	}
+	
+	25% {
+		height: 0%;
+	}
+	
+	50% {
+		height: 100%;
+	}
+	
+	75% {
+		height: 100%;
+	}
+	
+	100% {
+		height: 0%;
+	}
+}
+
+@-moz-keyframes loadingspinner-inner {
+	0% {
+		height: 0%;
+	}
+	
+	25% {
+		height: 0%;
+	}
+	
+	50% {
+		height: 100%;
+	}
+	
+	75% {
+		height: 100%;
+	}
+	
+	100% {
+		height: 0%;
+	}
+}
+
+
 
 #blackpage {
   display:  flex;
@@ -408,6 +682,60 @@ p {
   top: 0;
   right: 0;
 }
+
+
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1; /* Sit on top */
+  padding-top: 100px; /* Location of the box */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+
+
+  max-height: 100%;
+
+
+}
+
+/* Modal Content */
+.modal-content {
+  background-color: #29ddb0;
+  transform: translateY(2vmax);
+
+  margin: auto;
+  padding: 20px;
+  border: 1px solid rgb(24, 24, 24);
+  width: 80%;
+  -moz-border-radius: 16px;
+  border-radius: 16px;
+  border: 2px solid #008cff;
+  box-shadow: 0 0 40px #5de397;
+  background-image: linear-gradient(rgba(125, 245, 217, 255), rgba(48, 150, 92, 255));
+  /* font-size: 22px; */
+  color: #020e25;
+}
+
+/* The Close Button */
+.close {
+  color: #ddff1e;
+  float: right;
+  font-size: 44px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+
+
 
 .footer {
   position: relative;

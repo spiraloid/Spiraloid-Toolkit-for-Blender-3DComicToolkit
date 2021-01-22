@@ -553,17 +553,29 @@ def load_shared_resource(self, context, blendFileName, is_random):
             random_int = 0
         padded_random_int = "%03d" % random_int
         template_filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".blend"
+        template_glb_filepath = addon_dir + stringFragments[0] + "." + padded_random_int + ".glb"
         previous_random_int = random_int
     else:
         template_filepath = addon_dir + blendFileName
+        template_glb_filepath = addon_dir + stringFragments[0] + ".glb"
+
 
     if os.path.exists(template_filepath):
         root_folder = os.path.dirname(bpy.data.filepath)
         shared_assets_folder = root_folder + '\\shared\\'
         template_basefilename = os.path.basename(template_filepath) 
         shared_asset_filepath = shared_assets_folder + template_basefilename
+        
+        if not os.path.exists(shared_asset_filepath):
+            shutil.copy(template_filepath, shared_asset_filepath)
 
-        shutil.copy(template_filepath, shared_asset_filepath)
+    if os.path.exists(template_glb_filepath):
+        template_glb_basefilename = os.path.basename(template_glb_filepath) 
+        file_dir = os.path.dirname(os.path.dirname(bpy.data.filepath))
+        shared_glb_path = (os.path.join(file_dir, "panels\\shared\\"))
+        shared_asset_glb_filepath = (shared_glb_path + template_glb_basefilename)
+        if not os.path.exists(shared_asset_glb_filepath):
+            shutil.copy(template_glb_filepath, shared_asset_glb_filepath)
 
     if os.path.exists(shared_asset_filepath):
         context = bpy.context
@@ -579,17 +591,29 @@ def load_shared_resource(self, context, blendFileName, is_random):
                 # instance.instance_collection = new_coll
                 export_collection.children.link(new_coll)
                 new_coll_name = new_coll.name
-                for obj in new_coll.all_objects:
-                    if obj.type == 'ARMATURE':
-                        bpy.ops.object.select_all(action='DESELECT')
-                        obj.select_set(state=True)
-                        bpy.context.view_layer.objects.active = obj
-                        bpy.ops.object.make_override_library(collection=new_coll_name)
-                    # export_collection.children.link(linked_override)
+                # for obj in new_coll.all_objects:
+                obj = new_coll.all_objects[0]
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select_set(state=True)
+                bpy.context.view_layer.objects.active = obj
+                # if obj.type == 'ARMATURE':
+                #     bpy.ops.object.make_override_library(collection=new_coll_name)
+                # # raise KeyboardInterrupt()
+                #     # export_collection.children.link(linked_override)
+
+                #     bpy.data.collections.remove(new_coll)
+                #     linked_override_collection = bpy.context.selected_objects[0].users_collection[0]
+                #     export_collection.children.link(linked_override_collection)
+                #     bpy.data.scenes[currSceneIndex].collection.children.unlink(linked_override_collection)
+                # else:
+                    # raise KeyboardInterrupt()
+                bpy.ops.object.make_override_library(collection=new_coll_name)
                 bpy.data.collections.remove(new_coll)
                 linked_override_collection = bpy.context.selected_objects[0].users_collection[0]
                 export_collection.children.link(linked_override_collection)
                 bpy.data.scenes[currSceneIndex].collection.children.unlink(linked_override_collection)
+                obj["shared_asset_filepath"] = shared_asset_filepath
+
 
             # for name in data_from.scenes:
             #     scenes.append({'name': name})
@@ -1682,7 +1706,7 @@ def outline(mesh_objects, mode):
 
                     white_outline_mod = mesh_object.modifiers.new(name = 'WhiteOutline', type = 'SOLIDIFY')
                     white_outline_mod.use_flip_normals = True
-                    white_outline_mod.thickness = ink_thickness / 4
+                    white_outline_mod.thickness = -ink_thickness / 2
                     white_outline_mod.offset = -1
                     white_outline_mod.material_offset = 2
                     if mesh_object.type == 'MESH':
@@ -1703,7 +1727,7 @@ def outline(mesh_objects, mode):
                     newVar.targets[0].id = mesh_object 
                     newVar.targets[0].data_path = 'modifiers["WhiteOutline"].thickness'
                     # thicknessDriver.driver.expression =  "(thickness  * 1.15) - .02"
-                    thicknessDriver.driver.expression =  "(thickness  * -1.15) - (thickness  * 1.05)"
+                    thicknessDriver.driver.expression =  "(thickness  * -1.25) - (thickness  * 1.25)"
 
                     factorDriver = black_outline_mod.driver_add('thickness_vertex_group')
                     factorDriver.driver.type = 'SCRIPTED'
@@ -1715,7 +1739,7 @@ def outline(mesh_objects, mode):
                     factorDriver.driver.expression =  "thickness_vertex_group"
 
 
-                    black_outline_mod.offset = -1
+                    black_outline_mod.offset = 1
                     black_outline_mod.material_offset = 1
                     if mesh_object.type == 'MESH':
                         black_outline_mod.vertex_group = ink_thickness_vgroup.name
@@ -2445,11 +2469,14 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         file_path = bpy.data.filepath
         file_name = bpy.path.display_name_from_filepath(file_path)
         file_ext = '.blend'
-        file_dir = file_path.replace(file_name+file_ext, '')
+        blend_file_dir = file_path.replace(file_name+file_ext, '')
+
+        file_dir = os.path.dirname(os.path.dirname(file_path)) 
+        episode_dir_name = os.path.basename(file_dir)
         basefilename = os.path.splitext(file_name)[0]
         tmp_path_to_file = (os.path.join(file_dir, basefilename))
-        js_file_path = (file_dir + "files.js")
-        bat_file_path = (file_dir + "Read_Local.bat")
+        js_file_path = (os.path.join(file_dir, "files.js"))
+        bat_file_path = (os.path.join(file_dir, "Read_Local.bat"))
         drive_letter = os.path.splitext(file_name)[0]
 
         currSceneIndex = getCurrentSceneIndex()
@@ -2482,22 +2509,22 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
 
         # delete existing panels
-        if os.path.exists(file_dir+'panels/'):
+        if os.path.exists(file_dir+'\\panels\\'):
             if not export_only_current:
                 # delete existing panel.glb fils.
-                for panel_files in glob.glob(file_dir+'panels/*.' + active_language_abreviated +'.glb'):
+                for panel_files in glob.glob(file_dir+'\\panels\\*.' + active_language_abreviated +'.glb'):
                     print('os.remove(', panel_files, ')')
                     os.remove(panel_files)
             else:
-                for panel_files in glob.glob(file_dir +'panels/'+ current_scene_name + '.' + active_language_abreviated + '.glb'):
+                for panel_files in glob.glob(file_dir +'\\panels\\'+ current_scene_name + '.' + active_language_abreviated + '.glb'):
                     print('os.remove(', panel_files, ')')
                     os.remove(panel_files)
         else:
-            os.mkdir(file_dir+'panels/')
+            os.mkdir(file_dir+'\\panels\\')
 
         # copy template reader files
         if not export_only_current:            
-            if not os.path.exists(file_dir+'index.html'):
+            if not os.path.exists(file_dir+'\\index.html'):
                 # # copy 3D Comic Html
                 # user_dir = os.path.expanduser("~")
                 # reader_subdir = "/Reader"
@@ -2581,11 +2608,42 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                     col_name = col.name
                     is_override_library = col.override_library
                     if is_override_library:
-                        export_collection.children.unlink(col)
-                        bpy.data.scenes[currSceneIndex].collection.children.link(col)
-                        bpy.context.view_layer.layer_collection.children[col_name].exclude = True
+                        col_objects = col.all_objects
+                        # for cobj in col_objects:
+                        #     if cobj is not None:
+                        #         if bpy.context.object:
+                        #             starting_mode = bpy.context.object.mode
+                        #             if "OBJECT" not in starting_mode:
+                        #                 bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                        #                 bpy.ops.object.select_all(action='DESELECT')
+                        #         cobj.select_set(state=True)
+                        #         bpy.context.view_layer.objects.active = cobj
+                        #         bpy.ops.object.make_local(type='ALL')
 
-                        linked_library_collections.append(col)
+                        ref_obj = col_objects[0]
+                        ref_empty = bpy.data.objects.new('ref_' + ref_obj.name, None)  # Create new empty object
+                        export_collection.objects.link(ref_empty)  # Link empty to the current object's collection
+                        ref_empty.empty_display_type = 'PLAIN_AXES'
+                        ref_empty.location = ref_obj.location
+
+
+                        linked_library_blend_file_name = ref_obj.data.library.name
+                        linked_library_stringFragments = linked_library_blend_file_name.split('.')
+                        linked_library_filename = linked_library_stringFragments[0]
+                        linked_folder_abspath = (os.path.join(file_dir, "panels\\shared\\"))
+                        linked_glb_abspath_filename = (linked_folder_abspath + "\\" + linked_library_filename + ".glb")
+                        linked_glb_relpath_filename = ("./shared/" + linked_library_filename + ".glb")
+
+                        
+                        if not os.path.exists(linked_glb_abspath_filename):
+                            self.report({'ERROR'}, 'Cannot find shared asset :' + linked_glb_abspath_filename)
+
+                        ref_empty["ref_filename"] = linked_glb_relpath_filename
+
+                        export_collection.children.unlink(col)
+                        # bpy.data.scenes[currSceneIndex].collection.children.link(col)
+                        # bpy.context.view_layer.layer_collection.children[col_name].exclude = True
+                        linked_library_collections.append(col)                        
                     else:
                         bpy.context.view_layer.layer_collection.children[export_collection_name].children[col_name].exclude = False
 
@@ -2641,6 +2699,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                 objects = export_collection.all_objects
                 for obj in objects:
                     if obj is not None:
+
                         # print (obj.name)
 
                         if obj.visible_get and  obj.type == 'MESH':
@@ -2975,30 +3034,40 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                         # empty_trash(self, context)
 
 
-                # for collection in linked_library_collections:
-                #     #get shared blend file name
-                #     #get shared_asset_name
-                #     # delete existing shared assets
-                #     if os.path.exists(file_dir+'panels/shared/'):
-                #         for shared_files in glob.glob(file_dir +'panels/shared/'+ shared_asset_name + '.glb'):
-                #             print('os.remove(', shared_files, ')')
-                #             os.remove(shared_files)
-                #     else:
-                #         os.mkdir(file_dir+'panels/shared/')
-                #     path_to_shared_export_file = (file_dir + 'panels/shared/' + shared_asset_name + ".glb")
+                # for linked_collection in linked_library_collections:
+                #     linked_collection_name = linked_collection.name
+                #     bpy.context.view_layer.layer_collection.children[linked_collection_name].exclude = False
+                #     for lob in linked_collection.objects:
+                #         if lob.type == 'ARMATURE':
+                #             bpy.ops.object.select_all(action='DESELECT')
+                #             lob.select_set(state=True)
+                #             bpy.context.view_layer.objects.active = lob
+                #             #get shared file name
+                #             linked_library_blend_file_name = lob.data.library.name
+                #             stringFragments = linked_library_blend_file_name.split('.')
+                #             linked_library_filename = stringFragments[0]
+                            
+                #             # check if shared_asset_name.glb exists.
+                #             linked_glb_filename = (file_dir + '/panels/shared/' + linked_library_filename + ".glb")
+                #             if not os.path.exists(linked_glb_filename):
+                #                 self.report({'ERROR'}, 'Cannot find shared asset :' + linked_glb_filename)
 
-                #     #copy existing (shared_asset_name + "".glb") file to panels/shared folder
+                #             # make shared asset local
+                #             bpy.ops.object.make_local(type='ALL')
 
-                #     #make apply ovveride and remove it so it can be edited.
-                #     #add object property with shared asset name to armature
-                #     #delete all meshes associated with armature
-                #     #move shared armature back into export collection for export
-
-                #     # set LOD level, set loadout rig settings. set thickness settings.
+                #             # add custom property with string of shared asset
+                #             lob["shared_filename"] = linked_glb_filename
 
 
+                #             #delete all meshes associated with armature
+                #             for child in lob.children:
+                #                 bpy.ops.object.select_all(action='DESELECT')
+                #                 child.select_set(state=True)
+                #                 bpy.context.view_layer.objects.active = child
+                #                 bpy.ops.object.delete() 
 
-                path_to_export_file = (file_dir + 'panels/' + scene.name + "." + active_language_abreviated + ".glb")
+                panel_path = (os.path.join(file_dir, "panels"))
+                path_to_export_file = (panel_path + "\\" + scene.name + "." + active_language_abreviated + ".glb")
                 bpy.ops.export_scene.gltf(
                     export_format='GLB', 
                     ui_tab='GENERAL', 
@@ -3114,7 +3183,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
         if not export_only_current:            
             # finish writing the javascript file
-            js_file.write('      "./panels/black.w100h25.glb",' +'\n')  
+            js_file.write('      "./panels/shared/black.w100h25.glb",' +'\n')  
             # js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
             js_file.write('];' +'\n')
             js_file.close()
@@ -3136,7 +3205,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             for panel_scene in bpy.data.scenes:
                 if "p." in panel_scene.name:
                     js_file.write('      "./panels/' + panel_scene.name + '.${lan}.glb",' +'\n')  
-            js_file.write('      "./panels/black.w100h25.glb",' +'\n')  
+            js_file.write('      "./panels/shared/black.w100h25.glb",' +'\n')  
             js_file.write('];' +'\n')
             js_file.close()
 
@@ -3676,8 +3745,9 @@ class BR_OT_extract_comic_scene(bpy.types.Operator):
         file_path = bpy.data.filepath
         file_name = bpy.path.display_name_from_filepath(file_path)
         file_ext = '.blend'
-        file_dir = file_path.replace(file_name + file_ext, '')
-        
+        blend_file_dir = file_path.replace(file_name+file_ext, '')
+        file_dir = os.path.dirname(os.path.dirname(file_path))
+                 
         panels_dir = file_dir+"\\panels\\"
         if not os.path.exists(panels_dir):
             os.makedirs(panels_dir)
@@ -6027,9 +6097,11 @@ class BR_MT_read_3d_comic(bpy.types.Operator):
         file_path = bpy.data.filepath
         file_name = bpy.path.display_name_from_filepath(file_path)
         file_ext = '.blend'
-        file_dir = file_path.replace(file_name+file_ext, '')
-        bat_file_path = (file_dir + "Read_Local.bat")
-        index_file_path = (file_dir + "index.html")
+        blend_file_dir = file_path.replace(file_name+file_ext, '')
+        file_dir = os.path.dirname(os.path.dirname(file_path)) 
+        bat_file_path = (os.path.join(file_dir, "Read_Local.bat"))
+        index_file_path = (os.path.join(file_dir, "index.html"))
+        print (index_file_path)
 
         if os.path.isfile(index_file_path):
             if not os.path.isfile(bat_file_path):
@@ -6117,6 +6189,13 @@ class BakePanelSettings(bpy.types.PropertyGroup):
     target_existing : bpy.props.BoolProperty(name="Existing", description="Use an existing UV mapped mesh to recieve textures", default=True)
     target_duplicate : bpy.props.BoolProperty(name="Duplicate", description="Duplicate objects in collection to recieve textures", default=True)
 
+    bakeSourceCollection : bpy.props.PointerProperty(
+        type=bpy.types.Collection,
+        name="Source",         
+        description="The collection to bake"
+    )
+
+
     bakeTargetObject : bpy.props.PointerProperty(
         type=bpy.types.Object,
         poll=scene_mychosenobject_poll,
@@ -6128,8 +6207,8 @@ class BakePanelSettings(bpy.types.PropertyGroup):
         name="Target", 
         description="Type of object to recieve baked textures", 
         items={
-            ("target_automesh", "Combined","Automesh", 0),
-            ("target_duplicate","Duplicate", "Duplicate", 1),
+            ("target_automesh", "Combined Mesh","Automesh", 0),
+            ("target_duplicate","Duplicate Meshes", "Duplicate", 1),
             ("target_existing", "Existing Mesh","Existing", 2),
             },
         default="target_automesh"
@@ -6187,6 +6266,8 @@ class BR_OT_bake_panel(bpy.types.Operator):
         bake_panel_settings = scene.bake_panel_settings
 
         strategy_row = layout.row(align=True)
+
+        layout.prop(bake_panel_settings, "bakeSourceCollection" )
 
         layout.prop(bake_panel_settings, "target_strategy")
 
@@ -6263,28 +6344,30 @@ class BR_OT_bake_panel(bpy.types.Operator):
             export_collection = getCurrentExportCollection()
             export_collection_name = export_collection.name
 
-            panel_number = "0000"
-            panels = []
+            # panel_number = "0000"
+            # panels = []
 
-            for scene in bpy.data.scenes:
-                if "p." in scene.name:
-                    panels.append(scene.name)
-            for panel in panels :
-                for i in range(len(bpy.data.scenes)):
-                    if bpy.data.scenes[currSceneIndex].name == panel:
-                        stringFragments = panel.split('.')
-                        export_collection_name = "Export." + stringFragments[1]
-                        panel_number = stringFragments[1]
+            # for scene in bpy.data.scenes:
+            #     if "p." in scene.name:
+            #         panels.append(scene.name)
+            # for panel in panels :
+            #     for i in range(len(bpy.data.scenes)):
+            #         if bpy.data.scenes[currSceneIndex].name == panel:
+            #             stringFragments = panel.split('.')
+            #             export_collection_name = "Export." + stringFragments[1]
+            #             panel_number = stringFragments[1]
 
-            if bpy.data.collections.get(export_collection_name) is None :
-                e_collection = bpy.data.collections.new(export_collection_name)
-                bpy.context.scene.collection.children.link(e_collection)  
+            # if bpy.data.collections.get(export_collection_name) is None :
+            #     e_collection = bpy.data.collections.new(export_collection_name)
+            #     bpy.context.scene.collection.children.link(e_collection)  
 
-            export_collection = bpy.data.collections.get(export_collection_name)
+            # export_collection = bpy.data.collections.get(export_collection_name)
 
-            layer_collection = bpy.context.view_layer.layer_collection
-            source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
-            source_collection = bpy.data.collections.get(source_collection_name)
+
+            # layer_collection = bpy.context.view_layer.layer_collection
+            # source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
+            # source_collection = bpy.data.collections.get(source_collection_name)
+            source_collection = settings.bakeSourceCollection
             scene_collection = bpy.context.view_layer.layer_collection
             bake_collection_name =  (scene_name + "_" + source_collection_name  + "_baked")
             bake_mesh_name = (scene_name + "_" + source_collection_name  + "_baked")
@@ -7810,9 +7893,9 @@ class OBJECT_OT_add_omnibot_shared(Operator, AddObjectHelper):
 
 
 
-class OBJECT_OT_add_bonus_shared(Operator, AddObjectHelper):
+class OBJECT_OT_add_bonus(Operator, AddObjectHelper):
     """Add Bonus for Panel"""
-    bl_idname = "mesh.spiraloid_add_bonus_shared"
+    bl_idname = "mesh.spiraloid_add_bonus"
     bl_label = "Bonus"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -7820,7 +7903,8 @@ class OBJECT_OT_add_bonus_shared(Operator, AddObjectHelper):
         numString = getCurrentPanelNumber()
         paddedNumString = "%04d" % numString
         bonus_name = "Bonus_" + paddedNumString
-        load_shared_resource(self, context, "panel_bonus.blend", False)
+        load_resource(self, context, "panel_bonus.blend", False)
+
 
         # aim at viewport camera.
         objects = bpy.context.selected_objects
@@ -7842,6 +7926,38 @@ class OBJECT_OT_add_bonus_shared(Operator, AddObjectHelper):
 
         return {'FINISHED'}
 
+class OBJECT_OT_add_bonus_shared(Operator, AddObjectHelper):
+    """Add Bonus for Panel"""
+    bl_idname = "mesh.spiraloid_add_bonus_shared"
+    bl_label = "Bonus"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        numString = getCurrentPanelNumber()
+        paddedNumString = "%04d" % numString
+        bonus_name = "Bonus_" + paddedNumString
+        load_shared_resource(self, context, "panel_bonus.blend", False)
+
+
+        # aim at viewport camera.
+        objects = bpy.context.selected_objects
+        bonusObject = objects[0]
+        bonusObject.name = bonus_name
+        bpy.ops.view3d.snap_selected_to_cursor(use_offset=False)
+        active_camera = bpy.context.scene.camera
+        bpy.ops.object.select_all(action='DESELECT')
+        bonusObject.select_set(state=True)
+        bpy.context.view_layer.objects.active = bonusObject
+        bpy.ops.object.constraint_add(type='TRACK_TO')
+        c = bpy.context.object.constraints["Track To"]
+        c.target = bpy.data.objects[active_camera.name]
+        c.track_axis = 'TRACK_NEGATIVE_Y'
+        c.up_axis = 'UP_Z'
+        bpy.ops.object.select_all(action='DESELECT')
+        bonusObject.select_set(state=True)
+        bpy.context.view_layer.objects.active = bonusObject
+
+        return {'FINISHED'}
 
 class OBJECT_OT_add_inksplat(Operator, AddObjectHelper):
     """Create a new inksplat Object"""
@@ -7999,7 +8115,7 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
         layout.menu(BR_MT_3d_comic_submenu_panels.bl_idname, icon="VIEW_ORTHO")
         layout.menu(BR_MT_3d_comic_submenu_letters.bl_idname, icon="INFO")
         layout.menu(BR_MT_3d_comic_submenu_assets.bl_idname, icon="FILE_3D")
-        layout.menu(BR_MT_3d_comic_submenu_assets_shared.bl_idname, icon="LINKED")
+        # layout.menu(BR_MT_3d_comic_submenu_assets_shared.bl_idname, icon="LINKED")
         layout.menu(BR_MT_3d_comic_submenu_lighting.bl_idname, icon="COLORSET_13_VEC")
         layout.separator()
         layout.menu(BR_MT_3d_comic_submenu_utilities.bl_idname, icon="PREFERENCES")
@@ -8059,7 +8175,7 @@ class BR_MT_3d_comic_submenu_assets(bpy.types.Menu):
 
     def draw(self, context):
         layout = self.layout
-        layout.operator(OBJECT_OT_add_bonus_shared.bl_idname, icon='KEYTYPE_BREAKDOWN_VEC')
+        layout.operator(OBJECT_OT_add_bonus.bl_idname, icon='KEYTYPE_BREAKDOWN_VEC')
         layout.separator()
         layout.operator(OBJECT_OT_add_inkbot_shuffle.bl_idname, icon='FILE_3D')
         # layout.operator(OBJECT_OT_add_inkbot.bl_idname, icon='FILE_3D')
@@ -8236,6 +8352,7 @@ classes = (
     # OBJECT_OT_add_inkbot_puppet,
     OBJECT_OT_add_inkbot_shuffle,
     OBJECT_OT_add_bonus_shared,
+    OBJECT_OT_add_bonus,
     OBJECT_OT_add_omnibot_shared,
     BR_OT_pose_cycle_next,
     BR_OT_pose_cycle_previous,
