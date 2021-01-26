@@ -23,6 +23,8 @@ Features:
 https://3dcomic.shop/inkbots/s01e01/index.html?lan=es
 
 requirements:
+a WINDOWS 10 PC (sorry I don't have a mac).
+
 Blender 2.91 or later.
 https://www.blender.org/download/releases/2-91/
 
