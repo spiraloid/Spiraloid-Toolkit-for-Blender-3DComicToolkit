@@ -573,9 +573,11 @@ def load_shared_resource(self, context, blendFileName, is_random):
         template_glb_basefilename = os.path.basename(template_glb_filepath) 
         file_dir = os.path.dirname(os.path.dirname(bpy.data.filepath))
         shared_glb_path = (os.path.join(file_dir, "panels\\shared\\"))
-        shared_asset_glb_filepath = (shared_glb_path + template_glb_basefilename)
-        if not os.path.exists(shared_asset_glb_filepath):
+        if os.path.exists(shared_glb_path):
+            shared_asset_glb_filepath = (shared_glb_path + template_glb_basefilename)
             shutil.copy(template_glb_filepath, shared_asset_glb_filepath)
+        else:
+            self.report({'ERROR'}, "No Comic folders Found")
 
     if os.path.exists(shared_asset_filepath):
         context = bpy.context
@@ -3307,14 +3309,55 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
                 os.mkdir(working_folder)
                 os.mkdir(shared_assets_folder)
 
+            # path to the folder
+            file_path = bpy.data.filepath
+            file_name = bpy.path.display_name_from_filepath(file_path)
+            file_ext = '.blend'
+            blend_file_dir = file_path.replace(file_name+file_ext, '')
 
+            file_dir = issue_folder
+            episode_dir_name = os.path.basename(file_dir)
+            basefilename = os.path.splitext(file_name)[0]
+            tmp_path_to_file = (os.path.join(file_dir, basefilename))
+            js_file_path = (os.path.join(file_dir, "files.js"))
+            bat_file_path = (os.path.join(file_dir, "Read_Local.bat"))
+            drive_letter = os.path.splitext(file_name)[0]
 
-        # print(filepath)
+            currSceneIndex = getCurrentSceneIndex()
+            current_scene_name = bpy.data.scenes[currSceneIndex].name
 
-        # rootpath =  filepath + '\\' + filename + '\\' + filename
+            active_language = bpy.context.scene.comic_settings.language
 
+            if "english" in active_language:
+                active_language_abreviated = 'en'                    
+            if "spanish" in active_language:
+                active_language_abreviated = 'es'
+            if "japanese." in active_language:
+                active_language_abreviated = 'ja'
+            if "korean." in active_language:
+                active_language_abreviated = 'ko'
+            if "german." in active_language:
+                active_language_abreviated = 'de'
+            if "french." in active_language:
+                active_language_abreviated = 'fr'
+            if "dutch." in active_language:
+                active_language_abreviated = 'da'
 
+            if not active_language_abreviated:
+                self.report({'ERROR'}, "No Active Language!")
 
+            # export all scenes
+            i = 0
+
+            os.mkdir(file_dir+'\\panels\\')
+
+            # copy template reader files
+            if not os.path.exists(file_dir+'\\index.html'):
+                scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
+                addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
+                addon_dir = scripts_dir + addon_resources_subdir
+                addon_reader_dir = addon_dir + "/Reader"
+                copy_tree(addon_reader_dir, file_dir)        
 
 
 
@@ -6340,9 +6383,14 @@ class BR_OT_bake_panel(bpy.types.Operator):
             bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
             scene_name = bpy.context.window.scene.name
             currSceneIndex = getCurrentSceneIndex()
-            # export_collection_name = "Export"
             export_collection = getCurrentExportCollection()
-            export_collection_name = export_collection.name
+            if (export_collection):
+                export_collection_name = export_collection.name
+            else:
+                export_collection_name = "Export"
+                e_collection = bpy.data.collections.new(export_collection_name)
+                bpy.context.scene.collection.children.link(e_collection)  
+                export_collection = bpy.data.collections.get(export_collection_name)
 
             # panel_number = "0000"
             # panels = []
@@ -6357,17 +6405,14 @@ class BR_OT_bake_panel(bpy.types.Operator):
             #             export_collection_name = "Export." + stringFragments[1]
             #             panel_number = stringFragments[1]
 
-            # if bpy.data.collections.get(export_collection_name) is None :
-            #     e_collection = bpy.data.collections.new(export_collection_name)
-            #     bpy.context.scene.collection.children.link(e_collection)  
 
-            # export_collection = bpy.data.collections.get(export_collection_name)
 
 
             # layer_collection = bpy.context.view_layer.layer_collection
-            # source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
-            # source_collection = bpy.data.collections.get(source_collection_name)
+            settings = context.scene.bake_panel_settings
+
             source_collection = settings.bakeSourceCollection
+            source_collection_name = source_collection.name
             scene_collection = bpy.context.view_layer.layer_collection
             bake_collection_name =  (scene_name + "_" + source_collection_name  + "_baked")
             bake_mesh_name = (scene_name + "_" + source_collection_name  + "_baked")
@@ -6376,17 +6421,17 @@ class BR_OT_bake_panel(bpy.types.Operator):
 
 
 
-            if source_collection is None :
-                selected_objects = bpy.context.selected_objects
-                if len(selected_objects) > 0:
-                    source_collection = selected_objects[0].users_collection[0]            
-                    source_collection_name = source_collection.name  
-                else:
-                    # source_collection = scene_collection
-                    collections =  context.view_layer.objects.active.users_collection          
-                    if len(collections) > 2:
-                        self.report({'ERROR'}, 'You must select a collection!')
-                return {'FINISHED'} 
+            # if source_collection is None :
+            #     selected_objects = bpy.context.selected_objects
+            #     if len(selected_objects) > 0:
+            #         source_collection = selected_objects[0].users_collection[0]            
+            #         source_collection_name = source_collection.name  
+            #     else:
+            #         # source_collection = scene_collection
+            #         collections =  context.view_layer.objects.active.users_collection          
+            #         if len(collections) > 2:
+            #             self.report({'ERROR'}, 'You must select a collection!')
+            #     return {'FINISHED'} 
 
 
             if bpy.ops.object.mode_set.poll():
@@ -6405,8 +6450,8 @@ class BR_OT_bake_panel(bpy.types.Operator):
 
             # manage export collection 
             layer_collection = bpy.context.view_layer.layer_collection
-            source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
-            source_collection = bpy.data.collections.get(source_collection_name)
+            # source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
+            # source_collection = bpy.data.collections.get(source_collection_name)
             scene_collection = bpy.context.view_layer.layer_collection
             bake_collection = bpy.data.collections.new(bake_collection_name)
             export_collection.children.link(bake_collection)
@@ -6508,8 +6553,8 @@ class BR_OT_bake_panel(bpy.types.Operator):
             source_meshes = []
             for ob in source_collection.objects :
                 if ob.type == 'MESH' : 
-                    print (ob.name)
-                    source_meshes.append(ob)
+                    if ob.visible_get :
+                        source_meshes.append(ob)
 
 
             bake_meshes = []
@@ -7678,6 +7723,56 @@ class BR_OT_add_pose(bpy.types.Operator):
         add_full_pose(self)
         return {'FINISHED'}
 
+class BR_OT_subcollection_cycler(bpy.types.Operator):
+    """add property to active object to cycle the child objects of the active collection"""
+    bl_idname = "wm.spiraloid_subcollection_cycler"
+    bl_label ="subcollection cycler"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        control_object = bpy.context.selected_objects[0]
+        active_collection = bpy.context.collection
+        active_collection_name = active_collection.name 
+        control_property = "[\"" + active_collection_name + "\"]"
+        control_property_name =  active_collection.name
+        active_collection_children = active_collection.children
+        collection_count = len(active_collection.children)
+        print(collection_count)
+        try:
+            del control_object[control_property_name]
+        except:
+            pass 
+        control_object[control_property_name] = 1 
+
+        if '_RNA_UI' not in control_object.keys():
+            control_object['_RNA_UI'] = {}
+            
+
+        control_object['_RNA_UI'][control_property_name]  = { "default": 1,
+                                                                "soft_min": 1,
+                                                                "soft_max": collection_count,
+                                                                "is_overridable_library":0,
+                                                            }
+            
+        count = 1   
+        for icol in active_collection_children:
+            cobjs = icol.objects
+            for obj in cobjs:
+                try:
+                    obj.driver_remove('location', 2)
+                except:
+                    pass
+                visibilityDriver = obj.driver_add('location', 2)
+                visibilityDriver.driver.type = 'SCRIPTED'
+                newVar = visibilityDriver.driver.variables.new()
+                newVar.name = "var"
+                newVar.type = 'SINGLE_PROP'
+                newVar.targets[0].id = control_object
+                newVar.targets[0].data_path = control_property
+                visibilityDriver.driver.expression = "(var != " + str(count) + ") * (-1000000) "
+            count += 1
+        return {'FINISHED'}
+
+
 class BR_OT_overwrite_pose(bpy.types.Operator):
     """Overwrite last cycled pose"""
     bl_idname = "wm.spiraloid_pose_overwrite"
@@ -8216,6 +8311,8 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
         layout.operator("view3d.spiraloid_bake_panel", icon="TEXTURE_DATA")
         layout.operator("wm.spiraloid_automap", icon="UV_VERTEXSEL")
         layout.separator()
+        layout.operator("wm.spiraloid_subcollection_cycler", icon="MATCLOTH")
+        layout.separator()
         layout.operator("wm.spiraloid_pose_cycle_next", icon="ARMATURE_DATA")
         layout.operator("wm.spiraloid_pose_cycle_previous", icon="ARMATURE_DATA")
         layout.separator()
@@ -8289,6 +8386,7 @@ def draw_item(self, context):
 classes = (
     NewPanelRowSettings,
     BR_OT_add_pose,
+    BR_OT_subcollection_cycler,
     BR_OT_overwrite_pose,
     BR_OT_remove_pose,
     BR_OT_toggle_child_lock,
