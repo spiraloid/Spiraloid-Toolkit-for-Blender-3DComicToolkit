@@ -1128,9 +1128,8 @@ def toggle_workmode(self, context, rendermode):
 
 
 def automap(mesh_objects, decimate_ratio):
+    
     # UV map target_object if no UV's present
-
-
     for mesh_object in mesh_objects:
         if mesh_object.type == 'MESH':
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
@@ -1201,10 +1200,14 @@ def automap(mesh_objects, decimate_ratio):
                             if region.type == 'WINDOW':
                                 override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
                                 bpy.ops.uv.select_all(action='SELECT')
+                                bpy.context.scene.tool_settings.use_uv_select_sync = True
                                 bpy.ops.uv.average_islands_scale(override)
-                                bpy.ops.uv.minimize_stretch(override, iterations=100)
+                                # bpy.ops.uv.minimize_stretch(override, iterations=100)
                                 bpy.ops.uv.pack_islands(override , margin=0.05)
-
+                                if operator_exists("uvpackmaster2"):
+                                    bpy.context.scene.uvp2_props.pack_to_others = False
+                                    bpy.context.scene.uvp2_props.margin = 0.005
+                                    bpy.ops.uvpackmaster2.uv_pack()
 
             # bpy.ops.mesh.select_all(action='SELECT')
             # C=bpy.context
@@ -6534,9 +6537,7 @@ class BR_OT_bake_panel(bpy.types.Operator):
             #     wm.progress_update(i)
 
             visible_objects = []
-            for obj in bpy.context.scene.objects:
-                if obj.visible_get :
-                    visible_objects.append
+            visible_objects=[ob for ob in bpy.context.scene.objects if ob.visible_get()]
 
 
             # # select all source meshes
@@ -6553,7 +6554,7 @@ class BR_OT_bake_panel(bpy.types.Operator):
             source_meshes = []
             for ob in source_collection.objects :
                 if ob.type == 'MESH' : 
-                    if ob.visible_get :
+                    if ob.visible_get() :
                         source_meshes.append(ob)
 
 
@@ -8210,7 +8211,7 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
         layout.menu(BR_MT_3d_comic_submenu_panels.bl_idname, icon="VIEW_ORTHO")
         layout.menu(BR_MT_3d_comic_submenu_letters.bl_idname, icon="INFO")
         layout.menu(BR_MT_3d_comic_submenu_assets.bl_idname, icon="FILE_3D")
-        # layout.menu(BR_MT_3d_comic_submenu_assets_shared.bl_idname, icon="LINKED")
+        layout.menu(BR_MT_3d_comic_submenu_assets_shared.bl_idname, icon="LINKED")
         layout.menu(BR_MT_3d_comic_submenu_lighting.bl_idname, icon="COLORSET_13_VEC")
         layout.separator()
         layout.menu(BR_MT_3d_comic_submenu_utilities.bl_idname, icon="PREFERENCES")
