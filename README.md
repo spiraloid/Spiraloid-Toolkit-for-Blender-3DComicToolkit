@@ -1,6 +1,6 @@
 ![Spiraloid-Toolkit-for-Blender-3DComicToolkit](https://github.com/spiraloid/Spiraloid-Toolkit-for-Blender-3DComicToolkit/blob/master/Resources/Reader/images/covers.jpg)
 
-This is a 3D Comic toolkit for Blender that allows you to save out your own scrolling 3D Comic websites like https://3dcomic.shop .  I make it for myself to create my own 3D Comics and decided to share it.  I update it frequently as I use it to create my own titles so be warned.  I'm not really supporting this like a normal addon.  these are my personal custom 3D pencil customizations and sharpenings for Blender.  Since I get blender free.  I'm passing it on.   
+This is a 3D Comic toolkit for Blender that allows you to save out your own scrolling 3D Comic websites like https://3dcomic.shop .  I make it for myself to create my own 3D Comics and decided to share it.  I update it frequently as I use it to create my own titles so be warned.   I'm not really supporting this like a normal addon.  These are my personal custom 3D pencil customizations and sharpenings for Blender.  Since I get blender free.  I'm passing it on.   
 
 The Toolkit comes with all you need to start creating your own 3D Comic directly from your Blender scenes.  These are not 2D rendered comics, but true 3D Comics where every panel is rendered live using real time 3D Graphics.  
 
