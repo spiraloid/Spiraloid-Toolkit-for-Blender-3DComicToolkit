@@ -2527,6 +2527,11 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         else:
             os.mkdir(file_dir+'\\panels\\')
 
+        if not os.path.exists(file_dir+'\\panels\\shared\\'):
+            self.report({'ERROR'}, "No shared folder present near save location! 3D Comic directory needs to be rebuilt?")
+
+
+
         # copy template reader files
         if not export_only_current:            
             if not os.path.exists(file_dir+'\\index.html'):
@@ -2631,6 +2636,15 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                         ref_empty.empty_display_type = 'PLAIN_AXES'
                         ref_empty.location = ref_obj.location
 
+                        if ref_obj == 'ARMATURE':
+                            for mod in obj.modifiers:
+                                if 'Skeleton' not in mod.name:
+                                    expiring_mod_name = mod.name 
+                                    bpy.ops.object.modifier_remove(modifier=expiring_mod_name)
+
+
+                        # print("=======DEBUG: " + str(currSceneIndex))
+                        # raise KeyboardInterrupt()
 
                         linked_library_blend_file_name = ref_obj.data.library.name
                         linked_library_stringFragments = linked_library_blend_file_name.split('.')
@@ -2645,12 +2659,22 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
                         ref_empty["ref_filename"] = linked_glb_relpath_filename
 
-                        export_collection.children.unlink(col)
+                        if ref_obj == 'ARMATURE':
+                            for mod in obj.modifiers:
+                                if 'Skeleton' not in mod.name:
+                                    expiring_mod_name = mod.name 
+                                    bpy.ops.object.modifier_remove(modifier=expiring_mod_name)
+                        else:
+                            export_collection.children.unlink(col)
+
                         # bpy.data.scenes[currSceneIndex].collection.children.link(col)
                         # bpy.context.view_layer.layer_collection.children[col_name].exclude = True
                         linked_library_collections.append(col)                        
                     else:
                         bpy.context.view_layer.layer_collection.children[export_collection_name].children[col_name].exclude = False
+
+                    # print("=======DEBUG: " + str(currSceneIndex))
+                    # raise KeyboardInterrupt()
 
 
                 meshes = []
@@ -2714,9 +2738,9 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                             armatures.append(obj)
 
                         if obj.animation_data:
-                            if obj.type == 'OBJECT':
-                                print('>>>>> attempting to process: ' + obj.name)
-                                smart_anim_bake(obj)
+                            # if obj.type == 'OBJECT':
+                            print('>>>>> attempting to process: ' + obj.name)
+                            smart_anim_bake(obj)
 
                         is_toon_shaded = obj.get("is_toon_shaded")
                         if is_toon_shaded:
@@ -3215,6 +3239,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             js_file.close()
 
 
+        self.report({'INFO'}, 'Exported Panels!')
 
 
 
@@ -4455,7 +4480,7 @@ class BR_OT_add_letter_sfx(bpy.types.Operator):
 
 
 class BR_OT_key_scale_hide(bpy.types.Operator):
-    """Verify 3d panel naming is correct for export"""
+    """Generate keyframes to scale the selected to 0.0001 and then appear on the current frame with a bounce curve"""
     bl_idname = "wm.spiraloid_3d_comic_key_scale_hide"
     bl_label ="key scale hide"
     bl_options = {'REGISTER', 'UNDO'}
@@ -7292,87 +7317,141 @@ class BR_OT_bake_panel(bpy.types.Operator):
                                 existing_albedo_color = (0, 0, 0, 1)
                                 existing_metal_color = (0, 0, 0, 1)
 
-                                bpy.context.scene.cycles.bake_type = 'DIFFUSE'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
+                                bpy.context.scene.cycles.bake_type = 'COMBINED'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
                                 bpy.context.scene.render.image_settings.file_format = 'PNG'
                                 bpy.context.scene.render.image_settings.color_depth = '8'
                                 bpy.context.scene.render.image_settings.color_mode = 'BW'
                                 bpy.context.scene.render.bake.use_pass_indirect = False
                                 bpy.context.scene.render.bake.use_pass_direct = False
-                                bpy.context.scene.render.bake.use_pass_color = True
+                                # bpy.context.scene.render.bake.use_pass_color = True
                                 bpy.context.scene.render.bake.use_selected_to_active = True
                                 bpy.context.scene.render.bake.use_cage = True
                                 ray_length = target_object.dimensions[1] * bake_distance
                                 bpy.context.scene.render.bake.cage_extrusion = ray_length
-                                bpy.context.scene.cycles.samples = 4
+                                bpy.context.scene.cycles.samples = 1
                                 bpy.context.scene.render.bake.margin = pixelMargin
 
                                 for tmp_src in source_meshes:
                                     if tmp_src.data.materials:
-                                        for mat in tmp_src.data.materials:
-                                            tmp_src.active_material = mat
-                                            shadernodes = [n for n in matnodes if n.type == 'ShaderNodeBsdfPrincipled']
+                                        for src_mat in tmp_src.data.materials:
+                                            mat_output = src_mat.node_tree.nodes.get('Material Output')
+                                            existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
+                                            
+                                            # get metallic input
+                                            shadernodes = [n for n in src_mat.node_tree.nodes if n.type == 'ShaderNodeBsdfPrincipled']
                                             for n in shadernodes:
-
-                                                # get albedo input
-                                                if not n.inputs[0].links:
-                                                    existing_albedo_color = n.inputs[0].default_value
-                                                else:
-                                                    existing_albedo_color_input = n.inputs[0].links[0].from_node
-
-                                                # get metallic input
+                                                print("=================" + n.name)
                                                 if not n.inputs[4].links:
-                                                    existing_metal_color = n.inputs[4].default_value
+                                                    existing_metal_color = n.inputs[0].default_value
                                                 else:
                                                     existing_metal_color_input = n.inputs[4].links[0].from_node
+                                                    print("=================" + existing_metal_color_input)
 
-                                                # link metallic connection to albedo
-                                                if existing_metal_color:
-                                                    n.inputs[0].default_value = existing_metal_color
-                                                if existing_metal_color_input:
-                                                    mat.node_tree.links.new(existing_metal_color_input.outputs[0], n.inputs[0])
-
-
-
-
-                                                # restore albedo connection
-                                                if existing_metal_color:
-                                                    n.inputs[0].default_value = existing_albedo_color
-                                                if existing_metal_color_input:
-                                                    mat.node_tree.links.new(shader.inputs[0], existing_albedo_color_input.outputs[0])
-
-                                if os.path.exists(file_dir):
-                                    if os.path.exists(materials_dir):
-                                        outBakeFileName = n.image.name+".png"
-                                        outRenderFileName = materials_dir+outBakeFileName
-                                        n.image.file_format = 'PNG'
-                                        n.image.filepath = outRenderFileName
-                                        bpy.ops.object.bake(type='GLOSSY', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                        n.image.save()
-                                        self.report({'INFO'},"Baked metal texture saved to: " + outRenderFileName )
-                                else:
-                                    bpy.ops.object.bake(type='GLOSSY')
-                                    n.image.pack()
-                                progress_current += progress_step
-                                wm.progress_update(int(progress_current))
-
-
-                                #create tmp shader and connect texture to it.
-                                for sob in source_meshes:
-                                    if ob.data.materials:
-                                        for mat in ob.data.materials:
-                                            ob.active_material = mat
-                                            shadernodes = [n for n in matnodes if n.type == 'ShaderNodeBsdfPrincipled']
+                                            shadernodes = [n for n in src_mat.node_tree.nodes if n.type == 'ShaderNodeBackground']
                                             for n in shadernodes:
-                                                existing_shader_color_input = n.inputs[0].links[0].from_node
-                                                mat.node_tree.links.new(shader.inputs[0], existing_shader_color_input.outputs[0])
+                                                if not n.inputs[0].links:
+                                                    existing_metal_color = n.inputs[0].default_value
+                                                else:
+                                                    existing_metal_color_input = n.inputs[0].links[0].from_node
 
-                                            tmpshader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                                            mat.node_tree.links.new(tmpshader.outputs[0], mat_output.inputs[0])
+                                            # raise KeyboardInterrupt()
 
 
-                                            #cleanup.
-                                            mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-                                            mat.node_tree.nodes.remove(tmpshader)
+
+                                            tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                            src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
+
+                                            
+
+
+
+                                            # if existing_metal_color:
+                                            try:
+                                                tmp_flat_shader.inputs[0].default_value = existing_metal_color
+                                            except :
+                                                pass
+
+                                            try:
+                                                src_mat.node_tree.links.new(existing_metal_color_input.outputs[0], tmp_flat_shader.inputs[0])
+                                            except :
+                                                pass
+
+
+
+
+                                            
+
+                                            # tmp_src.active_material = mat
+                                            # shadernodes = [n for n in matnodes if n.type == 'ShaderNodeBsdfPrincipled']
+                                            # for n in shadernodes:
+
+                                            #     # get albedo input
+                                            #     if not n.inputs[0].links:
+                                            #         existing_albedo_color = n.inputs[0].default_value
+                                            #     else:
+                                            #         existing_albedo_color_input = n.inputs[0].links[0].from_node
+
+                                            #     # get metallic input
+                                            #     if not n.inputs[4].links:
+                                            #         existing_metal_color = n.inputs[4].default_value
+                                            #     else:
+                                            #         existing_metal_color_input = n.inputs[4].links[0].from_node
+
+                                            #     # link metallic connection to albedo
+                                            #     if existing_metal_color:
+                                            #         n.inputs[0].default_value = existing_metal_color
+                                            #     if existing_metal_color_input:
+                                            #         mat.node_tree.links.new(existing_metal_color_input.outputs[0], n.inputs[0])
+
+
+
+
+                                            #     # restore albedo connection
+                                            #     if existing_metal_color:
+                                            #         n.inputs[0].default_value = existing_albedo_color
+                                            #     if existing_metal_color_input:
+                                            #         mat.node_tree.links.new(shader.inputs[0], existing_albedo_color_input.outputs[0])
+
+                                            if os.path.exists(file_dir):
+                                                if os.path.exists(materials_dir):
+                                                    outBakeFileName = n.image.name+".png"
+                                                    outRenderFileName = materials_dir+outBakeFileName
+                                                    n.image.file_format = 'PNG'
+                                                    n.image.filepath = outRenderFileName
+                                                    bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                                    n.image.save()
+                                                    self.report({'INFO'},"Baked metal texture saved to: " + outRenderFileName )
+                                            else:
+                                                bpy.ops.object.bake(type='COMBINED')
+                                                n.image.pack()
+
+
+                                            # cleanup
+                                            mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
+                                            mat.node_tree.nodes.remove(tmp_flat_shader)
+
+
+                                # progress_current += progress_step
+                                # wm.progress_update(int(progress_current))
+
+
+                                # #create tmp shader and connect texture to it.
+                                # for sob in source_meshes:
+                                #     if ob.data.materials:
+                                #         for mat in ob.data.materials:
+                                #             ob.active_material = mat
+                                #             shadernodes = [n for n in matnodes if n.type == 'ShaderNodeBsdfPrincipled']
+                                #             for n in shadernodes:
+                                #                 existing_shader_color_input = n.inputs[0].links[0].from_node
+                                #                 mat.node_tree.links.new(shader.inputs[0], existing_shader_color_input.outputs[0])
+
+                                #             tmpshader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                #             mat.node_tree.links.new(tmpshader.outputs[0], mat_output.inputs[0])
+
+
+                                #             #cleanup.
+                                #             mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+                                #             mat.node_tree.nodes.remove(tmpshader)
 
 
 
@@ -8211,7 +8290,7 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
         layout.menu(BR_MT_3d_comic_submenu_panels.bl_idname, icon="VIEW_ORTHO")
         layout.menu(BR_MT_3d_comic_submenu_letters.bl_idname, icon="INFO")
         layout.menu(BR_MT_3d_comic_submenu_assets.bl_idname, icon="FILE_3D")
-        layout.menu(BR_MT_3d_comic_submenu_assets_shared.bl_idname, icon="LINKED")
+        # layout.menu(BR_MT_3d_comic_submenu_assets_shared.bl_idname, icon="LINKED")
         layout.menu(BR_MT_3d_comic_submenu_lighting.bl_idname, icon="COLORSET_13_VEC")
         layout.separator()
         layout.menu(BR_MT_3d_comic_submenu_utilities.bl_idname, icon="PREFERENCES")
