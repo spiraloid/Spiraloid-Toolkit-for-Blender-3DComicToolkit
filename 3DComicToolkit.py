@@ -1,8 +1,8 @@
 bl_info = {
     'name': '3D Comic Toolkit',
     'author': 'Bay Raitt',
-    'version': (0, 4),
-    'blender': (2, 80, 0),
+    'version': (0, 5),
+    'blender': (2, 92, 0),
     "description": "3D Comic Toolkit - requires factory addons: Bool Tool to be activated!! ",
     'category': 'Import-Export',
     'location': 'Spiraloid > 3D Comic',
