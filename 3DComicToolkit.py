@@ -63,6 +63,7 @@ isWorkmodeToggled = True
 isWireframe = False
 previous_mode = 'EDIT'
 previous_selection = ""
+developer_mode = False
 
 # active_language_abreviated = "en"
 # active_language = "english"
@@ -1143,7 +1144,7 @@ def automap(mesh_objects, decimate_ratio):
                 bpy.ops.uv.smart_project(angle_limit=66, island_margin=0.02, area_weight=0.75, correct_aspect=True, scale_to_bounds=True)
                 bpy.ops.uv.seams_from_islands()
                 bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
-                bpy.ops.uv.minimize_stretch(iterations=1024)
+                # bpy.ops.uv.minimize_stretch(iterations=1024)
                 bpy.ops.uv.average_islands_scale()
 
                 # area = bpy.context.area
@@ -1206,7 +1207,8 @@ def automap(mesh_objects, decimate_ratio):
                                 bpy.ops.uv.pack_islands(override , margin=0.05)
                                 if operator_exists("uvpackmaster2"):
                                     bpy.context.scene.uvp2_props.pack_to_others = False
-                                    bpy.context.scene.uvp2_props.margin = 0.005
+                                    bpy.context.scene.uvp2_props.margin = 0.015
+                                    bpy.context.scene.uvp2_props.rot_step = 5
                                     bpy.ops.uvpackmaster2.uv_pack()
 
             # bpy.ops.mesh.select_all(action='SELECT')
@@ -2448,810 +2450,827 @@ def prep_letters_export(self, context, scene):
 
 
 def export_panel(self, context, export_only_current, remove_skeletons):
-    if bpy.data.is_dirty:
-        # self.report({'WARNING'}, "You must save your file first!")
-        bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
+    # if bpy.data.is_dirty:
+    #     # self.report({'WARNING'}, "You must save your file first!")
+    #     bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
 
-    else:
-        if bpy.context.object:
-            if "OBJECT" not in bpy.context.object.mode:
-                if "DRAW" in bpy.context.object.mode :
-                    bpy.ops.gpencil.paintmode_toggle(back=False)
-                    bpy.ops.object.select_all(action='DESELECT')
-                else:
-                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-                    bpy.ops.object.select_all(action='DESELECT')
-
-
-        #make sure letter collection is active
-        getCurrentLettersCollection()
-
-        # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        startFrame = 1
-        endFrame = 72
-
-        # path to the folder
-        file_path = bpy.data.filepath
-        file_name = bpy.path.display_name_from_filepath(file_path)
-        file_ext = '.blend'
-        blend_file_dir = file_path.replace(file_name+file_ext, '')
-
-        file_dir = os.path.dirname(os.path.dirname(file_path)) 
-        episode_dir_name = os.path.basename(file_dir)
-        basefilename = os.path.splitext(file_name)[0]
-        tmp_path_to_file = (os.path.join(file_dir, basefilename))
-        js_file_path = (os.path.join(file_dir, "files.js"))
-        bat_file_path = (os.path.join(file_dir, "Read_Local.bat"))
-        drive_letter = os.path.splitext(file_name)[0]
-
-        currSceneIndex = getCurrentSceneIndex()
-        current_scene_name = bpy.data.scenes[currSceneIndex].name
-
-        active_language = bpy.context.scene.comic_settings.language
-
-        if "english" in active_language:
-            active_language_abreviated = 'en'                    
-        if "spanish" in active_language:
-            active_language_abreviated = 'es'
-        if "japanese." in active_language:
-            active_language_abreviated = 'ja'
-        if "korean." in active_language:
-            active_language_abreviated = 'ko'
-        if "german." in active_language:
-            active_language_abreviated = 'de'
-        if "french." in active_language:
-            active_language_abreviated = 'fr'
-        if "dutch." in active_language:
-            active_language_abreviated = 'da'
-
-        if not active_language_abreviated:
-            self.report({'ERROR'}, "No Active Language!")
-
-
-
-        # export all scenes
-        i = 0
-
-
-        # delete existing panels
-        if os.path.exists(file_dir+'\\panels\\'):
-            if not export_only_current:
-                # delete existing panel.glb fils.
-                for panel_files in glob.glob(file_dir+'\\panels\\*.' + active_language_abreviated +'.glb'):
-                    print('os.remove(', panel_files, ')')
-                    os.remove(panel_files)
+    # else:
+    if bpy.context.object:
+        if "OBJECT" not in bpy.context.object.mode:
+            if "DRAW" in bpy.context.object.mode :
+                bpy.ops.gpencil.paintmode_toggle(back=False)
+                bpy.ops.object.select_all(action='DESELECT')
             else:
-                for panel_files in glob.glob(file_dir +'\\panels\\'+ current_scene_name + '.' + active_language_abreviated + '.glb'):
-                    print('os.remove(', panel_files, ')')
-                    os.remove(panel_files)
-        else:
-            os.mkdir(file_dir+'\\panels\\')
-
-        if not os.path.exists(file_dir+'\\panels\\shared\\'):
-            self.report({'ERROR'}, "No shared folder present near save location! 3D Comic directory needs to be rebuilt?")
-
-
-
-        # copy template reader files
-        if not export_only_current:            
-            if not os.path.exists(file_dir+'\\index.html'):
-                # # copy 3D Comic Html
-                # user_dir = os.path.expanduser("~")
-                # reader_subdir = "/Reader"
-                # if system() == 'Linux':
-                #     addon_path = "/.config/blender/" + common_subdir
-                # elif system() == 'Windows':
-                #     addon_path = (
-                #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
-                #         + common_subdir.replace("/", "\\")
-                #     )
-                #     # os.path.join()
-                # elif system() == 'Darwin':
-                #     addon_path = "/Library/Application Support/Blender/" + common_subdir
-                # addon_dir = user_dir + addon_path
-
-                scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
-                addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
-                addon_dir = scripts_dir + addon_resources_subdir
-                addon_reader_dir = addon_dir + "/Reader"
-                copy_tree(addon_reader_dir, file_dir)        
-
-
-        if not export_only_current:
-            # begin writing the javascript file for the comic
-            js_file = open(js_file_path, "w")
-            js_file.write('var files = [' +'\n')
-            # js_file.write('      "./panels/header.w100h50.glb",' +'\n')  
-            # js_file.write('      "./panels/black.w100h100.glb",' +'\n')  
-
-        panels = []
-        if export_only_current:
-            panels.append(bpy.data.scenes[currSceneIndex])
-        
-        for scene in bpy.data.scenes:
-            if not export_only_current:
-                if "p." in scene.name:
-                    panels.append(scene)
-
-        for scene in panels:
-            # turn off all collections in every scene.
-            for general_scene in bpy.data.scenes:
-                bpy.context.window.scene = general_scene
-                scene_collections = general_scene.collection.children
-                for col in scene_collections:
-                    col_name = col.name
-                    bpy.context.view_layer.layer_collection.children[col_name].exclude = True
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
                 bpy.ops.object.select_all(action='DESELECT')
 
-            # initialize the scene
-            bpy.context.window.scene = scene 
-            startFrame = bpy.context.scene.frame_start
-            endFrame = bpy.context.scene.frame_end
-            bpy.context.scene.frame_current = startFrame
-            bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
-            if bpy.context.object:
-                starting_mode = bpy.context.object.mode
-                if "OBJECT" not in starting_mode:
-                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-                    bpy.ops.object.select_all(action='DESELECT')
-            toggle_workmode(self, context, True)
 
-            # set the context to be the view_3d in object mode.
-            C=bpy.context
-            old_area_type = C.area.type
-            C.area.type='VIEW_3D'
+    #make sure letter collection is active
+    getCurrentLettersCollection()
+
+    # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    startFrame = 1
+    endFrame = 72
+
+    # path to the folder
+    file_path = bpy.data.filepath
+    file_name = bpy.path.display_name_from_filepath(file_path)
+    file_ext = '.blend'
+    blend_file_dir = file_path.replace(file_name+file_ext, '')
+
+    file_dir = os.path.dirname(os.path.dirname(file_path)) 
+    episode_dir_name = os.path.basename(file_dir)
+    basefilename = os.path.splitext(file_name)[0]
+    tmp_path_to_file = (os.path.join(file_dir, basefilename))
+    js_file_path = (os.path.join(file_dir, "files.js"))
+    bat_file_path = (os.path.join(file_dir, "Read_Local.bat"))
+    drive_letter = os.path.splitext(file_name)[0]
+
+    currSceneIndex = getCurrentSceneIndex()
+    current_scene_name = bpy.data.scenes[currSceneIndex].name
+
+    active_language = bpy.context.scene.comic_settings.language
+
+    if "english" in active_language:
+        active_language_abreviated = 'en'                    
+    if "spanish" in active_language:
+        active_language_abreviated = 'es'
+    if "japanese." in active_language:
+        active_language_abreviated = 'ja'
+    if "korean." in active_language:
+        active_language_abreviated = 'ko'
+    if "german." in active_language:
+        active_language_abreviated = 'de'
+    if "french." in active_language:
+        active_language_abreviated = 'fr'
+    if "dutch." in active_language:
+        active_language_abreviated = 'da'
+
+    if not active_language_abreviated:
+        self.report({'ERROR'}, "No Active Language!")
 
 
-            # prepare the letters for export
-            prep_letters_export(self, context, scene)
 
-            # verify and activate export collection.
-            export_collection = getCurrentExportCollection()
-            if not export_collection:
-                self.report({'WARNING'}, "Export Collection " + export_collection.name + "was not found in scene, skipping export of" + scene.name)
-            else:
-                linked_library_collections = []
-                export_collection_name = export_collection.name
-                bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = False
-                child_collections = bpy.context.view_layer.layer_collection.children[export_collection_name].collection.children
-                for col in child_collections:
-                    col_name = col.name
-                    is_override_library = col.override_library
-                    if is_override_library:
-                        col_objects = col.all_objects
-                        # for cobj in col_objects:
-                        #     if cobj is not None:
-                        #         if bpy.context.object:
-                        #             starting_mode = bpy.context.object.mode
-                        #             if "OBJECT" not in starting_mode:
-                        #                 bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-                        #                 bpy.ops.object.select_all(action='DESELECT')
-                        #         cobj.select_set(state=True)
-                        #         bpy.context.view_layer.objects.active = cobj
-                        #         bpy.ops.object.make_local(type='ALL')
+    # export all scenes
+    i = 0
 
-                        ref_obj = col_objects[0]
-                        ref_empty = bpy.data.objects.new('ref_' + ref_obj.name, None)  # Create new empty object
-                        export_collection.objects.link(ref_empty)  # Link empty to the current object's collection
-                        ref_empty.empty_display_type = 'PLAIN_AXES'
-                        ref_empty.location = ref_obj.location
 
-                        if ref_obj == 'ARMATURE':
-                            for mod in obj.modifiers:
-                                if 'Skeleton' not in mod.name:
-                                    expiring_mod_name = mod.name 
-                                    bpy.ops.object.modifier_remove(modifier=expiring_mod_name)
+    # delete existing panels
+    if os.path.exists(file_dir+'\\panels\\'):
+        if not export_only_current:
+            # delete existing panel.glb fils.
+            for panel_files in glob.glob(file_dir+'\\panels\\*.' + active_language_abreviated +'.glb'):
+                print('os.remove(', panel_files, ')')
+                os.remove(panel_files)
+        else:
+            for panel_files in glob.glob(file_dir +'\\panels\\'+ current_scene_name + '.' + active_language_abreviated + '.glb'):
+                print('os.remove(', panel_files, ')')
+                os.remove(panel_files)
+    else:
+        os.mkdir(file_dir+'\\panels\\')
 
+    if not os.path.exists(file_dir+'\\panels\\shared\\'):
+        self.report({'ERROR'}, "No shared folder present near save location! 3D Comic directory needs to be rebuilt?")
+
+
+
+    # copy template reader files
+    if not export_only_current:            
+        if not os.path.exists(file_dir+'\\index.html'):
+            # # copy 3D Comic Html
+            # user_dir = os.path.expanduser("~")
+            # reader_subdir = "/Reader"
+            # if system() == 'Linux':
+            #     addon_path = "/.config/blender/" + common_subdir
+            # elif system() == 'Windows':
+            #     addon_path = (
+            #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
+            #         + common_subdir.replace("/", "\\")
+            #     )
+            #     # os.path.join()
+            # elif system() == 'Darwin':
+            #     addon_path = "/Library/Application Support/Blender/" + common_subdir
+            # addon_dir = user_dir + addon_path
+
+            scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
+            addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
+            addon_dir = scripts_dir + addon_resources_subdir
+            addon_reader_dir = addon_dir + "/Reader"
+            copy_tree(addon_reader_dir, file_dir)        
+
+
+    if not export_only_current:
+        # begin writing the javascript file for the comic
+        js_file = open(js_file_path, "w")
+        js_file.write('var files = [' +'\n')
+        # js_file.write('      "./panels/header.w100h50.glb",' +'\n')  
+        # js_file.write('      "./panels/black.w100h100.glb",' +'\n')  
+
+    panels = []
+    if export_only_current:
+        panels.append(bpy.data.scenes[currSceneIndex])
+    
+    for scene in bpy.data.scenes:
+        if not export_only_current:
+            if "p." in scene.name:
+                panels.append(scene)
+
+    for scene in panels:
+        # turn off all collections in every scene.
+        for general_scene in bpy.data.scenes:
+            bpy.context.window.scene = general_scene
+            scene_collections = general_scene.collection.children
+            for col in scene_collections:
+                col_name = col.name
+                bpy.context.view_layer.layer_collection.children[col_name].exclude = True
+            bpy.ops.object.select_all(action='DESELECT')
+
+        # initialize the scene
+        bpy.context.window.scene = scene 
+        startFrame = bpy.context.scene.frame_start
+        endFrame = bpy.context.scene.frame_end
+        bpy.context.scene.frame_current = startFrame
+        bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
+        if bpy.context.object:
+            starting_mode = bpy.context.object.mode
+            if "OBJECT" not in starting_mode:
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                bpy.ops.object.select_all(action='DESELECT')
+        toggle_workmode(self, context, True)
+
+        # set the context to be the view_3d in object mode.
+        C=bpy.context
+        old_area_type = C.area.type
+        C.area.type='VIEW_3D'
+
+
+        # prepare the letters for export
+        prep_letters_export(self, context, scene)
+
+        # verify and activate export collection.
+        export_collection = getCurrentExportCollection()
+        if not export_collection:
+            self.report({'WARNING'}, "Export Collection " + export_collection.name + "was not found in scene, skipping export of" + scene.name)
+        else:
+            linked_library_collections = []
+            export_collection_name = export_collection.name
+            bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = False
+            child_collections = bpy.context.view_layer.layer_collection.children[export_collection_name].collection.children
+            for col in child_collections:
+                col_name = col.name
+                is_override_library = col.override_library
+                if is_override_library:
+                    col_objects = col.all_objects
+                    # for cobj in col_objects:
+                    #     if cobj is not None:
+                    #         if bpy.context.object:
+                    #             starting_mode = bpy.context.object.mode
+                    #             if "OBJECT" not in starting_mode:
+                    #                 bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                    #                 bpy.ops.object.select_all(action='DESELECT')
+                    #         cobj.select_set(state=True)
+                    #         bpy.context.view_layer.objects.active = cobj
+                    #         bpy.ops.object.make_local(type='ALL')
+
+                    ref_obj = col_objects[0]
+                    ref_empty = bpy.data.objects.new('ref_' + ref_obj.name, None)  # Create new empty object
+                    export_collection.objects.link(ref_empty)  # Link empty to the current object's collection
+                    ref_empty.empty_display_type = 'PLAIN_AXES'
+                    ref_empty.location = ref_obj.location
+
+                    if ref_obj.type == 'ARMATURE':
+                        ref_obj.make_local()
+                        ch = [child for child in ref_obj.children if child.type == 'MESH' and child.find_armature()]
+                        for ob in ch:
+                            bpy.ops.object.select_all(action='DESELECT')
+                            ob.select_set(state=True)
+                            bpy.context.view_layer.objects.active = ob
+                            bpy.data.objects.remove(bpy.data.objects[ob.name], do_unlink=True)
 
                         # print("=======DEBUG: " + str(currSceneIndex))
                         # raise KeyboardInterrupt()
 
-                        linked_library_blend_file_name = ref_obj.data.library.name
-                        linked_library_stringFragments = linked_library_blend_file_name.split('.')
-                        linked_library_filename = linked_library_stringFragments[0]
-                        linked_folder_abspath = (os.path.join(file_dir, "panels\\shared\\"))
-                        linked_glb_abspath_filename = (linked_folder_abspath + "\\" + linked_library_filename + ".glb")
-                        linked_glb_relpath_filename = ("./shared/" + linked_library_filename + ".glb")
 
-                        
-                        if not os.path.exists(linked_glb_abspath_filename):
-                            self.report({'ERROR'}, 'Cannot find shared asset :' + linked_glb_abspath_filename)
+                        # for mod in obj.modifiers:
+                        #     if 'Skeleton' not in mod.name:
+                        #         expiring_mod_name = mod.name 
+                        #         bpy.ops.object.modifier_remove(modifier=expiring_mod_name)
 
-                        ref_empty["ref_filename"] = linked_glb_relpath_filename
-
-                        if ref_obj == 'ARMATURE':
-                            for mod in obj.modifiers:
-                                if 'Skeleton' not in mod.name:
-                                    expiring_mod_name = mod.name 
-                                    bpy.ops.object.modifier_remove(modifier=expiring_mod_name)
-                        else:
-                            export_collection.children.unlink(col)
-
-                        # bpy.data.scenes[currSceneIndex].collection.children.link(col)
-                        # bpy.context.view_layer.layer_collection.children[col_name].exclude = True
-                        linked_library_collections.append(col)                        
-                    else:
-                        bpy.context.view_layer.layer_collection.children[export_collection_name].children[col_name].exclude = False
 
                     # print("=======DEBUG: " + str(currSceneIndex))
                     # raise KeyboardInterrupt()
 
+                    linked_library_blend_file_name = ref_obj.data.library.name
+                    linked_library_stringFragments = linked_library_blend_file_name.split('.')
+                    linked_library_filename = linked_library_stringFragments[0]
+                    linked_folder_abspath = (os.path.join(file_dir, "panels\\shared\\"))
+                    linked_glb_abspath_filename = (linked_folder_abspath + "\\" + linked_library_filename + ".glb")
+                    linked_glb_relpath_filename = ("./shared/" + linked_library_filename + ".glb")
 
-                meshes = []
-                armatures = []
-                active_camera = bpy.context.scene.camera
-                if active_camera is None :
-                    self.report({'ERROR'}, 'No Camera found in export collection of scene: ' + bpy.context.scene.name)
-                export_objects = export_collection.all_objects
-                for obj in export_objects:
-                    if obj is not None:
-                        if bpy.context.object:
-                            starting_mode = bpy.context.object.mode
-                            if "OBJECT" not in starting_mode:
-                                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-                                bpy.ops.object.select_all(action='DESELECT')
+                    
+                    if not os.path.exists(linked_glb_abspath_filename):
+                        self.report({'ERROR'}, 'Cannot find shared asset :' + linked_glb_abspath_filename)
+
+                    ref_empty["ref_filename"] = linked_glb_relpath_filename
+
+                    # if ref_obj == 'ARMATURE':
+                    #     for mod in obj.modifiers:
+                    #         if 'Skeleton' not in mod.name:
+                    #             expiring_mod_name = mod.name 
+                    #             bpy.ops.object.modifier_remove(modifier=expiring_mod_name)
+                    # else:
+                    #     export_collection.children.unlink(col)
+
+                    # bpy.data.scenes[currSceneIndex].collection.children.link(col)
+                    # bpy.context.view_layer.layer_collection.children[col_name].exclude = True
+                    linked_library_collections.append(col)                        
+                else:
+                    bpy.context.view_layer.layer_collection.children[export_collection_name].children[col_name].exclude = False
+
+                # print("=======DEBUG: " + str(currSceneIndex))
+                # raise KeyboardInterrupt()
+
+
+            meshes = []
+            armatures = []
+            active_camera = bpy.context.scene.camera
+            if active_camera is None :
+                self.report({'ERROR'}, 'No Camera found in export collection of scene: ' + bpy.context.scene.name)
+            export_objects = export_collection.all_objects
+            for obj in export_objects:
+                if obj is not None:
+                    if bpy.context.object:
+                        starting_mode = bpy.context.object.mode
+                        if "OBJECT" not in starting_mode:
+                            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                            bpy.ops.object.select_all(action='DESELECT')
 
 
 
-                        if "Camera." in obj.name:
-                            if "Camera." in active_camera.name:
-                                active_camera.select_set(state=True)
-                                bpy.context.view_layer.objects.active = active_camera
-                                export_camera = active_camera
-                                bpy.context.scene.frame_set(startFrame)
-                                obj.keyframe_insert(data_path="location", index=-1, frame=startFrame)
-                                bpy.context.scene.frame_set(endFrame)
-                                obj.keyframe_insert(data_path="location", index=-1, frame=endFrame)
-
-                        if "Camera_aim." in obj.name:
+                    if "Camera." in obj.name:
+                        if "Camera." in active_camera.name:
+                            active_camera.select_set(state=True)
+                            bpy.context.view_layer.objects.active = active_camera
+                            export_camera = active_camera
                             bpy.context.scene.frame_set(startFrame)
                             obj.keyframe_insert(data_path="location", index=-1, frame=startFrame)
                             bpy.context.scene.frame_set(endFrame)
                             obj.keyframe_insert(data_path="location", index=-1, frame=endFrame)
 
-                        # # make instances real                           
-                        # bpy.ops.object.select_all(action='DESELECT')
-                        # obj.select_set(state=True)
-                        # bpy.context.view_layer.objects.active = obj
-                        # bpy.ops.object.duplicates_make_real()
+                    if "Camera_aim." in obj.name:
+                        bpy.context.scene.frame_set(startFrame)
+                        obj.keyframe_insert(data_path="location", index=-1, frame=startFrame)
+                        bpy.context.scene.frame_set(endFrame)
+                        obj.keyframe_insert(data_path="location", index=-1, frame=endFrame)
 
-                        # freshly_deinstanced_selected_objects = bpy.context.selected_objects
-                        # for ob in freshly_deinstanced_selected_objects:
-                        #     if ob.type == 'MESH':
-                        #         bpy.ops.object.select_all(action='DESELECT')
-                        #         ob.select_set(state=True)
-                        #         bpy.context.view_layer.objects.active = ob
-                        #         bpy.ops.object.convert(target='MESH')
+                    # # make instances real                           
+                    # bpy.ops.object.select_all(action='DESELECT')
+                    # obj.select_set(state=True)
+                    # bpy.context.view_layer.objects.active = obj
+                    # bpy.ops.object.duplicates_make_real()
+
+                    # freshly_deinstanced_selected_objects = bpy.context.selected_objects
+                    # for ob in freshly_deinstanced_selected_objects:
+                    #     if ob.type == 'MESH':
+                    #         bpy.ops.object.select_all(action='DESELECT')
+                    #         ob.select_set(state=True)
+                    #         bpy.context.view_layer.objects.active = ob
+                    #         bpy.ops.object.convert(target='MESH')
 
 
 
-                objects = export_collection.all_objects
-                for obj in objects:
-                    if obj is not None:
+            objects = export_collection.all_objects
+            for obj in objects:
+                if obj is not None:
 
-                        # print (obj.name)
+                    # print (obj.name)
 
-                        if obj.visible_get and  obj.type == 'MESH':
+                    if obj.visible_get and  obj.type == 'MESH':
+                        if developer_mode:
+                            if not obj.find_armature():
+                                meshes.append(obj)
+                        else:
                             meshes.append(obj)
 
-                        if obj.visible_get and  obj.type == 'ARMATURE':
-                            armatures.append(obj)
 
-                        if obj.animation_data:
-                            # if obj.type == 'OBJECT':
-                            print('>>>>> attempting to process: ' + obj.name)
-                            smart_anim_bake(obj)
+                    if obj.visible_get and  obj.type == 'ARMATURE':
+                        armatures.append(obj)
 
-                        is_toon_shaded = obj.get("is_toon_shaded")
-                        if is_toon_shaded:
-                            for mod in obj.modifiers:
-                                if 'InkThickness' in mod.name:
-                                    obj.modifiers["InkThickness"].show_viewport = True
-                                if 'WhiteOutline' in mod.name:
-                                    obj.modifiers["WhiteOutline"].show_viewport = True
-                                if 'BlackOutline' in mod.name:
-                                    obj.modifiers["BlackOutline"].show_viewport = True
+                    if obj.animation_data:
+                        # if obj.type == 'OBJECT':
+                        print('>>>>> attempting to process: ' + obj.name)
+                        smart_anim_bake(obj)
 
-                        if obj.visible_get and  obj.type == 'GPENCIL':
-                            # bpy.ops.gpencil.editmode_toggle(False)
-                            # bpy.ops.object.mode_set(mode='OBJECT')
+                    is_toon_shaded = obj.get("is_toon_shaded")
+                    if is_toon_shaded:
+                        for mod in obj.modifiers:
+                            if 'InkThickness' in mod.name:
+                                obj.modifiers["InkThickness"].show_viewport = True
+                            if 'WhiteOutline' in mod.name:
+                                obj.modifiers["WhiteOutline"].show_viewport = True
+                            if 'BlackOutline' in mod.name:
+                                obj.modifiers["BlackOutline"].show_viewport = True
 
-                            if "OBJECT" not in obj.mode:
-                                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                    if obj.visible_get and  obj.type == 'GPENCIL':
+                        # bpy.ops.gpencil.editmode_toggle(False)
+                        # bpy.ops.object.mode_set(mode='OBJECT')
 
-                            bpy.ops.object.select_all(action='DESELECT')
-                            obj.select_set(state=True)
-                            bpy.context.view_layer.objects.active = obj
-                            if obj.active_material is not None:
-                                gp_mat =  obj.active_material
-                                gp_color = gp_mat.grease_pencil.color
-                            # set a temporary context to poll correctly
-                            context = bpy.context.copy()
-                            for area in bpy.context.screen.areas:
-                                if area.type == 'VIEW_3D':
-                                    for region in area.regions:
-                                        if region.type == 'WINDOW':
-                                            context['area'] = area
-                                            context['region'] = region
-                                            break
-                                    break
-                            bpy.ops.gpencil.convert(context, type='CURVE', use_normalize_weights=True, radius_multiplier=1.0, use_link_strokes=False, timing_mode='NONE', frame_range=100, start_frame=1, use_realtime=False, end_frame=250, gap_duration=0.0, gap_randomness=0.0, seed=0, use_timing_data=False)
-                            selected_objects = bpy.context.selected_objects
-                            gp_mesh = selected_objects[1]
-                            bpy.ops.object.select_all(action='DESELECT')
-                            bpy.context.view_layer.objects.active =  gp_mesh
-                            gp_mesh.select_set(state=True)
-                            gp_mesh.data.bevel_depth = 0.005
-                            gp_mesh.data.bevel_resolution = 1
-
-                            pmesh = bpy.ops.object.convert(target='MESH')
-                            bpy.ops.object.select_all(action='DESELECT')
-                            gp_mesh.select_set(state=True)
-                            bpy.context.view_layer.objects.active = gp_mesh
-
-                            if len(gp_mesh.data.polygons) >= 2000:
-                                bpy.ops.object.modifier_add(type='DECIMATE')
-                                gp_mesh.modifiers["Decimate"].decimate_type = 'DISSOLVE'
-                                gp_mesh.modifiers["Decimate"].angle_limit = 0.0610865
-                                bpy.ops.object.modifier_add(type='DECIMATE')
-                                gp_mesh.modifiers["Decimate.001"].ratio = 0.5
-
-                            matName = (gp_mesh.name + "Mat")
-                            mat = bpy.data.materials.new(name=matName)
-                            mat.use_nodes = True
-                            mat.node_tree.nodes.clear()
-                            mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
-                            shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                            if gp_mat:
-                                shader.inputs[0].default_value =  gp_color
-                            else:
-                                shader.inputs[0].default_value =  [0, 0, 0, 1]
-
-                            shader.name = "Background"
-                            shader.label = "Background"
-                            mat_output = mat.node_tree.nodes.get('Material Output')
-                            mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-                            # Assign it to object
-                            if gp_mesh.data.materials:
-                                gp_mesh.data.materials[0] = mat
-                            else:
-                                gp_mesh.data.materials.append(mat)  
-
-                            bpy.context.collection.objects.unlink(gp_mesh) 
-                            export_collection.objects.link(gp_mesh)
-                            meshes.append(gp_mesh)
-                            bpy.data.objects.remove(bpy.data.objects[obj.name], do_unlink=True)
-                            # raise KeyboardInterrupt()
-                            
-
-                        # if obj.visible_get and  obj.type == 'FONT':
-                        #     bpy.ops.object.select_all(action='DESELECT')
-                        #     obj.select_set(state=True)
-                        #     bpy.context.view_layer.objects.active = obj
-                        #     bpy.ops.object.convert(target='MESH')
-                        #     bpy.ops.object.select_all(action='DESELECT')
-
-
-                # meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
-
-                # get the minimum coordinate in scene
-                if meshes:
-                    minV = Vector((min([min([co[0] for co in m.bound_box]) for m in meshes]),
-                                min([min([co[1] for co in m.bound_box]) for m in meshes]),
-                                min([min([co[2] for co in m.bound_box]) for m in meshes])))
-                    maxV = Vector((max([max([co[0] for co in m.bound_box]) for m in meshes]),
-                                max([max([co[1] for co in m.bound_box]) for m in meshes]),
-                                max([max([co[2] for co in m.bound_box]) for m in meshes])))
-                    scene_bounds = (minV[0] + maxV[0])*50
-                else:
-                    scene_bounds = 100
-
-                # process meshes 
-                if meshes:
-                    for mesh in meshes:
-                        bpy.ops.object.select_all(action='DESELECT')
-                        mesh.select_set(state=True)
-                        bpy.context.view_layer.objects.active = mesh
-                        print('>>>>> Scene: ' + scene.name)
-                        print('>>>>> Mesh: ' + mesh.name)
-                        bpy.ops.object.make_local(type='ALL')
-                        for mod in [m for m in mesh.modifiers]:
-                            mod.show_viewport = True
-                            try:
-                                drivers_data = mesh.animation_data.drivers
-                                for dr in drivers_data:  
-                                    mesh.driver_remove(dr.data_path, -1)
-                            except:
-                                pass
-                            
-                            if (mesh.type == 'MESH'):
-                                bpy.ops.object.modifier_apply(modifier=mod.name)
-
-                        # bpy.ops.object.convert(target='MESH')
-
-
-                        if (mesh.type == 'CURVE'):
-                            C=bpy.context
-                            if (C):
-                                old_area_type = C.area.type
-                                C.area.type='VIEW_3D'
-                                bpy.ops.object.convert(target='MESH')
-                                C.area.type=old_area_type
-
-
-                        objectConstraints = mesh.constraints
-                        if (objectConstraints):
-                            for const in objectConstraints:
-                                bpy.ops.object.visual_transform_apply()
-                                bpy.ops.constraint.delete(constraint=const.name, owner='OBJECT')
-                                # mesh.constraints.remove(const)
-
-                        is_toon_shaded = mesh.get("is_toon_shaded")
-                        if is_toon_shaded:
-                            if mesh.material_slots[0].material is not None:
-                                matnodes = mesh.material_slots[0].material.node_tree.nodes
-                                background_shader = matnodes.get('Background')
-                                if not background_shader:
-                                    matnodes.clear()
-                                    mat_output = matnodes.new(type='ShaderNodeOutputMaterial')
-                                    shader = matnodes.new(type='ShaderNodeBsdfPrincipled')
-                                    mesh.material_slots[0].material.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-
-
-
-
-                # # delete all the skeletons to reduce file size
-                # if (remove_skeletons):
-                #     if (armatures):
-                #         for obj in armatures:
-                #             ch = [child for child in obj.children if child.type == 'MESH' and child.find_armature()]
-                #             for ob in ch:
-                #                 if ob.visible_get: 
-                #                     bpy.ops.object.select_all(action='DESELECT')
-                #                     ob.select_set(state=True)
-                #                     bpy.context.view_layer.objects.active = ob
-                #                     bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-
-                #             bpy.ops.object.select_all(action='DESELECT')
-                #             obj.select_set(state=True)
-                #             bpy.context.view_layer.objects.active = obj
-                #             override = bpy.context.copy()
-                #             override['selected_objects'] = list(bpy.context.scene.objects)
-                #             bpy.ops.object.delete(override)
-
-
-                # cam_ob = bpy.context.scene.camera
-                # if cam_ob is None:
-                #     self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
-                # elif cam_ob.type == 'CAMERA':
-                #     # cam_ob.data.clip_end = scene_bounds
-                #     cam_ob.data.clip_end = 200
-
-                # process camera
-
-                # if active_camera is not None :
-                #     for obj in objects:
-                #         bpy.ops.object.select_all(action='DESELECT')
-                #         if "Camera_aim." in obj.name:
-                #             obj.select_set(state=True)
-                #             bpy.context.view_layer.objects.active = obj
-                #             bpy.ops.nla.bake(frame_start=startFrame, frame_end=endFrame, visual_keying=True, clear_constraints=True, bake_types={'OBJECT'})
-
-                #     bpy.ops.object.select_all(action='DESELECT')
-                #     active_camera.select_set(state=True)
-                #     bpy.context.view_layer.objects.active = active_camera
-                #     bpy.ops.nla.bake(frame_start=startFrame, frame_end=endFrame, visual_keying=True, clear_constraints=True, bake_types={'OBJECT'})
-                    
-                #     # temp context switch
-                #     #types = {'VIEW_3D', 'TIMELINE', 'GRAPH_EDITOR', 'DOPESHEET_EDITOR', 'NLA_EDITOR', 'IMAGE_EDITOR', 'SEQUENCE_EDITOR', 'CLIP_EDITOR', 'TEXT_EDITOR', 'NODE_EDITOR', 'LOGIC_EDITOR', 'PROPERTIES', 'OUTLINER', 'USER_PREFERENCES', 'INFO', 'FILE_BROWSER', 'CONSOLE'}
-                #     C=bpy.context
-                #     old_area_type = C.area.type
-                #     C.area.type='GRAPH_EDITOR'
-                #     bpy.ops.graph.decimate(mode='ERROR', remove_error_margin=0.001)
-
-                #     C.area.type='DOPESHEET_EDITOR'
-                #     bpy.ops.action.interpolation_type(type='BEZIER')
-                #     C.area.type=old_area_type
-
-                # else:
-                #     self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
-
-
-                    
-
-                    # if "Letters_eng." in obj.name:
-                    #     active_camera.select_set(state=True)
-                    #     bpy.context.view_layer.objects.active = active_camera
-                    # if "Lighting." in obj.name:
-                    #     active_camera.select_set(state=True)
-                    #     bpy.context.view_layer.objects.active = active_camera
-
-
-                    # for mod in obj.modifiers:
-                    #     if 'Skeleton' in mod.name:
-                    #         bpy.ops.object.modifier_apply( modifier="Skeleton")
-
-
-                # selected_objects = bpy.context.selected_objects
-                # for obj in objects:
-
-                    # if obj.animation_data:
-                    #     smart_anim_bake(obj)
-
-                        # bpy.context.scene.frame_current = startFrame
-                        # obj.keyframe_insert(data_path="location", index=-1, frame=startFrame)
-                        # # bpy.ops.anim.keyframe_insert(type='Available')
-                        # bpy.context.scene.frame_current = endFrame
-                        # obj.keyframe_insert(data_path="location", index=-1, frame=endFrame)
-                        # # bpy.ops.anim.keyframe_insert(type='Available')
-
-
-
-
-
-                # letters = [o for o in bpy.context.scene.objects if o.type == 'FONT']
-                # for text in letters:
-                #     bpy.ops.object.select_all(action='DESELECT')
-                #     text.select_set(state=True)
-                #     bpy.context.view_layer.objects.active = text
-                #     bpy.ops.object.convert(target='MESH')
-                    # mod = text.modifiers.new(name = 'Decimate', type = 'DECIMATE')
-                    # mod.ratio = 0.5
-
-
-
-
-                # process world_nodes 
-                # world_nodes = bpy.data.worlds[bpy.context.scene.world.name].node_tree.nodes
-                world_nodes = bpy.context.scene.world
-                if world_nodes:
-                    if world_nodes.use_nodes:
-                        background_node = world_nodes.node_tree.nodes.get('Background')
-                        background_node_color_input = background_node.inputs[0].links[0].from_node
-                        if background_node_color_input:
-                            # if "RGB" in background_node_color_input.name:
-                            background_color = background_node_color_input.outputs[0].default_value
-                        else:
-                            background_color = background_node.inputs[0].default_value
+                        if "OBJECT" not in obj.mode:
+                            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
 
                         bpy.ops.object.select_all(action='DESELECT')
-                        load_resource(self, context, "skyball.blend", False)
-                        ob = bpy.context.selected_objects[0]
-                        bpy.context.view_layer.objects.active = ob
-                        ob.select_set(state=True)
+                        obj.select_set(state=True)
+                        bpy.context.view_layer.objects.active = obj
+                        if obj.active_material is not None:
+                            gp_mat =  obj.active_material
+                            gp_color = gp_mat.grease_pencil.color
+                        # set a temporary context to poll correctly
+                        context = bpy.context.copy()
+                        for area in bpy.context.screen.areas:
+                            if area.type == 'VIEW_3D':
+                                for region in area.regions:
+                                    if region.type == 'WINDOW':
+                                        context['area'] = area
+                                        context['region'] = region
+                                        break
+                                break
+                        bpy.ops.gpencil.convert(context, type='CURVE', use_normalize_weights=True, radius_multiplier=1.0, use_link_strokes=False, timing_mode='NONE', frame_range=100, start_frame=1, use_realtime=False, end_frame=250, gap_duration=0.0, gap_randomness=0.0, seed=0, use_timing_data=False)
+                        selected_objects = bpy.context.selected_objects
+                        gp_mesh = selected_objects[1]
+                        bpy.ops.object.select_all(action='DESELECT')
+                        bpy.context.view_layer.objects.active =  gp_mesh
+                        gp_mesh.select_set(state=True)
+                        gp_mesh.data.bevel_depth = 0.005
+                        gp_mesh.data.bevel_resolution = 1
 
-                        if ob.active_material is not None:
-                            for i in range(len(ob.material_slots)):
-                                bpy.ops.object.material_slot_remove({'object': ob})
-                        bpy.ops.object.shade_smooth()
+                        pmesh = bpy.ops.object.convert(target='MESH')
+                        bpy.ops.object.select_all(action='DESELECT')
+                        gp_mesh.select_set(state=True)
+                        bpy.context.view_layer.objects.active = gp_mesh
 
-                        assetName = ob.name
-                        matName = (assetName + "Mat")
+                        if len(gp_mesh.data.polygons) >= 2000:
+                            bpy.ops.object.modifier_add(type='DECIMATE')
+                            gp_mesh.modifiers["Decimate"].decimate_type = 'DISSOLVE'
+                            gp_mesh.modifiers["Decimate"].angle_limit = 0.0610865
+                            bpy.ops.object.modifier_add(type='DECIMATE')
+                            gp_mesh.modifiers["Decimate.001"].ratio = 0.5
+
+                        matName = (gp_mesh.name + "Mat")
                         mat = bpy.data.materials.new(name=matName)
                         mat.use_nodes = True
                         mat.node_tree.nodes.clear()
                         mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
                         shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                        shader.inputs[0].default_value =  [background_color[0], background_color[1], background_color[2], 1]
-                        mat.use_backface_culling = True
+                        if gp_mat:
+                            shader.inputs[0].default_value =  gp_color
+                        else:
+                            shader.inputs[0].default_value =  [0, 0, 0, 1]
+
                         shader.name = "Background"
                         shader.label = "Background"
-
-
                         mat_output = mat.node_tree.nodes.get('Material Output')
                         mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
                         # Assign it to object
-                        if ob.data.materials:
-                            ob.data.materials[0] = mat
+                        if gp_mesh.data.materials:
+                            gp_mesh.data.materials[0] = mat
                         else:
-                            ob.data.materials.append(mat)  
+                            gp_mesh.data.materials.append(mat)  
+
+                        bpy.context.collection.objects.unlink(gp_mesh) 
+                        export_collection.objects.link(gp_mesh)
+                        meshes.append(gp_mesh)
+                        bpy.data.objects.remove(bpy.data.objects[obj.name], do_unlink=True)
+                        # raise KeyboardInterrupt()
+                        
+
+                    # if obj.visible_get and  obj.type == 'FONT':
+                    #     bpy.ops.object.select_all(action='DESELECT')
+                    #     obj.select_set(state=True)
+                    #     bpy.context.view_layer.objects.active = obj
+                    #     bpy.ops.object.convert(target='MESH')
+                    #     bpy.ops.object.select_all(action='DESELECT')
 
 
-                # armatures = [o for o in bpy.context.scene.objects if o.type == 'ARMATURE']
-                # for a in armatures:
-                #     bpy.ops.object.select_all(action='DESELECT')
-                #     bpy.context.view_layer.objects.active = a
-                #     a.select_set(state=True)
+            # meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
 
-                actions = bpy.data.actions
-                for action in actions:
-                    if '3DComic_poses' in action.name:
+            # get the minimum coordinate in scene
+            if meshes:
+                minV = Vector((min([min([co[0] for co in m.bound_box]) for m in meshes]),
+                            min([min([co[1] for co in m.bound_box]) for m in meshes]),
+                            min([min([co[2] for co in m.bound_box]) for m in meshes])))
+                maxV = Vector((max([max([co[0] for co in m.bound_box]) for m in meshes]),
+                            max([max([co[1] for co in m.bound_box]) for m in meshes]),
+                            max([max([co[2] for co in m.bound_box]) for m in meshes])))
+                scene_bounds = (minV[0] + maxV[0])*50
+            else:
+                scene_bounds = 100
+
+            # process meshes 
+            if meshes:
+                for mesh in meshes:
+                    bpy.ops.object.select_all(action='DESELECT')
+                    mesh.select_set(state=True)
+                    bpy.context.view_layer.objects.active = mesh
+                    print('>>>>> Scene: ' + scene.name)
+                    print('>>>>> Mesh: ' + mesh.name)
+                    bpy.ops.object.make_local(type='ALL')
+                    for mod in [m for m in mesh.modifiers]:
+                        mod.show_viewport = True
                         try:
-                            action.user_clear()
+                            drivers_data = mesh.animation_data.drivers
+                            for dr in drivers_data:  
+                                mesh.driver_remove(dr.data_path, -1)
                         except:
                             pass
-                        # empty_trash(self, context)
+                        
+                        if (mesh.type == 'MESH'):
+                            bpy.ops.object.modifier_apply(modifier=mod.name)
+
+                    # bpy.ops.object.convert(target='MESH')
 
 
-                # for linked_collection in linked_library_collections:
-                #     linked_collection_name = linked_collection.name
-                #     bpy.context.view_layer.layer_collection.children[linked_collection_name].exclude = False
-                #     for lob in linked_collection.objects:
-                #         if lob.type == 'ARMATURE':
-                #             bpy.ops.object.select_all(action='DESELECT')
-                #             lob.select_set(state=True)
-                #             bpy.context.view_layer.objects.active = lob
-                #             #get shared file name
-                #             linked_library_blend_file_name = lob.data.library.name
-                #             stringFragments = linked_library_blend_file_name.split('.')
-                #             linked_library_filename = stringFragments[0]
-                            
-                #             # check if shared_asset_name.glb exists.
-                #             linked_glb_filename = (file_dir + '/panels/shared/' + linked_library_filename + ".glb")
-                #             if not os.path.exists(linked_glb_filename):
-                #                 self.report({'ERROR'}, 'Cannot find shared asset :' + linked_glb_filename)
-
-                #             # make shared asset local
-                #             bpy.ops.object.make_local(type='ALL')
-
-                #             # add custom property with string of shared asset
-                #             lob["shared_filename"] = linked_glb_filename
+                    if (mesh.type == 'CURVE'):
+                        C=bpy.context
+                        if (C):
+                            old_area_type = C.area.type
+                            C.area.type='VIEW_3D'
+                            bpy.ops.object.convert(target='MESH')
+                            C.area.type=old_area_type
 
 
-                #             #delete all meshes associated with armature
-                #             for child in lob.children:
-                #                 bpy.ops.object.select_all(action='DESELECT')
-                #                 child.select_set(state=True)
-                #                 bpy.context.view_layer.objects.active = child
-                #                 bpy.ops.object.delete() 
+                    objectConstraints = mesh.constraints
+                    if (objectConstraints):
+                        for const in objectConstraints:
+                            bpy.ops.object.visual_transform_apply()
+                            bpy.ops.constraint.delete(constraint=const.name, owner='OBJECT')
+                            # mesh.constraints.remove(const)
 
-                panel_path = (os.path.join(file_dir, "panels"))
-                path_to_export_file = (panel_path + "\\" + scene.name + "." + active_language_abreviated + ".glb")
-                bpy.ops.export_scene.gltf(
-                    export_format='GLB', 
-                    ui_tab='GENERAL', 
-                    export_copyright='', 
-                    export_image_format='AUTO', 
-                    export_texture_dir='', 
-                    export_texcoords=True, 
-                    export_normals=True, 
-                    export_draco_mesh_compression_enable=False, 
-                    export_draco_mesh_compression_level=6, 
-                    export_draco_position_quantization=14, 
-                    export_draco_normal_quantization=10, 
-                    export_draco_texcoord_quantization=12, 
-                    export_draco_generic_quantization=12, 
-                    export_tangents=False, 
-                    export_materials='EXPORT', 
-                    export_colors=True, 
-                    export_cameras=True, 
-                    export_selected=False, 
-                    use_selection=False, 
-                    export_extras=True, 
-                    export_yup=True, 
-                    export_apply=True, 
-                    export_animations=True, 
-                    export_frame_range=True, 
-                    export_frame_step=1, 
-                    export_force_sampling=False, 
-                    export_nla_strips=False, 
-                    export_def_bones=False, 
-                    export_current_frame=False, 
-                    export_skins=True, 
-                    export_all_influences=False, 
-                    export_morph=True, 
-                    export_morph_normal=False, 
-                    export_morph_tangent=False, 
-                    export_lights=True, 
-                    export_displacement=False, 
-                    will_save_settings=False, 
-                    filepath=(path_to_export_file), 
-                    check_existing=True, 
-                    filter_glob='*.glb;*.gltf')
-                # write the line for this file into the javascript file. 
+                    is_toon_shaded = mesh.get("is_toon_shaded")
+                    if is_toon_shaded:
+                        if mesh.material_slots[0].material is not None:
+                            matnodes = mesh.material_slots[0].material.node_tree.nodes
+                            background_shader = matnodes.get('Background')
+                            if not background_shader:
+                                matnodes.clear()
+                                mat_output = matnodes.new(type='ShaderNodeOutputMaterial')
+                                shader = matnodes.new(type='ShaderNodeBsdfPrincipled')
+                                mesh.material_slots[0].material.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
 
 
 
 
+            # # delete all the skeletons to reduce file size
+            # if (remove_skeletons):
+            #     if (armatures):
+            #         for obj in armatures:
+            #             ch = [child for child in obj.children if child.type == 'MESH' and child.find_armature()]
+            #             for ob in ch:
+            #                 if ob.visible_get: 
+            #                     bpy.ops.object.select_all(action='DESELECT')
+            #                     ob.select_set(state=True)
+            #                     bpy.context.view_layer.objects.active = ob
+            #                     bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
 
-                if not export_only_current:            
-                    # js_file.write('      "./panels/' + scene.name + '.' + active_language_abreviated + '.glb",' +'\n')  
-                    js_file.write('      "./panels/' + scene.name + '.${lan}.glb",' +'\n')  
+            #             bpy.ops.object.select_all(action='DESELECT')
+            #             obj.select_set(state=True)
+            #             bpy.context.view_layer.objects.active = obj
+            #             override = bpy.context.copy()
+            #             override['selected_objects'] = list(bpy.context.scene.objects)
+            #             bpy.ops.object.delete(override)
 
-                # rehide this collection so it's not in the next export.  
-                # bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = True
 
-                # bpy.ops.scene.delete()
+            # cam_ob = bpy.context.scene.camera
+            # if cam_ob is None:
+            #     self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
+            # elif cam_ob.type == 'CAMERA':
+            #     # cam_ob.data.clip_end = scene_bounds
+            #     cam_ob.data.clip_end = 200
 
-    # for obj in bpy.context.scene.objects:
-    #     bpy.ops.object.select_all(action='DESELECT')
-    #     obj.select_set(state=True)
-    #     bpy.context.view_layer.objects.active = obj
-    #     bpy.ops.object.delete() 
-    # empty_trash(self, context)
+            # process camera
 
-                    # export_copyright="Bay Raitt", 
-                    # filepath=(path_to_export_file), 
-                    # use_selection=False, 
-                    # export_format='GLB', 
-                    # export_image_format='JPEG', 
-                    # export_yup=True, 
-                    # export_apply=True, 
-                    # export_cameras=True, 
-                    # export_animations=True, 
-                    # export_frame_range=True, 
-                    # export_frame_step=1, 
-                    # export_force_sampling=True, 
-                    # export_nla_strips=False, 
-                    # export_def_bones=True, 
-                    # export_current_frame=False, 
-                    # export_skins=True, 
-                    # export_all_influences=False,
-                    # export_materials=True, 
-                    # export_colors=True
-                    # )
+            # if active_camera is not None :
+            #     for obj in objects:
+            #         bpy.ops.object.select_all(action='DESELECT')
+            #         if "Camera_aim." in obj.name:
+            #             obj.select_set(state=True)
+            #             bpy.context.view_layer.objects.active = obj
+            #             bpy.ops.nla.bake(frame_start=startFrame, frame_end=endFrame, visual_keying=True, clear_constraints=True, bake_types={'OBJECT'})
 
-                    # export_morph=True, 
-                    # export_morph_normal=True, 
-                    # export_morph_tangent=False
-                    # export_texture_dir="", 
-                    # export_texcoords=True, 
-                    # export_normals=True, 
-                    # export_draco_mesh_compression_enable=False, 
-                    # export_draco_mesh_compression_level=6, 
-                    # export_draco_position_quantization=14, 
-                    # export_draco_normal_quantization=10, 
-                    # export_draco_texcoord_quantization=12, 
-                    # export_draco_generic_quantization=12, 
-                    # export_tangents=False, 
-                    # export_selected=False, 
-                    # export_extras=False, 
-                    # export_lights=False 
+            #     bpy.ops.object.select_all(action='DESELECT')
+            #     active_camera.select_set(state=True)
+            #     bpy.context.view_layer.objects.active = active_camera
+            #     bpy.ops.nla.bake(frame_start=startFrame, frame_end=endFrame, visual_keying=True, clear_constraints=True, bake_types={'OBJECT'})
+                
+            #     # temp context switch
+            #     #types = {'VIEW_3D', 'TIMELINE', 'GRAPH_EDITOR', 'DOPESHEET_EDITOR', 'NLA_EDITOR', 'IMAGE_EDITOR', 'SEQUENCE_EDITOR', 'CLIP_EDITOR', 'TEXT_EDITOR', 'NODE_EDITOR', 'LOGIC_EDITOR', 'PROPERTIES', 'OUTLINER', 'USER_PREFERENCES', 'INFO', 'FILE_BROWSER', 'CONSOLE'}
+            #     C=bpy.context
+            #     old_area_type = C.area.type
+            #     C.area.type='GRAPH_EDITOR'
+            #     bpy.ops.graph.decimate(mode='ERROR', remove_error_margin=0.001)
 
-                # will_save_settings=False,
-                # check_existing=True
-                # export_texture_dir="Materials", 
+            #     C.area.type='DOPESHEET_EDITOR'
+            #     bpy.ops.action.interpolation_type(type='BEZIER')
+            #     C.area.type=old_area_type
+
+            # else:
+            #     self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
+
+
+                
+
+                # if "Letters_eng." in obj.name:
+                #     active_camera.select_set(state=True)
+                #     bpy.context.view_layer.objects.active = active_camera
+                # if "Lighting." in obj.name:
+                #     active_camera.select_set(state=True)
+                #     bpy.context.view_layer.objects.active = active_camera
+
+
+                # for mod in obj.modifiers:
+                #     if 'Skeleton' in mod.name:
+                #         bpy.ops.object.modifier_apply( modifier="Skeleton")
+
+
+            # selected_objects = bpy.context.selected_objects
+            # for obj in objects:
+
+                # if obj.animation_data:
+                #     smart_anim_bake(obj)
+
+                    # bpy.context.scene.frame_current = startFrame
+                    # obj.keyframe_insert(data_path="location", index=-1, frame=startFrame)
+                    # # bpy.ops.anim.keyframe_insert(type='Available')
+                    # bpy.context.scene.frame_current = endFrame
+                    # obj.keyframe_insert(data_path="location", index=-1, frame=endFrame)
+                    # # bpy.ops.anim.keyframe_insert(type='Available')
+
+
+
+
+
+            # letters = [o for o in bpy.context.scene.objects if o.type == 'FONT']
+            # for text in letters:
+            #     bpy.ops.object.select_all(action='DESELECT')
+            #     text.select_set(state=True)
+            #     bpy.context.view_layer.objects.active = text
+            #     bpy.ops.object.convert(target='MESH')
+                # mod = text.modifiers.new(name = 'Decimate', type = 'DECIMATE')
+                # mod.ratio = 0.5
+
+
+
+
+            # process world_nodes 
+            # world_nodes = bpy.data.worlds[bpy.context.scene.world.name].node_tree.nodes
+            world_nodes = bpy.context.scene.world
+            if world_nodes:
+                if world_nodes.use_nodes:
+                    background_node = world_nodes.node_tree.nodes.get('Background')
+                    background_node_color_input = background_node.inputs[0].links[0].from_node
+                    if background_node_color_input:
+                        # if "RGB" in background_node_color_input.name:
+                        background_color = background_node_color_input.outputs[0].default_value
+                    else:
+                        background_color = background_node.inputs[0].default_value
+
+                    bpy.ops.object.select_all(action='DESELECT')
+                    load_resource(self, context, "skyball.blend", False)
+                    ob = bpy.context.selected_objects[0]
+                    bpy.context.view_layer.objects.active = ob
+                    ob.select_set(state=True)
+
+                    if ob.active_material is not None:
+                        for i in range(len(ob.material_slots)):
+                            bpy.ops.object.material_slot_remove({'object': ob})
+                    bpy.ops.object.shade_smooth()
+
+                    assetName = ob.name
+                    matName = (assetName + "Mat")
+                    mat = bpy.data.materials.new(name=matName)
+                    mat.use_nodes = True
+                    mat.node_tree.nodes.clear()
+                    mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
+                    shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                    shader.inputs[0].default_value =  [background_color[0], background_color[1], background_color[2], 1]
+                    mat.use_backface_culling = True
+                    shader.name = "Background"
+                    shader.label = "Background"
+
+
+                    mat_output = mat.node_tree.nodes.get('Material Output')
+                    mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+                    # Assign it to object
+                    if ob.data.materials:
+                        ob.data.materials[0] = mat
+                    else:
+                        ob.data.materials.append(mat)  
+
+
+            # armatures = [o for o in bpy.context.scene.objects if o.type == 'ARMATURE']
+            # for a in armatures:
+            #     bpy.ops.object.select_all(action='DESELECT')
+            #     bpy.context.view_layer.objects.active = a
+            #     a.select_set(state=True)
+
+            actions = bpy.data.actions
+            for action in actions:
+                if '3DComic_poses' in action.name:
+                    try:
+                        action.user_clear()
+                    except:
+                        pass
+                    # empty_trash(self, context)
+
+
+            # for linked_collection in linked_library_collections:
+            #     linked_collection_name = linked_collection.name
+            #     bpy.context.view_layer.layer_collection.children[linked_collection_name].exclude = False
+            #     for lob in linked_collection.objects:
+            #         if lob.type == 'ARMATURE':
+            #             bpy.ops.object.select_all(action='DESELECT')
+            #             lob.select_set(state=True)
+            #             bpy.context.view_layer.objects.active = lob
+            #             #get shared file name
+            #             linked_library_blend_file_name = lob.data.library.name
+            #             stringFragments = linked_library_blend_file_name.split('.')
+            #             linked_library_filename = stringFragments[0]
+                        
+            #             # check if shared_asset_name.glb exists.
+            #             linked_glb_filename = (file_dir + '/panels/shared/' + linked_library_filename + ".glb")
+            #             if not os.path.exists(linked_glb_filename):
+            #                 self.report({'ERROR'}, 'Cannot find shared asset :' + linked_glb_filename)
+
+            #             # make shared asset local
+            #             bpy.ops.object.make_local(type='ALL')
+
+            #             # add custom property with string of shared asset
+            #             lob["shared_filename"] = linked_glb_filename
+
+
+            #             #delete all meshes associated with armature
+            #             for child in lob.children:
+            #                 bpy.ops.object.select_all(action='DESELECT')
+            #                 child.select_set(state=True)
+            #                 bpy.context.view_layer.objects.active = child
+            #                 bpy.ops.object.delete() 
+
+            panel_path = (os.path.join(file_dir, "panels"))
+            path_to_export_file = (panel_path + "\\" + scene.name + "." + active_language_abreviated + ".glb")
+            bpy.ops.export_scene.gltf(
+                export_format='GLB', 
+                ui_tab='GENERAL', 
+                export_copyright='', 
+                export_image_format='AUTO', 
+                export_texture_dir='', 
+                export_texcoords=True, 
+                export_normals=True, 
+                export_draco_mesh_compression_enable=False, 
+                export_draco_mesh_compression_level=6, 
+                export_draco_position_quantization=14, 
+                export_draco_normal_quantization=10, 
+                export_draco_texcoord_quantization=12, 
+                export_draco_generic_quantization=12, 
+                export_tangents=False, 
+                export_materials='EXPORT', 
+                export_colors=True, 
+                export_cameras=True, 
+                export_selected=False, 
+                use_selection=False, 
+                export_extras=True, 
+                export_yup=True, 
+                export_apply=True, 
+                export_animations=True, 
+                export_frame_range=True, 
+                export_frame_step=1, 
+                export_force_sampling=False, 
+                export_nla_strips=False, 
+                export_def_bones=False, 
+                export_current_frame=False, 
+                export_skins=True, 
+                export_all_influences=False, 
+                export_morph=True, 
+                export_morph_normal=False, 
+                export_morph_tangent=False, 
+                export_lights=True, 
+                export_displacement=False, 
+                will_save_settings=False, 
+                filepath=(path_to_export_file), 
+                check_existing=True, 
+                filter_glob='*.glb;*.gltf')
+            # write the line for this file into the javascript file. 
+
+
+
+
+
+            if not export_only_current:            
+                # js_file.write('      "./panels/' + scene.name + '.' + active_language_abreviated + '.glb",' +'\n')  
+                js_file.write('      "./panels/' + scene.name + '.${lan}.glb",' +'\n')  
+
+            # rehide this collection so it's not in the next export.  
+            # bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = True
+
+            # bpy.ops.scene.delete()
+
+# for obj in bpy.context.scene.objects:
+#     bpy.ops.object.select_all(action='DESELECT')
+#     obj.select_set(state=True)
+#     bpy.context.view_layer.objects.active = obj
+#     bpy.ops.object.delete() 
+# empty_trash(self, context)
+
+                # export_copyright="Bay Raitt", 
+                # filepath=(path_to_export_file), 
+                # use_selection=False, 
+                # export_format='GLB', 
+                # export_image_format='JPEG', 
+                # export_yup=True, 
+                # export_apply=True, 
+                # export_cameras=True, 
+                # export_animations=True, 
+                # export_frame_range=True, 
+                # export_frame_step=1, 
+                # export_force_sampling=True, 
+                # export_nla_strips=False, 
+                # export_def_bones=True, 
+                # export_current_frame=False, 
+                # export_skins=True, 
+                # export_all_influences=False,
+                # export_materials=True, 
+                # export_colors=True
+                # )
+
+                # export_morph=True, 
+                # export_morph_normal=True, 
+                # export_morph_tangent=False
+                # export_texture_dir="", 
+                # export_texcoords=True, 
+                # export_normals=True, 
                 # export_draco_mesh_compression_enable=False, 
                 # export_draco_mesh_compression_level=6, 
                 # export_draco_position_quantization=14, 
                 # export_draco_normal_quantization=10, 
                 # export_draco_texcoord_quantization=12, 
                 # export_draco_generic_quantization=12, 
-                # bpy.ops.export_scene.obj(   filepath = path_to_export_file, use_selection   =   True )
-                i = i + 1
+                # export_tangents=False, 
+                # export_selected=False, 
+                # export_extras=False, 
+                # export_lights=False 
 
-        if not export_only_current:            
-            # finish writing the javascript file
-            js_file.write('      "./panels/shared/black.w100h25.glb",' +'\n')  
-            # js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
-            js_file.write('];' +'\n')
-            js_file.close()
+            # will_save_settings=False,
+            # check_existing=True
+            # export_texture_dir="Materials", 
+            # export_draco_mesh_compression_enable=False, 
+            # export_draco_mesh_compression_level=6, 
+            # export_draco_position_quantization=14, 
+            # export_draco_normal_quantization=10, 
+            # export_draco_texcoord_quantization=12, 
+            # export_draco_generic_quantization=12, 
+            # bpy.ops.export_scene.obj(   filepath = path_to_export_file, use_selection   =   True )
+            i = i + 1
 
-            # create local server bat file (windows only)
-            bat_file = open(bat_file_path, "w")
-            stringFragments = file_dir.split(':')
-            drive_letter = stringFragments[0] + ":"
+    if not export_only_current:            
+        # finish writing the javascript file
+        js_file.write('      "./panels/shared/black.w100h25.glb",' +'\n')  
+        # js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
+        js_file.write('];' +'\n')
+        js_file.close()
 
-
-            bat_file.write(drive_letter +'\n')  
-            bat_file.write('cd ' + file_dir +'\n')  
-            bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'\n')  
-            bat_file.write('python -m  http.server ' +'\n')
-            bat_file.close()
-        else:
-            js_file = open(js_file_path, "w")
-            js_file.write('var files = [' +'\n')
-            for panel_scene in bpy.data.scenes:
-                if "p." in panel_scene.name:
-                    js_file.write('      "./panels/' + panel_scene.name + '.${lan}.glb",' +'\n')  
-            js_file.write('      "./panels/shared/black.w100h25.glb",' +'\n')  
-            js_file.write('];' +'\n')
-            js_file.close()
+        # create local server bat file (windows only)
+        bat_file = open(bat_file_path, "w")
+        stringFragments = file_dir.split(':')
+        drive_letter = stringFragments[0] + ":"
 
 
-        self.report({'INFO'}, 'Exported Panels!')
+        bat_file.write(drive_letter +'\n')  
+        bat_file.write('cd ' + file_dir +'\n')  
+        bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
+        bat_file.write('python -m  http.server ' +'\n')
+        bat_file.close()
+    else:
+        js_file = open(js_file_path, "w")
+        js_file.write('var files = [' +'\n')
+        for panel_scene in bpy.data.scenes:
+            if "p." in panel_scene.name:
+                js_file.write('      "./panels/' + panel_scene.name + '.${lan}.glb",' +'\n')  
+        js_file.write('      "./panels/shared/black.w100h25.glb",' +'\n')  
+        js_file.write('];' +'\n')
+        js_file.close()
+
+
+    self.report({'INFO'}, 'Exported Panels!')
 
 
 
-        C.area.type=old_area_type
+    C.area.type=old_area_type
 
-        ## reopen scene from before build comic
-        bpy.ops.wm.open_mainfile(filepath=file_path)
-        self.report({'INFO'}, 'Exported Comic!')
-        # subprocess.Popen('explorer '+ file_dir)
-        # subprocess.Popen(bat_file_path)
-        BR_MT_read_3d_comic.execute(self, context)
-        
+    ## reopen scene from before build comic
+    bpy.ops.wm.open_mainfile(filepath=file_path)
+    self.report({'INFO'}, 'Exported Comic!')
+    # subprocess.Popen('explorer '+ file_dir)
+    # subprocess.Popen(bat_file_path)
+    BR_MT_read_3d_comic.execute(self, context)
+    
     return {'FINISHED'}
 
 
@@ -4505,9 +4524,10 @@ class BR_OT_key_scale_hide(bpy.types.Operator):
                 ob.scale[2] = 0.0001
                 ob.scale[0] = 0.0001
 
-                bpy.ops.action.select_all(action='DESELECT')
+
                 ob.keyframe_insert(data_path="scale", index=-1, frame=hide_frame)
                 bpy.ops.action.interpolation_type(type='BOUNCE')
+                bpy.ops.action.select_all(action='DESELECT')
 
         C.area.type = old_area_type
 
@@ -6145,6 +6165,29 @@ class BR_MT_export_3d_comic_current(bpy.types.Operator):
         return {'FINISHED'}
 
  
+class BR_MT_quick_save_export_3d_comic_current(bpy.types.Operator):
+    """Save scene, Export current 3D Comic panel scene and start a local server.  Existing files will be overwritten"""
+    bl_idname = "wm.spiraloid_quicks_save_export_3d_comic_current"
+    bl_label ="Quick Save and Export Panel"
+    bl_options = {'REGISTER', 'UNDO'}
+    # config: bpy.props.PointerProperty(type=BuildComicSettings)
+
+    def execute(self, context):
+        file_path = bpy.data.filepath
+        file_dir = os.path.dirname(os.path.dirname(file_path))
+        if not os.path.exists(file_dir+'\\index.html'):
+            # looks like a doesn't exist.  check if we're in a comic dbs.
+            if not os.path.exists(file_dir+'\\panels\\'):
+                #we're not in a comic dbs, lets make one.
+                self.report({'WARNING'}, "No comic folders found, try making a comic first")
+            else:
+                #looks like a panel exists, generate the comic folders and files
+                bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
+                export_panel(self, context,False, True)
+        else:
+            export_panel(self, context,True, True)
+        return {'FINISHED'}
+
 
 class BR_MT_read_3d_comic(bpy.types.Operator):
     """Build and export 3D Comic"""
@@ -6178,7 +6221,7 @@ class BR_MT_read_3d_comic(bpy.types.Operator):
             if not os.path.isfile(bat_file_path):
                 bat_file = open(bat_file_path, "w")
                 bat_file.write('cd ' + file_dir +'\n')  
-                bat_file.write('start http://localhost:8002/' +'\n')  
+                bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
                 bat_file.write('python -m SimpleHTTPServer 8002' +'\n')
                 bat_file.close()
 
@@ -6328,6 +6371,7 @@ class BR_OT_bake_panel(bpy.types.Operator):
     config: bpy.props.PointerProperty(type=BakePanelSettings)
 
     def draw(self, context):
+        global developer_mode
         # bpy.types.Scene.bake_panel_settings = bpy.props.CollectionProperty(type=BakePanelSettings)
      
         # scene = bpy.data.scene[0]
@@ -6354,32 +6398,39 @@ class BR_OT_bake_panel(bpy.types.Operator):
 
         layout.prop(bake_panel_settings, "bakeSize")
         layout.prop(bake_panel_settings, "bake_distance")
-        layout.separator()
-        layout.prop(bake_panel_settings, "bake_to_unlit")
-        layout.prop(bake_panel_settings, "bake_albedo")
-        layout.prop(bake_panel_settings, "bake_metallic")
-        layout.prop(bake_panel_settings, "bake_roughness")
-        layout.prop(bake_panel_settings, "bake_normal")
-        normal_cavity_row = layout.row(align=True)
-        normal_curvature_row = layout.row(align=True)
-        if bake_panel_settings.bake_normal:
-            normal_curvature_row.enabled = True
-            normal_curvature_row.prop(bake_panel_settings, "bake_curvature")
-            normal_curvature_row.prop(bake_panel_settings, "bake_curvature_applied")
-            normal_cavity_row.enabled = True
-            normal_cavity_row.prop(bake_panel_settings, "bake_cavity")
-            normal_cavity_row.prop(bake_panel_settings, "bake_cavity_applied")
-        layout.prop(bake_panel_settings, "bake_emission")
-        layout.prop(bake_panel_settings, "bake_opacity")
-        layout.prop(bake_panel_settings, "bake_ao")
-        ao_row = layout.row(align=True)
-        if bake_panel_settings.bake_ao:
-            ao_row.enabled = True
-            ao_row.prop(bake_panel_settings, "bake_ao_LoFi")
-            ao_row.prop(bake_panel_settings, "bake_ao_applied")
-        else:
-            ao_row.enabled = False
 
+
+        if developer_mode:
+            layout.separator()
+            layout.prop(bake_panel_settings, "bake_to_unlit")
+            layout.prop(bake_panel_settings, "bake_albedo")
+            layout.prop(bake_panel_settings, "bake_metallic")
+            layout.prop(bake_panel_settings, "bake_roughness")
+            layout.prop(bake_panel_settings, "bake_normal")
+            normal_cavity_row = layout.row(align=True)
+            normal_curvature_row = layout.row(align=True)
+            if bake_panel_settings.bake_normal:
+                normal_curvature_row.enabled = True
+                normal_curvature_row.prop(bake_panel_settings, "bake_curvature")
+                normal_curvature_row.prop(bake_panel_settings, "bake_curvature_applied")
+                normal_cavity_row.enabled = True
+                normal_cavity_row.prop(bake_panel_settings, "bake_cavity")
+                normal_cavity_row.prop(bake_panel_settings, "bake_cavity_applied")
+            layout.prop(bake_panel_settings, "bake_emission")
+            layout.prop(bake_panel_settings, "bake_opacity")
+            layout.prop(bake_panel_settings, "bake_ao")
+            ao_row = layout.row(align=True)
+            if bake_panel_settings.bake_ao:
+                ao_row.enabled = True
+                ao_row.prop(bake_panel_settings, "bake_ao_LoFi")
+                ao_row.prop(bake_panel_settings, "bake_ao_applied")
+            else:
+                ao_row.enabled = False
+            layout.separator()
+            layout.prop(bake_panel_settings, "bake_outline")
+            layout.separator()
+            layout.prop(bake_panel_settings, "bake_background")
+            layout.separator()
 
 
         layout.separator()
@@ -6391,11 +6442,7 @@ class BR_OT_bake_panel(bpy.types.Operator):
         else :
             pbr_row.enabled = False
 
-        layout.separator()
-        layout.prop(bake_panel_settings, "bake_outline")
-        layout.separator()
-        layout.prop(bake_panel_settings, "bake_background")
-        layout.separator()
+
 
 
 
@@ -8257,6 +8304,18 @@ class BR_OT_spiraloid_toggle_workmode(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class BR_OT_spiraloid_toggle_developer_mode(bpy.types.Operator):
+    """Toggle developer mode"""
+    bl_idname = "wm.spiraloid_toggle_developer_mode"
+    bl_label = "Toggle Developer"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        global developer_mode
+        developer_mode = not developer_mode
+        return {'FINISHED'}
+
+
 
 
 #------------------------------------------------------
@@ -8284,21 +8343,27 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
     config: bpy.props.PointerProperty(type=ComicSettings)
 
     def draw(self, context):
+        global developer_mode
         layout = self.layout
         layout.operator("wm.spiraloid_new_3d_comic", icon="NODE_COMPOSITING", text="New 3D Comic...")
         layout.separator()
         layout.menu(BR_MT_3d_comic_submenu_panels.bl_idname, icon="VIEW_ORTHO")
         layout.menu(BR_MT_3d_comic_submenu_letters.bl_idname, icon="INFO")
         layout.menu(BR_MT_3d_comic_submenu_assets.bl_idname, icon="FILE_3D")
-        # layout.menu(BR_MT_3d_comic_submenu_assets_shared.bl_idname, icon="LINKED")
+        if developer_mode:
+            layout.menu(BR_MT_3d_comic_submenu_assets_shared.bl_idname, icon="LINKED")
         layout.menu(BR_MT_3d_comic_submenu_lighting.bl_idname, icon="COLORSET_13_VEC")
         layout.separator()
         layout.menu(BR_MT_3d_comic_submenu_utilities.bl_idname, icon="PREFERENCES")
         layout.separator()
         layout.operator("view3d.spiraloid_export_3d_comic_all", icon="NODE_COMPOSITING")
         layout.operator("view3d.spiraloid_export_3d_comic_current", icon="FILE_BLANK")
+        layout.operator("wm.spiraloid_quicks_save_export_3d_comic_current", icon="SOLO_ON")
         layout.separator()
         layout.operator("view3d.spiraloid_read_3d_comic", icon="HIDE_OFF")
+
+
+
 
 class BR_MT_3d_comic_submenu_panels(bpy.types.Menu):
     bl_idname = 'view3d.spiraloid_3d_comic_submenu_panels'
@@ -8370,12 +8435,14 @@ class BR_MT_3d_comic_submenu_assets_shared(bpy.types.Menu):
     bl_label = 'Assets Shared'
 
     def draw(self, context):
+        global developer_mode
         layout = self.layout
         layout.operator(OBJECT_OT_add_bonus_shared.bl_idname, icon='KEYTYPE_BREAKDOWN_VEC')
         layout.separator()
         layout.operator(OBJECT_OT_add_omnibot_shared.bl_idname, icon='FILE_3D')
         layout.operator(OBJECT_OT_add_ground.bl_idname, icon='FILE_3D')
-        layout.operator("view3d.spiraloid_3d_comic_workshop")
+        if developer_mode:
+            layout.operator("view3d.spiraloid_3d_comic_workshop")
 
 
 
@@ -8385,6 +8452,8 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
     bl_label = 'Utilities'
 
     def draw(self, context):
+        global developer_mode
+
         layout = self.layout
         layout.operator("wm.spiraloid_toggle_workmode", icon="SEQ_PREVIEW")
         layout.separator()
@@ -8392,22 +8461,30 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
         layout.operator("wm.spiraloid_automap", icon="UV_VERTEXSEL")
         layout.separator()
         layout.operator("wm.spiraloid_subcollection_cycler", icon="MATCLOTH")
+        if operator_exists("BakeMeshFlipbook"):
+            layout.operator("view3d.bake_mesh_flipbook", icon="MATCLOTH")
         layout.separator()
         layout.operator("wm.spiraloid_pose_cycle_next", icon="ARMATURE_DATA")
         layout.operator("wm.spiraloid_pose_cycle_previous", icon="ARMATURE_DATA")
-        layout.separator()
-        layout.operator("wm.spiraloid_pose_add", icon="ARMATURE_DATA")
-        layout.operator("wm.spiraloid_pose_overwrite", icon="ARMATURE_DATA")
-        layout.operator("wm.spiraloid_pose_remove", icon="ARMATURE_DATA")
+
+        if developer_mode:
+            layout.separator()
+            layout.operator("wm.spiraloid_pose_add", icon="ARMATURE_DATA")
+            layout.operator("wm.spiraloid_pose_overwrite", icon="ARMATURE_DATA")
+            layout.operator("wm.spiraloid_pose_remove", icon="ARMATURE_DATA")
+            layout.operator("wm.spiraloid_toggle_child_lock", icon="RESTRICT_INSTANCED_OFF")
         layout.separator()
         layout.operator("wm.spiraloid_3d_comic_key_scale_hide", icon="HIDE_ON")
-        layout.operator("wm.spiraloid_toggle_child_lock", icon="RESTRICT_INSTANCED_OFF")
         layout.separator()
-        layout.operator("view3d.spiraloid_3d_comic_preview", icon= "FILE_MOVIE")
-        layout.separator()
-        layout.operator("view3d.spiraloid_3d_comic_panel_init")
-        layout.operator("view3d.spiraloid_3d_comic_panel_validate_naming")
-        layout.operator("view3d.spiraloid_3d_comic_panel_validate_naming_all")
+        if developer_mode:
+            layout.operator("view3d.spiraloid_3d_comic_preview", icon= "FILE_MOVIE")
+            layout.separator()
+            layout.operator("view3d.spiraloid_3d_comic_panel_init")
+            layout.operator("view3d.spiraloid_3d_comic_panel_validate_naming")
+            layout.operator("view3d.spiraloid_3d_comic_panel_validate_naming_all")
+        layout.operator("wm.spiraloid_toggle_developer_mode")
+        
+
 
         # layout.operator("view3d.spiraloid_export_3d_comic_letters_current", icon="RENDER_RESULT")
         # layout.operator("view3d.spiraloid_export_3d_comic_letters_all", icon="RENDER_RESULT")
@@ -8464,6 +8541,7 @@ def draw_item(self, context):
 #------------------------------------------------------
 
 classes = (
+    BR_OT_spiraloid_toggle_developer_mode,
     NewPanelRowSettings,
     BR_OT_add_pose,
     BR_OT_subcollection_cycler,
@@ -8512,6 +8590,7 @@ classes = (
     BR_OT_delete_comic_scene,
     BR_MT_export_3d_comic_all,
     BR_MT_export_3d_comic_current,
+    BR_MT_quick_save_export_3d_comic_current,
     # BR_MT_export_3d_comic_letters_all,
     # BR_MT_export_3d_comic_letters_current,
     BR_MT_read_3d_comic,
