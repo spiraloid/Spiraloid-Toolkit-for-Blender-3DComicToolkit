@@ -2758,7 +2758,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
                     if obj.animation_data:
                         # if obj.type == 'OBJECT':
-                        print('>>>>> attempting to process: ' + obj.name)
+                        print('>>>>> found animation attempting to process: ' + obj.name)
                         smart_anim_bake(obj)
 
                     is_toon_shaded = obj.get("is_toon_shaded")
@@ -6168,24 +6168,31 @@ class BR_MT_export_3d_comic_current(bpy.types.Operator):
 class BR_MT_quick_save_export_3d_comic_current(bpy.types.Operator):
     """Save scene, Export current 3D Comic panel scene and start a local server.  Existing files will be overwritten"""
     bl_idname = "wm.spiraloid_quicks_save_export_3d_comic_current"
-    bl_label ="Quick Save and Export Panel"
+    bl_label ="Quick Export Panel"
     bl_options = {'REGISTER', 'UNDO'}
     # config: bpy.props.PointerProperty(type=BuildComicSettings)
 
     def execute(self, context):
+        # path to the folder
         file_path = bpy.data.filepath
-        file_dir = os.path.dirname(os.path.dirname(file_path))
-        if not os.path.exists(file_dir+'\\index.html'):
+        file_name = bpy.path.display_name_from_filepath(file_path)
+        file_ext = '.blend'
+        blend_file_dir = file_path.replace(file_name+file_ext, '')
+        file_dir = os.path.dirname(os.path.dirname(file_path)) 
+        bat_file_path = (os.path.join(file_dir, "Read_Local.bat"))
+        index_file_path = (os.path.join(file_dir, "index.html"))
+        if os.path.isfile(index_file_path):
+            print (":::::::::::::::::::")
+            export_panel(self, context,True, True)
+        else:
             # looks like a doesn't exist.  check if we're in a comic dbs.
             if not os.path.exists(file_dir+'\\panels\\'):
                 #we're not in a comic dbs, lets make one.
                 self.report({'WARNING'}, "No comic folders found, try making a comic first")
             else:
                 #looks like a panel exists, generate the comic folders and files
-                bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
+                # bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
                 export_panel(self, context,False, True)
-        else:
-            export_panel(self, context,True, True)
         return {'FINISHED'}
 
 
