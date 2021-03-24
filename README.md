@@ -55,9 +55,10 @@ The world needs more 3D Comics.
 
 -bay
 
-ps: if you wanna toss a  coin in my busker hat, grab a t-shirt or buy the pro version:
+ps: if you want to support 3d-comics, buy a t-shirt and go pro!
 
 https://gumroad.com/l/3dcomictoolkit
-
 https://www.amazon.com/dp/B08J2455QL
+
+(you can sell your own shirts by apllying for a merch.amazon.com account)
 
