@@ -11,6 +11,8 @@
 			var next_issue_url = "https://3dcomic.shop/store";
 			var previous_issue_url = null;
 			var uncollectedBonuses = null;
+			var developer_mode = false;
+
 		</script>
 
 		<!-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: -->
@@ -352,12 +354,7 @@
 				rndimg = new Array(
 					"./images/cover_1.gif",
 					"./images/cover_2.gif",
-					"./images/cover_3.gif",
-					"./images/cover_4.gif",
-					"./images/cover_5.gif",
-					"./images/cover_6.gif",
-					"./images/cover_7.gif",
-					"./images/cover_8.gif"
+					"./images/cover_3.gif" 
 				);
 
 				var numimages = rndimg.length;
@@ -407,18 +404,20 @@
 
 				if (running_on_desktop == true){
 					renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-					renderer.setPixelRatio(window.devicePixelRatio * 2);
+					renderer.setPixelRatio(window.devicePixelRatio * 1.333);
+					if (developer_mode){
+						renderer.setPixelRatio(window.devicePixelRatio * 2);
+					}
 					renderer.shadowMap.type = THREE.VSMShadowMap;
 
 				}
 				else{
 					renderer = new THREE.WebGLRenderer( { canvas: canvas, antialias: false } );
-					renderer.setPixelRatio( window.devicePixelRatio );
+					renderer.setPixelRatio( window.devicePixelRatio * 1.2);
 					renderer.shadowMap.type = THREE.BasicShadowMap;
 				}
 
 				renderer.setClearColor( 0x131313 );
-				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.shadowMap.enabled = true;
 				renderer.outputEncoding = THREE.sRGBEncoding;
 
@@ -619,11 +618,20 @@
 					element.style.paddingTop = ( height / aspect ) + '%';
 					content.appendChild( element );
 
-					var colors = new Uint8Array( [ 0, 0, 255 ] );
-					var gradientMap = new THREE.DataTexture( colors, 3, 1, THREE.LuminanceFormat );
-					gradientMap.minFilter = THREE.NearestFilter;
-					gradientMap.magFilter = THREE.NearestFilter;
-					gradientMap.generateMipmaps = false;
+					// var colors = new Uint8Array( [ 0, 0, 255 ] );
+					// var gradientMap = new THREE.DataTexture( colors, 3, 1, THREE.LuminanceFormat );
+					// gradientMap.minFilter = THREE.NearestFilter;
+					// gradientMap.magFilter = THREE.NearestFilter;
+					// gradientMap.generateMipmaps = false;
+
+
+					function toHex(str) {
+						var hash = 0;
+						for (var i = 0; i < str.length; i++) {
+						hash = str.charCodeAt(i) + ((hash << 5) - hash);
+						}
+						return hash;
+					} 
 
 					loader.load( path, function ( gltf ) {
 
@@ -633,6 +641,7 @@
 						var letters, ref_object, ref_glb_file;
 
 						var isBonusFound = false;
+						var isColor = false;
 
 						scene.traverse( function ( child ) {
 
@@ -653,15 +662,30 @@
 							}
 
 							if ( child.isLight ) {
-
+								child.intensity = 1;
 								child.castShadow = true;
-								child.shadow.mapSize.set( 1024, 1024 );
+								if (running_on_desktop == true){
+									child.shadow.mapSize.set( 2048, 2048 );
+									if (developer_mode){
+										child.shadow.mapSize.set( 4096, 4096 );
+									}
+									child.shadow.radius = 3;
+
+								}
+								else
+								{
+									child.shadow.mapSize.set( 1024, 1024 );
+									child.shadow.radius = 1;
+
+								}
+								// child.shadow.mapSize.set( 512, 512 );
 								child.shadow.autoUpdate = false;
 								child.shadow.needsUpdate = true;
 								child.shadow.camera.near = 1;
-								child.shadow.camera.far = child.far;
+								child.shadow.camera.far = 100;
+								// child.shadow.camera.far = child.far;
 								child.shadow.bias = -0.001;
-								child.shadow.radius = 1;
+								// child.shadow.radius = 1;
 							}
 
 							if ( child.isMesh && child.material.isMeshStandardMaterial ) {
@@ -670,10 +694,30 @@
 								child.receiveShadow = true;
 
 								var color = child.material.color;
+								var toon_color_light;
+								var toon_color_dark;
+								if (child.userData.toon_color_light) {
+									isColor = true;
+									toon_color_light = new THREE.Color(toHex(child.userData.toon_color_light));
+								} else {
+									toon_color_light = new Uint8Array( [ 0, 128, 255 ] );
+								}
+								if (child.userData.toon_color_dark) {
+									isColor = true;
+									toon_color_dark = new THREE.Color(toHex(child.userData.toon_color_dark));
+								} else {
+									toon_color_dark = new Uint8Array( [ 0, 128, 255 ] );
+								}
+								var color2 = new THREE.Color( toon_color_light );
+								var gradientMap = new THREE.DataTexture( color2, 3, 1, THREE.RGBFormat );
+								gradientMap.minFilter = THREE.NearestFilter;
+								gradientMap.magFilter = THREE.NearestFilter;
+								gradientMap.generateMipmaps = false;
 
 								child.material = new THREE.MeshToonMaterial( {
-									color: color,
-									gradientMap: gradientMap
+									color: toon_color_light,
+									// gradientMap: gradientMap,
+									shininess: 0.9,
 								} );
 
 							}
@@ -686,6 +730,11 @@
 								var color = child.material.color;
 							}
 						} );
+
+						if (isColor){
+							const light = new THREE.AmbientLight( 0x808080 ); // soft white light
+							scene.add( light );
+						}
 
 						var mixer = new THREE.AnimationMixer( scene );
 						gltf.animations.forEach( function ( clip ) {
@@ -766,6 +815,9 @@
 
 							if (uncollectedBonuses == null){
 								document.getElementById("prize_banner").style.display = "none";
+								document.getElementById("bonus_badge").style.display = "none";
+								document.getElementById("button_counter").style.display = "none";
+
 							}
 							else{
 								var my_html = '';
@@ -853,7 +905,10 @@
 
 					if ( rect.bottom < 0 || rect.top > renderer.domElement.clientHeight ||
 							rect.right < 0 || rect.left > renderer.domElement.clientWidth ) {
-
+						if (developer_mode == true){
+							last_rendered_panel = scene.name;
+							console.log(last_rendered_panel)
+						}
 						return; // it's off screen
 
 					}
@@ -867,6 +922,7 @@
 					renderer.setScissor( left, bottom, width, height );
 
 					var camera = scene.userData.camera;
+					var orbit_ratio_speed_offset = 0;
 					camera.aspect = rect.width / rect.height;
 					camera.fov = camera.userData.vFov;
 					camera.far = camera.userData.far;
@@ -876,7 +932,7 @@
 						camera.fov = Math.atan( Math.tan( camera.fov * Math.PI / 360 ) / camera.aspect ) * 360 / Math.PI;
 					}
 					else{
-						var orbit_ratio_scalar =  (rect.width - rect.height) * .0001;
+						orbit_ratio_speed_offset =  (rect.width - rect.height) * .0001;
 					}
 
 					camera.updateProjectionMatrix();
@@ -907,7 +963,7 @@
 					var bonusGemstone = scene.userData.bonusGemstone;
 					var frustum = scene.userData.frustum;
 					var isBonusFound = scene.userData.isBonusFound;
-					var cameraOrbitSpeed = scene.userData.cameraOrbitSpeed + orbit_ratio_scalar
+					var cameraOrbitSpeed = scene.userData.cameraOrbitSpeed + orbit_ratio_speed_offset
 
 					if ( cameraOrigin ) {
 
@@ -1019,8 +1075,6 @@
 				<iframe src="https://3dcomic.shop/dev/footer/footer.html" width="100%" frameborder="0" scrolling="no" onload="this.height = this.offsetWidth"></iframe>
 			</span>
 		</div>
-		<script data-ad-client="ca-pub-2594415726860047" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-		
 	</body>
 	</html>
 	
