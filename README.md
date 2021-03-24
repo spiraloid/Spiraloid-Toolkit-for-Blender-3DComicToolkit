@@ -22,7 +22,7 @@ Features:
 
 https://3dcomic.shop/inkbots/s01e01/index.html?lan=es
 
-requirements:
+REQUIREMENTS:
 
 a WINDOWS 10 PC (sorry I don't have a mac).
 
@@ -38,7 +38,8 @@ https://gumroad.com/l/3dcomictoolkit
 
 Be warned, This is a tool I use and update frequently so there may be bugs and I may not care to fix them.   
 
-installation:  click the green button and download the zip.   do not unpack just install the zipped addon as you would normally.   
+INSTALLATION:  
+click the green button and download the zip.   do not unpack just install the zipped addon as you would normally, be sure to deactivate and remove any previous versions.   
 note: do not rename the zip or the addon folder that gets installed in your in addons directory. The load resources commands are hardcoded to assume the addon folder is named "Spiraloid-Toolkit-for-Blender-3DComicToolkit-master"
 
 I'll try not to break things, but if you get stuck feel free to dig into the code yourseld orreport the issue here, and I'll see what I can do as I find the time  (it's free afterall).  
