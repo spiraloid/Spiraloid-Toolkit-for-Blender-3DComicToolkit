@@ -64,5 +64,5 @@ ps: if you want to support 3d-comics, buy a t-shirt and go pro!
 https://gumroad.com/l/3dcomictoolkit
 https://www.amazon.com/dp/B08J2455QL
 
-(you can sell your own shirts by apllying for a merch.amazon.com account)
+(you can sell your own shirts by applying for a merch.amazon.com account)
 
