@@ -26,19 +26,19 @@ requirements:
 
 a WINDOWS 10 PC (sorry I don't have a mac).
 
-Blender 2.91 or later.
-https://www.blender.org/download/releases/2-91/
+Blender 2.92 or later.
+https://www.blender.org/download/releases/2-92/
 
 Python 3.8 or later. 
-(be sure to check the box to add python to your path on install.  this step is needed to make "read 3d comic" menu work since it runs a local python server)
+(ALERT: be sure to check the box to add python to your environment path vairable on install.  this step is needed to make "read 3d comic" menu work since it runs a local python server)
 https://www.python.org/ftp/python/3.8.5/python-3.8.5.exe
 
-This repo is for live updates, you can also find the official release on gumroad at:
+This repo is for live updates as I make fixes or improvements, you can also find the official release on gumroad at:
 https://gumroad.com/l/3dcomictoolkit
 
-Be warned, This is a tool I use and update frequently so there may be bugs.   
+Be warned, This is a tool I use and update frequently so there may be bugs and I may not care to fix them.   
 
-installation:  download and install the addon as you would normally.  
+installation:  click the green button and download the zip.   do not unpack just install the zipped addon as you would normally.   
 note: do not rename the zip or the addon folder that gets installed in your in addons directory. The load resources commands are hardcoded to assume the addon folder is named "Spiraloid-Toolkit-for-Blender-3DComicToolkit-master"
 
 I'll try not to break things, but if you get stuck feel free to dig into the code yourseld orreport the issue here, and I'll see what I can do as I find the time  (it's free afterall).  
