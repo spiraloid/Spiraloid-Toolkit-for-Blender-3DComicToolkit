@@ -3661,7 +3661,7 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
             # title_name = settings.title
             title_name = "Cover"
             filepath = addon_dir + "comic_default.blend"
-            bpy.ops.wm.read_homefile(filepath=filepath)
+            bpy.ops.wm.read_homefile(filepath=filepath, load_ui=False)
             bpy.ops.wm.save_as_mainfile( filepath =filename)
 
             # load default scene
