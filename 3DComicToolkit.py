@@ -3967,7 +3967,10 @@ def insert_comic_panel(self, context):
                 if bpy.ops.view3d.view_center_camera.poll(override):
                     bpy.ops.view3d.view_center_camera(override)
         bpy.ops.object.select_all(action='DESELECT')
-        
+
+        backstage_collection = getCurrentBackstageCollection()
+        if backstage_collection:
+            bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
 
     # return {'FINISHED'}
 
