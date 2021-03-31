@@ -6916,9 +6916,9 @@ class BakePanelSettings(bpy.types.PropertyGroup):
     # bake_to_pbr : bpy.props.BoolProperty(name="Bake PBR", description="Bake Collection to new mesh with a Principled BSDF shader", default=False)
     bake_albedo : bpy.props.BoolProperty(name="Bake Albedo", description="Bake Collection to mesh with Albedo Texture", default=False)
     bake_normal : bpy.props.BoolProperty(name="Bake Normal", description="Bake Collection to mesh with Normal Texture", default=False)
-    bake_metallic : bpy.props.BoolProperty(name="Bake Metallic*", description="Bake Collection to mesh with Metallic Texture", default=False)
+    bake_metallic : bpy.props.BoolProperty(name="Bake Metallic", description="Bake Collection to mesh with Metallic Texture", default=False)
     bake_roughness : bpy.props.BoolProperty(name="Bake Roughness", description="Bake Collection to mesh with Roughness Texture", default=False)
-    bake_emission : bpy.props.BoolProperty(name="Bake Emission*", description="Bake Collection to mesh with Emission Texture", default=False)
+    bake_emission : bpy.props.BoolProperty(name="Bake Emission", description="Bake Collection to mesh with Emission Texture", default=False)
     bake_opacity : bpy.props.BoolProperty(name="Bake Transparency*", description="Bake Collection to mesh with Opacity Texture", default=False)
     bake_ao : bpy.props.BoolProperty(name="Bake AO", description="Bake Collection to mesh with Ambient Occlusion Texture", default=False)
     bake_ao_LoFi : bpy.props.BoolProperty(name="Use Output Mesh", description="Use target for Ambient Occlusion, otherwise use source meshes (slower).", default=True)
@@ -6968,14 +6968,15 @@ class BR_OT_bake_panel(bpy.types.Operator):
         layout.prop(bake_panel_settings, "bakeSize")
         layout.prop(bake_panel_settings, "bake_distance")
 
+        layout.separator()
+        layout.prop(bake_panel_settings, "bake_to_unlit")
+        layout.prop(bake_panel_settings, "bake_albedo")
+        layout.prop(bake_panel_settings, "bake_metallic")
+        layout.prop(bake_panel_settings, "bake_roughness")
+        layout.prop(bake_panel_settings, "bake_normal")
+        layout.prop(bake_panel_settings, "bake_emission")
 
         if developer_mode:
-            layout.separator()
-            layout.prop(bake_panel_settings, "bake_to_unlit")
-            layout.prop(bake_panel_settings, "bake_albedo")
-            layout.prop(bake_panel_settings, "bake_metallic")
-            layout.prop(bake_panel_settings, "bake_roughness")
-            layout.prop(bake_panel_settings, "bake_normal")
             normal_cavity_row = layout.row(align=True)
             normal_curvature_row = layout.row(align=True)
             if bake_panel_settings.bake_normal:
@@ -6985,7 +6986,6 @@ class BR_OT_bake_panel(bpy.types.Operator):
                 normal_cavity_row.enabled = True
                 normal_cavity_row.prop(bake_panel_settings, "bake_cavity")
                 normal_cavity_row.prop(bake_panel_settings, "bake_cavity_applied")
-            layout.prop(bake_panel_settings, "bake_emission")
             layout.prop(bake_panel_settings, "bake_opacity")
             layout.prop(bake_panel_settings, "bake_ao")
             ao_row = layout.row(align=True)
@@ -7641,7 +7641,7 @@ class BR_OT_bake_panel(bpy.types.Operator):
                             texture.image.colorspace_settings.name = 'Non-Color'
                             bump = mat.node_tree.nodes.new(type='ShaderNodeNormalMap')
                             mat.node_tree.links.new(texture.outputs[0], bump.inputs[1])
-                            mat.node_tree.links.new(bump.outputs[0], shader.inputs[19])
+                            mat.node_tree.links.new(bump.outputs[0], shader.inputs[20])
                             bpy.ops.object.shade_smooth()
                             bpy.context.object.data.use_auto_smooth = False
                             bpy.ops.mesh.customdata_custom_splitnormals_clear()
@@ -7842,7 +7842,9 @@ class BR_OT_bake_panel(bpy.types.Operator):
                             if n.image.name == texName_albedo:
                                 n.select = True
                                 matnodes.active = n
-                                bpy.context.scene.cycles.bake_type = 'DIFFUSE'
+                                existing_albedo_color = (0, 0, 0, 1)
+
+                                bpy.context.scene.cycles.bake_type = 'COMBINED'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
                                 bpy.context.scene.render.image_settings.file_format = 'PNG'
                                 bpy.context.scene.render.image_settings.color_depth = '8'
                                 bpy.context.scene.render.image_settings.color_mode = 'RGBA'
@@ -7853,22 +7855,45 @@ class BR_OT_bake_panel(bpy.types.Operator):
                                 bpy.context.scene.render.bake.use_cage = True
                                 ray_length = target_object.dimensions[1] * bake_distance
                                 bpy.context.scene.render.bake.cage_extrusion = ray_length
-                                bpy.context.scene.cycles.samples = 8
+                                bpy.context.scene.cycles.samples = 1
                                 bpy.context.scene.render.bake.margin = pixelMargin
-                                if os.path.exists(file_dir):
-                                    if os.path.exists(materials_dir):
-                                        outBakeFileName = n.image.name+".png"
-                                        outRenderFileName = materials_dir+outBakeFileName
-                                        n.image.file_format = 'PNG'
-                                        n.image.filepath = outRenderFileName
-                                        bpy.ops.object.bake(type='DIFFUSE', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                        n.image.save()
-                                        self.report({'INFO'},"Baked albedo texture saved to: " + outRenderFileName )
-                                else:
-                                    bpy.ops.object.bake(type='DIFFUSE')
-                                    n.image.pack()
-                                progress_current += progress_step
-                                wm.progress_update(int(progress_current))
+
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            mat_output = src_mat.node_tree.nodes.get('Material Output')
+                                            existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
+                                            shandernode = src_mat.node_tree.nodes.get("Principled BSDF")
+                                            if shandernode:
+                                                tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                                src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
+                                                if not shandernode.inputs[0].links:
+                                                    existing_metal_color = shandernode.inputs[0].default_value
+                                                    tmp_flat_shader.inputs[0].default_value = existing_metal_color
+                                                else:
+                                                    existing_metal_color_input = shandernode.inputs[0].links[0].from_node
+                                                    src_mat.node_tree.links.new(existing_metal_color_input.outputs[0], tmp_flat_shader.inputs[0])
+
+                                                if os.path.exists(file_dir):
+                                                    if os.path.exists(materials_dir):
+                                                        outBakeFileName = n.image.name+".png"
+                                                        outRenderFileName = materials_dir+outBakeFileName
+                                                        n.image.file_format = 'PNG'
+                                                        n.image.filepath = outRenderFileName
+                                                        bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                                        n.image.save()
+                                                        self.report({'INFO'},"Baked albedo texture saved to: " + outRenderFileName )
+                                                else:
+                                                    bpy.ops.object.bake(type='COMBINED')
+                                                    n.image.pack()
+
+                                                # cleanup
+                                                src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
+                                                src_mat.node_tree.nodes.remove(tmp_flat_shader)
+
+
+
+
 
 
                         for n in imgnodes:
@@ -7952,123 +7977,36 @@ class BR_OT_bake_panel(bpy.types.Operator):
                                         for src_mat in tmp_src.data.materials:
                                             mat_output = src_mat.node_tree.nodes.get('Material Output')
                                             existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
-                                            
-                                            # get metallic input
-                                            shadernodes = [n for n in src_mat.node_tree.nodes if n.type == 'ShaderNodeBsdfPrincipled']
-                                            for n in shadernodes:
-                                                print("=================" + n.name)
-                                                if not n.inputs[4].links:
-                                                    existing_metal_color = n.inputs[0].default_value
+                                            shandernode = src_mat.node_tree.nodes.get("Principled BSDF")
+                                            if shandernode:
+                                                tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                                src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
+
+                                                if not shandernode.inputs[4].links:
+                                                    existing_metal_color = shandernode.inputs[4].default_value
+                                                    tmp_flat_shader.inputs[0].default_value = existing_metal_color
                                                 else:
-                                                    existing_metal_color_input = n.inputs[4].links[0].from_node
-                                                    print("=================" + existing_metal_color_input)
+                                                    existing_metal_color_input = shandernode.inputs[4].links[0].from_node
+                                                    src_mat.node_tree.links.new(existing_metal_color_input.outputs[0], tmp_flat_shader.inputs[0])
 
-                                            shadernodes = [n for n in src_mat.node_tree.nodes if n.type == 'ShaderNodeBackground']
-                                            for n in shadernodes:
-                                                if not n.inputs[0].links:
-                                                    existing_metal_color = n.inputs[0].default_value
+                                                if os.path.exists(file_dir):
+                                                    if os.path.exists(materials_dir):
+                                                        outBakeFileName = n.image.name+".png"
+                                                        outRenderFileName = materials_dir+outBakeFileName
+                                                        n.image.file_format = 'PNG'
+                                                        n.image.filepath = outRenderFileName
+                                                        bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                                        n.image.save()
+                                                        self.report({'INFO'},"Baked metal texture saved to: " + outRenderFileName )
                                                 else:
-                                                    existing_metal_color_input = n.inputs[0].links[0].from_node
+                                                    bpy.ops.object.bake(type='COMBINED')
+                                                    n.image.pack()
 
-                                            # raise KeyboardInterrupt()
+                                                # raise KeyboardInterrupt()
 
-
-
-                                            tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                                            src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
-
-                                            
-
-
-
-                                            # if existing_metal_color:
-                                            try:
-                                                tmp_flat_shader.inputs[0].default_value = existing_metal_color
-                                            except :
-                                                pass
-
-                                            try:
-                                                src_mat.node_tree.links.new(existing_metal_color_input.outputs[0], tmp_flat_shader.inputs[0])
-                                            except :
-                                                pass
-
-
-
-
-                                            
-
-                                            # tmp_src.active_material = mat
-                                            # shadernodes = [n for n in matnodes if n.type == 'ShaderNodeBsdfPrincipled']
-                                            # for n in shadernodes:
-
-                                            #     # get albedo input
-                                            #     if not n.inputs[0].links:
-                                            #         existing_albedo_color = n.inputs[0].default_value
-                                            #     else:
-                                            #         existing_albedo_color_input = n.inputs[0].links[0].from_node
-
-                                            #     # get metallic input
-                                            #     if not n.inputs[4].links:
-                                            #         existing_metal_color = n.inputs[4].default_value
-                                            #     else:
-                                            #         existing_metal_color_input = n.inputs[4].links[0].from_node
-
-                                            #     # link metallic connection to albedo
-                                            #     if existing_metal_color:
-                                            #         n.inputs[0].default_value = existing_metal_color
-                                            #     if existing_metal_color_input:
-                                            #         mat.node_tree.links.new(existing_metal_color_input.outputs[0], n.inputs[0])
-
-
-
-
-                                            #     # restore albedo connection
-                                            #     if existing_metal_color:
-                                            #         n.inputs[0].default_value = existing_albedo_color
-                                            #     if existing_metal_color_input:
-                                            #         mat.node_tree.links.new(shader.inputs[0], existing_albedo_color_input.outputs[0])
-
-                                            if os.path.exists(file_dir):
-                                                if os.path.exists(materials_dir):
-                                                    outBakeFileName = n.image.name+".png"
-                                                    outRenderFileName = materials_dir+outBakeFileName
-                                                    n.image.file_format = 'PNG'
-                                                    n.image.filepath = outRenderFileName
-                                                    bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                                    n.image.save()
-                                                    self.report({'INFO'},"Baked metal texture saved to: " + outRenderFileName )
-                                            else:
-                                                bpy.ops.object.bake(type='COMBINED')
-                                                n.image.pack()
-
-
-                                            # cleanup
-                                            mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
-                                            mat.node_tree.nodes.remove(tmp_flat_shader)
-
-
-                                # progress_current += progress_step
-                                # wm.progress_update(int(progress_current))
-
-
-                                # #create tmp shader and connect texture to it.
-                                # for sob in source_meshes:
-                                #     if ob.data.materials:
-                                #         for mat in ob.data.materials:
-                                #             ob.active_material = mat
-                                #             shadernodes = [n for n in matnodes if n.type == 'ShaderNodeBsdfPrincipled']
-                                #             for n in shadernodes:
-                                #                 existing_shader_color_input = n.inputs[0].links[0].from_node
-                                #                 mat.node_tree.links.new(shader.inputs[0], existing_shader_color_input.outputs[0])
-
-                                #             tmpshader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                                #             mat.node_tree.links.new(tmpshader.outputs[0], mat_output.inputs[0])
-
-
-                                #             #cleanup.
-                                #             mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-                                #             mat.node_tree.nodes.remove(tmpshader)
-
+                                                # cleanup
+                                                src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
+                                                src_mat.node_tree.nodes.remove(tmp_flat_shader)
 
 
                         for n in imgnodes:
@@ -8099,6 +8037,7 @@ class BR_OT_bake_panel(bpy.types.Operator):
                                     n.image.pack()
                                 progress_current += progress_step
                                 wm.progress_update(int(progress_current))
+
 
                         for n in imgnodes:
                             if n.image.name == texName_emission:
