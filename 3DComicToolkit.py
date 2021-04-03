@@ -54,7 +54,7 @@ import bpy.utils.previews
 #------------------------------------------------------
 # global variables
 
-pythonServerSubprocess = ""
+localHostIsRunning = False
 last_applied_pose_index = 0
 isChildLock = False
 previous_sky_color_index = 0
@@ -65,8 +65,8 @@ previous_mode = 'EDIT'
 previous_selection = ""
 developer_mode = False
 
-# active_language_abreviated = "en"
-# active_language = "english"
+active_language_abreviated = "en"
+active_language = "english"
 
 
 #------------------------------------------------------
@@ -497,11 +497,11 @@ def load_resource(self, context, blendFileName, is_random):
             if file.startswith(stringFragments[0]+"."):
                 if not file.endswith(".blend1"):
                     index.append(file)
-
-        if (len(index) > 1):
-            random_int = random.randint(0, len(index) -2)
+        i = len(index) -1
+        if i >= 0:
+            random_int = random.randint(0, i)
             while (random_int == previous_random_int):
-                random_int = random.randint(0, len(index) -2)
+                random_int = random.randint(0, i)
                 if (random_int != previous_random_int):
                     break
         else:
@@ -3474,7 +3474,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
     if not export_only_current:            
         # finish writing the javascript file
-        js_file.write('      "./panels/shared/black.w100h25.glb",' +'\n')  
+        js_file.write('      "./panels/shared/p.black.w100h25.generic.glb",' +'\n')  
         # js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
         js_file.write('];' +'\n')
         js_file.close()
@@ -3488,7 +3488,8 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         bat_file.write(drive_letter +'\n')  
         bat_file.write('cd ' + file_dir +'\n')  
         bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
-        bat_file.write('python -m  http.server ' +'\n')
+        # bat_file.write('python -m  http.server ' +'\n')
+        bat_file.write('tasklist /nh /fi "imagename eq python.exe" | find /i "python.exe" > nul | (python -m  http.server)' +'\n')
         bat_file.close()
     else:
         js_file = open(js_file_path, "w")
@@ -3496,7 +3497,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         for panel_scene in bpy.data.scenes:
             if "p." in panel_scene.name:
                 js_file.write('      "./panels/' + panel_scene.name + '.${lan}.glb",' +'\n')  
-        js_file.write('      "./panels/shared/black.w100h25.glb",' +'\n')  
+        js_file.write('      "./panels/shared/p.black.w100h25.generic.glb",' +'\n')  
         js_file.write('];' +'\n')
         js_file.close()
 
@@ -3580,6 +3581,7 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
 
 
     def execute(self, context):
+        global active_language_abreviated
         root_folder, extension = os.path.splitext(self.filepath)
         comic_name = os.path.basename(self.filepath) 
         issue_name = "s01e01"
@@ -3633,8 +3635,11 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
             # if "dutch." in active_language:
             #     active_language_abreviated = 'da'
 
-            # if not active_language_abreviated:
+            if not active_language_abreviated:
             #     self.report({'ERROR'}, "No Active Language!")
+                bpy.context.scene.comic_settings.language = "english"
+                active_language_abreviated = 'en'                    
+
 
             # # export all scenes
             # i = 0
@@ -3668,6 +3673,29 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
             # load_resource(self, context, "comic_default.blend", False)
 
             bpy.context.scene.name = title_name
+            bpy.data.objects['Title'].data.body = comic_name
+
+            for window in bpy.context.window_manager.windows:
+                for v in  window.screen.areas:  # iterate through areas in current screen
+                    if v.type=='VIEW_3D':
+                        v.spaces[0].region_3d.view_perspective = 'CAMERA'
+                        override = {
+                            'area': v,
+                            'region': v.regions[0],
+                        }
+                        if bpy.ops.view3d.view_center_camera.poll(override):
+                            bpy.ops.view3d.view_center_camera(override)
+
+
+            bpy.context.scene.render.filepath =  issue_folder + "\\images\\main_banner.jpg"
+            bpy.context.scene.render.image_settings.color_mode = 'RGB'
+            bpy.context.scene.render.image_settings.file_format = 'JPEG'
+            bpy.context.scene.render.use_overwrite = True
+            bpy.context.scene.render.resolution_x = 1024
+            bpy.context.scene.render.resolution_y = 345
+            bpy.context.scene.render.image_settings.file_format='JPEG'
+            bpy.ops.render.render(use_viewport = True, write_still=True)
+
 
         # panels = []
         # for scene in bpy.data.scenes:
@@ -3936,7 +3964,10 @@ class BR_OT_clone_comic_scene(bpy.types.Operator):
         return {'FINISHED'}
 
 
-def insert_comic_panel(self, context):
+
+
+
+def insert_comic_panel(self, context, camera_strategy):
     scene = context.scene
     new_panel_row_settings = scene.new_panel_row_settings
     new_panel_count = new_panel_row_settings.new_panel_count
@@ -3972,12 +4003,29 @@ def insert_comic_panel(self, context):
         if backstage_collection:
             bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
 
+        key_camera_auto(self, context, camera_strategy)
+
     # return {'FINISHED'}
 
 
 class NewPanelRowSettings(bpy.types.PropertyGroup):
     new_panel_count : bpy.props.IntProperty(name="number of new panels in row:",  description="number of side-by-side panels to insert in new row", min=1, max=4, default=1 )
-
+    camera_strategy : bpy.props.EnumProperty(
+        name="Camera", 
+        description="Type of camera movement for new panels", 
+        items={
+            ("camera_slide_up", "Slide Up","SlideUp", 0),
+            ("camera_slide_down","Slide Down", "SlideDown", 1),
+            ("camera_truck_in", "Truck In","TruckIn", 2),
+            ("camera_truck_out", "Truck Out","TruckOut", 3),
+            ("camera_pan_left", "Pan Left","PanLeft", 4),
+            ("camera_pan_right", "Pan Right","PanRight", 5),
+            ("camera_random", "Randomize","Random", 6),
+            ("world_spin_cw", "Randomize","Random", 7),
+            ("world_spin_ccw", "Randomize","Random", 8),
+            },
+        default="camera_random"
+    )
 
 class BR_OT_new_panel_row(bpy.types.Operator, ImportHelper):
     """Insert a new empty comic panel scene or scenes side by side"""
@@ -3992,11 +4040,14 @@ class BR_OT_new_panel_row(bpy.types.Operator, ImportHelper):
         new_panel_row_settings = scene.new_panel_row_settings
         layout = self.layout
         layout.prop(new_panel_row_settings, "new_panel_count")
+        layout.prop(new_panel_row_settings, "camera_strategy")
 
     def execute(self, context):
+        settings = context.scene.new_panel_row_settings
         # current_scene_name = context.scene.name
         # if "p." in bpy.context.scene.name:    
-        insert_comic_panel(self, context)
+        insert_comic_panel(self, context, settings.camera_strategy)
+
         # else:
             # self.report({'ERROR'}, "No Active Comic Found")
 
@@ -4013,7 +4064,7 @@ class BR_OT_insert_comic_scene(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        insert_comic_panel(self, context)
+        insert_comic_panel(self, context, settings.camera_strategy)
 
         # currSceneIndex = getCurrentSceneIndex()
         # renameAllScenesAfter()
@@ -4458,6 +4509,133 @@ class BR_OT_add_letter_caption(bpy.types.Operator):
 
         return {'FINISHED'}
 
+def add_letter(self, context, letter_type, letter_count):
+    if bpy.context.object:
+        starting_mode = bpy.context.object.mode
+        if "OBJECT" not in starting_mode:
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+            bpy.ops.object.select_all(action='DESELECT')
+
+    export_collection = getCurrentExportCollection()
+    backstage_collection = getCurrentBackstageCollection()
+
+    
+
+    active_camera = bpy.context.scene.camera
+    if active_camera is not None :
+        active_camera_name = active_camera.name
+    else:
+        self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
+
+    bpy.ops.object.select_all(action='DESELECT')
+    # load_resource("letter_wordballoon.blend", False)
+
+    if "wordballoon" in letter_type:
+        if letter_count == 1:
+            load_resource(self, context, "letter_wordballoon.000.blend", True)
+        if letter_count == 2:
+            load_resource(self, context, "letter_wordballoon_double.000.blend", True)
+        if letter_count == 3:
+            load_resource(self, context, "letter_wordballoon_triple.000.blend", True)
+        if letter_count == 4:
+            load_resource(self, context, "letter_wordballoon_quadruple.000.blend", True)
+
+    # load_resource("letter_caption.blend")
+    # load_resource("letter_sfx.blend")
+
+    objects = bpy.context.selected_objects
+    if objects is not None :
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    letter = objects[0]
+    letter_group = getCurrentLetterGroup()
+
+    bpy.ops.object.select_all(action='DESELECT')
+    letter.select_set(state=True)
+    letter_group.select_set(state=True)
+    bpy.context.view_layer.objects.active = letter_group
+    # bpy.ops.object.parent_set()
+    bpy.ops.object.parent_no_inverse_set()
+
+    if backstage_collection:
+        bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = False
+        backstage_objects = backstage_collection.objects
+        for mobj in backstage_objects:
+            if "Materials." in mobj.name:
+                # bpy.context.scene.collection.objects.link(mobj)
+                bpy.ops.object.select_all(action='DESELECT')
+                letter.select_set(state=True)
+                mobj.select_set(state=True)
+                bpy.context.view_layer.objects.active = mobj
+                bpy.ops.object.material_slot_copy()
+
+                bpy.ops.object.select_all(action='DESELECT')
+                letter.select_set(state=True)
+                bpy.context.view_layer.objects.active = letter
+                for i, mat in reversed(list(enumerate(letter.data.materials))):
+                    if ("L_Wordballoon." not in mat.name) and  ("L_WordballoonOutlineDark." not in mat.name) and  ("L_WordballoonOutlineLight." not in mat.name):
+                        # letter.data.materials.pop(index=i)
+                        letter.active_material_index = i
+                        bpy.ops.object.material_slot_remove()
+
+                for p in letter.data.polygons:
+                    if p.material_index >= len(letter.data.materials):
+                        p.material_index = -1
+                        
+
+
+                for tobj in letter.children:
+                    if tobj.type == 'FONT':
+                        bpy.ops.object.select_all(action='DESELECT')
+                        tobj.select_set(state=True)
+                        mobj.select_set(state=True)
+                        bpy.context.view_layer.objects.active = mobj
+                        bpy.ops.object.material_slot_copy()
+
+                        bpy.ops.object.select_all(action='DESELECT')
+                        tobj.select_set(state=True)
+                        bpy.context.view_layer.objects.active = tobj
+                        for i, tmat in reversed(list(enumerate(tobj.data.materials))):
+                            if ("L_WordballoonText." not in tmat.name):
+                                # tobj.data.materials.pop(index=i)
+                                tobj.active_material_index = i
+                                bpy.ops.object.material_slot_remove()
+
+
+        # bpy.context.scene.collection.objects.unlink(mobj)
+        # bpy.context.scene.collection.objects.unlink(text_material_object)
+        bpy.ops.object.select_all(action='DESELECT')
+        letter.select_set(state=True)
+        bpy.context.view_layer.objects.active = letter
+        bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
+    
+
+    bpy.ops.object.select_all(action='DESELECT')
+    letter.select_set(state=True)
+    bpy.context.view_layer.objects.active = letter
+    bpy.ops.object.origin_clear()
+
+    camera_position = active_camera.matrix_world.to_translation()
+
+
+    letters_collection = getCurrentLettersCollection()
+    if not letters_collection:
+        self.report({'WARNING'}, "Export Collection " + letters_collection.name + "was not found in scene, skipping export of" + scene.name)
+    else:
+        for obj in objects:
+            bpy.context.collection.objects.unlink(obj) 
+            letters_collection.objects.link(obj)
+
+    bpy.ops.object.select_all(action='DESELECT')
+    letter.select_set(state=True)
+    bpy.context.view_layer.objects.active = letter
+    for v in bpy.context.window.screen.areas:
+        if v.type=='VIEW_3D':
+            bpy.ops.view3d.snap_cursor_to_selected()
+
+
+    return {'FINISHED'}
+
+
 class BR_OT_add_letter_wordballoon(bpy.types.Operator):
     """Add a new worldballoon with letters"""
     bl_idname = "view3d.spiraloid_3d_comic_add_letter_wordballoon"
@@ -4465,121 +4643,8 @@ class BR_OT_add_letter_wordballoon(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        if bpy.context.object:
-            starting_mode = bpy.context.object.mode
-            if "OBJECT" not in starting_mode:
-                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-                bpy.ops.object.select_all(action='DESELECT')
-
-        export_collection = getCurrentExportCollection()
-        backstage_collection = getCurrentBackstageCollection()
-
-        
-
-        active_camera = bpy.context.scene.camera
-        if active_camera is not None :
-            active_camera_name = active_camera.name
-        else:
-            self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
-
-        bpy.ops.object.select_all(action='DESELECT')
-        # load_resource("letter_wordballoon.blend", False)
-        load_resource(self, context, "letter_wordballoon.000.blend", True)
-        # load_resource("letter_caption.blend")
-        # load_resource("letter_sfx.blend")
-
-        objects = bpy.context.selected_objects
-        if objects is not None :
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        letter = objects[0]
-        letter_group = getCurrentLetterGroup()
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        letter_group.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter_group
-        # bpy.ops.object.parent_set()
-        bpy.ops.object.parent_no_inverse_set()
-
-        if backstage_collection:
-            bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = False
-            backstage_objects = backstage_collection.objects
-            for mobj in backstage_objects:
-                if "Materials." in mobj.name:
-                    # bpy.context.scene.collection.objects.link(mobj)
-                    bpy.ops.object.select_all(action='DESELECT')
-                    letter.select_set(state=True)
-                    mobj.select_set(state=True)
-                    bpy.context.view_layer.objects.active = mobj
-                    bpy.ops.object.material_slot_copy()
-
-                    bpy.ops.object.select_all(action='DESELECT')
-                    letter.select_set(state=True)
-                    bpy.context.view_layer.objects.active = letter
-                    for i, mat in reversed(list(enumerate(letter.data.materials))):
-                        if ("L_Wordballoon." not in mat.name) and  ("L_WordballoonOutlineDark." not in mat.name) and  ("L_WordballoonOutlineLight." not in mat.name):
-                            # letter.data.materials.pop(index=i)
-                            letter.active_material_index = i
-                            bpy.ops.object.material_slot_remove()
-
-                    for p in letter.data.polygons:
-                        if p.material_index >= len(letter.data.materials):
-                            p.material_index = -1
-                            
-
-
-                    for tobj in letter.children:
-                        if tobj.type == 'FONT':
-                            bpy.ops.object.select_all(action='DESELECT')
-                            tobj.select_set(state=True)
-                            mobj.select_set(state=True)
-                            bpy.context.view_layer.objects.active = mobj
-                            bpy.ops.object.material_slot_copy()
-
-                            bpy.ops.object.select_all(action='DESELECT')
-                            tobj.select_set(state=True)
-                            bpy.context.view_layer.objects.active = tobj
-                            for i, tmat in reversed(list(enumerate(tobj.data.materials))):
-                                if ("L_WordballoonText." not in tmat.name):
-                                    # tobj.data.materials.pop(index=i)
-                                    tobj.active_material_index = i
-                                    bpy.ops.object.material_slot_remove()
-
-
-            # bpy.context.scene.collection.objects.unlink(mobj)
-            # bpy.context.scene.collection.objects.unlink(text_material_object)
-            bpy.ops.object.select_all(action='DESELECT')
-            letter.select_set(state=True)
-            bpy.context.view_layer.objects.active = letter
-            bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
-        
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
-        bpy.ops.object.origin_clear()
-
-        camera_position = active_camera.matrix_world.to_translation()
-
-
-        letters_collection = getCurrentLettersCollection()
-        if not letters_collection:
-            self.report({'WARNING'}, "Export Collection " + letters_collection.name + "was not found in scene, skipping export of" + scene.name)
-        else:
-            for obj in objects:
-                bpy.context.collection.objects.unlink(obj) 
-                letters_collection.objects.link(obj)
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
-        for v in bpy.context.window.screen.areas:
-            if v.type=='VIEW_3D':
-                bpy.ops.view3d.snap_cursor_to_selected()
-
-
+        add_letter(self, context, "wordballoon", 1)
         return {'FINISHED'}
-
 
 class BR_OT_add_letter_wordballoon_double(bpy.types.Operator):
     """Add a new worldballoon with letters"""
@@ -4588,87 +4653,8 @@ class BR_OT_add_letter_wordballoon_double(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        material_collection = bpy.data.scenes["Cover"].collection.children['Linked Materials']
-
-        if bpy.context.object:
-            starting_mode = bpy.context.object.mode
-            if "OBJECT" not in starting_mode:
-                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-                bpy.ops.object.select_all(action='DESELECT')
-
-        export_collection = getCurrentExportCollection()
-        active_camera = bpy.context.scene.camera
-        if active_camera is not None :
-            active_camera_name = active_camera.name
-        else:
-            self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
-
-        bpy.ops.object.select_all(action='DESELECT')
-        # load_resource("letter_wordballoon.blend", False)
-        load_resource(self, context, "letter_wordballoon_double.000.blend", True)
-        # load_resource("letter_caption.blend")
-        # load_resource("letter_sfx.blend")
-
-        objects = bpy.context.selected_objects
-        if objects is not None :
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        letter = objects[0]
-        letter_group = getCurrentLetterGroup()
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        letter_group.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter_group
-        # bpy.ops.object.parent_set()
-        bpy.ops.object.parent_no_inverse_set()
-
-        if material_collection:
-            material_objects = material_collection.objects
-            for mobj in material_objects:
-                if mobj.name == "L_Wordballoon":
-                    bpy.context.scene.collection.objects.link(mobj)
-                    bpy.ops.object.select_all(action='DESELECT')
-                    letter.select_set(state=True)
-                    mobj.select_set(state=True)
-                    bpy.context.view_layer.objects.active = mobj
-                    bpy.ops.object.material_slot_copy()
-                    bpy.context.scene.collection.objects.unlink(mobj)
-                    bpy.ops.object.select_all(action='DESELECT')
-                    letter.select_set(state=True)
-                    bpy.context.view_layer.objects.active = letter
-
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
-        bpy.ops.object.origin_clear()
-
-        camera_position = active_camera.matrix_world.to_translation()
-
-
-        letters_collection = getCurrentLettersCollection()
-        if not letters_collection:
-            self.report({'WARNING'}, "Export Collection " + letters_collection.name + "was not found in scene, skipping export of" + scene.name)
-        else:
-            for obj in objects:
-                bpy.context.collection.objects.unlink(obj) 
-                letters_collection.objects.link(obj)
-
-
-
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
-        for v in bpy.context.window.screen.areas:
-            if v.type=='VIEW_3D':
-                bpy.ops.view3d.snap_cursor_to_selected()
-
-
-
+        add_letter(self, context, "wordballoon", 2)
         return {'FINISHED'}
-
-
 
 class BR_OT_add_letter_wordballoon_triple(bpy.types.Operator):
     """Add a new worldballoon with letters"""
@@ -4677,84 +4663,8 @@ class BR_OT_add_letter_wordballoon_triple(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        material_collection = bpy.data.scenes["Cover"].collection.children['Linked Materials']
-
-        if bpy.context.object:
-            starting_mode = bpy.context.object.mode
-            if "OBJECT" not in starting_mode:
-                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-                bpy.ops.object.select_all(action='DESELECT')
-        export_collection = getCurrentExportCollection()
-        active_camera = bpy.context.scene.camera
-        if active_camera is not None :
-            active_camera_name = active_camera.name
-        else:
-            self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
-
-        bpy.ops.object.select_all(action='DESELECT')
-        # load_resource("letter_wordballoon.blend", False)
-        load_resource(self, context, "letter_wordballoon_triple.000.blend", True)
-        # load_resource("letter_caption.blend")
-        # load_resource("letter_sfx.blend")
-
-        objects = bpy.context.selected_objects
-        if objects is not None :
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        letter = objects[0]
-        letter_group = getCurrentLetterGroup()
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        letter_group.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter_group
-        # bpy.ops.object.parent_set()
-        bpy.ops.object.parent_no_inverse_set()
-
-        if material_collection:
-            material_objects = material_collection.objects
-            for mobj in material_objects:
-                if mobj.name == "L_Wordballoon":
-                    bpy.context.scene.collection.objects.link(mobj)
-                    bpy.ops.object.select_all(action='DESELECT')
-                    letter.select_set(state=True)
-                    mobj.select_set(state=True)
-                    bpy.context.view_layer.objects.active = mobj
-                    bpy.ops.object.material_slot_copy()
-                    bpy.context.scene.collection.objects.unlink(mobj)
-                    bpy.ops.object.select_all(action='DESELECT')
-                    letter.select_set(state=True)
-                    bpy.context.view_layer.objects.active = letter
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
-        bpy.ops.object.origin_clear()
-
-        camera_position = active_camera.matrix_world.to_translation()
-
-
-        letters_collection = getCurrentLettersCollection()
-        if not letters_collection:
-            self.report({'WARNING'}, "Export Collection " + letters_collection.name + "was not found in scene, skipping export of" + scene.name)
-        else:
-            for obj in objects:
-                bpy.context.collection.objects.unlink(obj) 
-                letters_collection.objects.link(obj)
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
-        for v in bpy.context.window.screen.areas:
-            if v.type=='VIEW_3D':
-                bpy.ops.view3d.snap_cursor_to_selected()
-
-
-
+        add_letter(self, context, "wordballoon", 3)
         return {'FINISHED'}
-
-
-
-
 
 class BR_OT_add_letter_wordballoon_quadruple(bpy.types.Operator):
     """Add a new worldballoon with letters"""
@@ -4763,79 +4673,7 @@ class BR_OT_add_letter_wordballoon_quadruple(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        material_collection = bpy.data.scenes["Cover"].collection.children['Linked Materials']
-        if bpy.context.object:
-            starting_mode = bpy.context.object.mode
-            if "OBJECT" not in starting_mode:
-                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-                bpy.ops.object.select_all(action='DESELECT')
-        export_collection = getCurrentExportCollection()
-        active_camera = bpy.context.scene.camera
-        if active_camera is not None :
-            active_camera_name = active_camera.name
-        else:
-            self.report({'ERROR'}, 'No Camera found in scene: ' + bpy.context.scene.name)
-
-        bpy.ops.object.select_all(action='DESELECT')
-        # load_resource("letter_wordballoon.blend", False)
-        load_resource(self, context, "letter_wordballoon_quadruple.000.blend", True)
-        # load_resource("letter_caption.blend")
-        # load_resource("letter_sfx.blend")
-
-        objects = bpy.context.selected_objects
-        if objects is not None :
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        letter = objects[0]
-        letter_group = getCurrentLetterGroup()
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        letter_group.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter_group
-        # bpy.ops.object.parent_set()
-        bpy.ops.object.parent_no_inverse_set()
-
-        if material_collection:
-            material_objects = material_collection.objects
-            for mobj in material_objects:
-                if mobj.name == "L_Wordballoon":
-                    bpy.context.scene.collection.objects.link(mobj)
-                    bpy.ops.object.select_all(action='DESELECT')
-                    letter.select_set(state=True)
-                    mobj.select_set(state=True)
-                    bpy.context.view_layer.objects.active = mobj
-                    bpy.ops.object.material_slot_copy()
-                    bpy.context.scene.collection.objects.unlink(mobj)
-                    bpy.ops.object.select_all(action='DESELECT')
-                    letter.select_set(state=True)
-                    bpy.context.view_layer.objects.active = letter
-
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
-        bpy.ops.object.origin_clear()
-
-        camera_position = active_camera.matrix_world.to_translation()
-
-
-        letters_collection = getCurrentLettersCollection()
-        if not letters_collection:
-            self.report({'WARNING'}, "Export Collection " + letters_collection.name + "was not found in scene, skipping export of" + scene.name)
-        else:
-            for obj in objects:
-                bpy.context.collection.objects.unlink(obj) 
-                letters_collection.objects.link(obj)
-
-        bpy.ops.object.select_all(action='DESELECT')
-        letter.select_set(state=True)
-        bpy.context.view_layer.objects.active = letter
-        for v in bpy.context.window.screen.areas:
-            if v.type=='VIEW_3D':
-                bpy.ops.view3d.snap_cursor_to_selected()
-
-
-
+        add_letter(self, context, "wordballoon", 4)
         return {'FINISHED'}
 
 
@@ -4919,6 +4757,203 @@ class BR_OT_add_letter_sfx(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def key_camera_auto(self, context, camera_strategy):
+    active_camera = bpy.context.scene.camera
+    start = bpy.context.scene.frame_start
+    end = bpy.context.scene.frame_end
+    mid = end / 2.3
+    if active_camera:
+        active_camera.animation_data_clear()
+        C=bpy.context
+        if (C):
+            old_area_type = C.area.type
+            C.area.type='DOPESHEET_EDITOR'
+
+            if camera_strategy == "camera_random":
+                print("Camera needs to pan randomly!!!!!!!!!!!!!")
+                bpy.context.scene.frame_current = start
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 10
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
+
+                bpy.context.scene.frame_current = mid
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 3
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
+
+                bpy.context.scene.frame_current = end
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
+
+                bpy.ops.action.interpolation_type(type='BEZIER')
+                bpy.ops.action.select_all(action='DESELECT')
+
+            if camera_strategy == "camera_slide_up":
+                bpy.context.scene.frame_current = start
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = -10
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
+
+                bpy.context.scene.frame_current = mid
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 0
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
+
+                bpy.context.scene.frame_current = end
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
+
+                bpy.ops.action.interpolation_type(type='BEZIER')
+                bpy.ops.action.select_all(action='DESELECT')
+
+            if camera_strategy == "camera_slide_down":
+                bpy.context.scene.frame_current = start
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 10
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
+
+                bpy.context.scene.frame_current = mid
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 3
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
+
+                bpy.context.scene.frame_current = end
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
+
+                bpy.ops.action.interpolation_type(type='BEZIER')
+                bpy.ops.action.select_all(action='DESELECT')
+
+            if camera_strategy == "camera_pan_left":
+                bpy.context.scene.frame_current = start
+                active_camera.location[0] = 10
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
+
+                bpy.context.scene.frame_current = mid
+                active_camera.location[0] = 2
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
+
+                bpy.context.scene.frame_current = end
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
+
+                bpy.ops.action.interpolation_type(type='BEZIER')
+                bpy.ops.action.select_all(action='DESELECT')
+
+            if camera_strategy == "camera_pan_right":
+                bpy.context.scene.frame_current = start
+                active_camera.location[0] = -10
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
+
+                bpy.context.scene.frame_current = mid
+                active_camera.location[0] = -2
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
+
+                bpy.context.scene.frame_current = end
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
+
+                bpy.ops.action.interpolation_type(type='BEZIER')
+                bpy.ops.action.select_all(action='DESELECT')
+
+
+            if camera_strategy == "camera_truck_in":
+                bpy.context.scene.frame_current = start
+                active_camera.location[0] =  0
+                active_camera.location[1] = -30
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
+
+                bpy.context.scene.frame_current = mid
+                active_camera.location[0] =  0
+                active_camera.location[1] = -15
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
+
+                bpy.context.scene.frame_current = end
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
+
+                bpy.ops.action.interpolation_type(type='BEZIER')
+                bpy.ops.action.select_all(action='DESELECT')
+
+
+            if camera_strategy == "camera_truck_out":
+                bpy.context.scene.frame_current = start
+                active_camera.location[0] =  0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
+
+                bpy.context.scene.frame_current = mid
+                active_camera.location[0] =  0
+                active_camera.location[1] = -17
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
+
+                bpy.context.scene.frame_current = end
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -30
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
+
+                bpy.ops.action.interpolation_type(type='BEZIER')
+                bpy.ops.action.select_all(action='DESELECT')
+
+
+            if camera_strategy == "world_spin_cw":
+                
+                bpy.context.scene.frame_current = start
+                active_camera.location[0] =  0
+                active_camera.location[1] = -12
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
+
+                bpy.context.scene.frame_current = mid
+                active_camera.location[0] =  0
+                active_camera.location[1] = -17
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
+
+                bpy.context.scene.frame_current = end
+                active_camera.location[0] = 0.0
+                active_camera.location[1] = -30
+                active_camera.location[2] = 1.52
+                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
+
+                bpy.ops.action.interpolation_type(type='BEZIER')
+                bpy.ops.action.select_all(action='DESELECT')
+
+
+        C.area.type = old_area_type
+
+
 
 
 
@@ -4958,6 +4993,96 @@ class BR_OT_key_scale_hide(bpy.types.Operator):
 
 
         return {'FINISHED'}
+
+class BR_OT_key_camera_random(bpy.types.Operator):
+    """Generate keyframes for camera randomly"""
+    bl_idname = "wm.spiraloid_3d_comic_key_camera_random"
+    bl_label ="random"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        key_camera_auto(self, context, "camera_random")
+        return {'FINISHED'}
+
+class BR_OT_key_camera_slide_up(bpy.types.Operator):
+    """Generate keyframes for camera slide up"""
+    bl_idname = "wm.spiraloid_3d_comic_key_camera_slide_up"
+    bl_label ="slide up"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        key_camera_auto(self, context, "camera_slide_up")
+        return {'FINISHED'}
+
+class BR_OT_key_camera_slide_down(bpy.types.Operator):
+    """Generate keyframes for camera slide down"""
+    bl_idname = "wm.spiraloid_3d_comic_key_camera_slide_down"
+    bl_label ="slide down"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        key_camera_auto(self, context, "camera_slide_down")
+        return {'FINISHED'}
+
+
+class BR_OT_key_camera_pan_left(bpy.types.Operator):
+    """Generate keyframes for camera slide down"""
+    bl_idname = "wm.spiraloid_3d_comic_key_camera_pan_left"
+    bl_label ="slide left"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        key_camera_auto(self, context, "camera_pan_left")
+        return {'FINISHED'}
+
+
+class BR_OT_key_camera_pan_right(bpy.types.Operator):
+    """Generate keyframes for camera pan right"""
+    bl_idname = "wm.spiraloid_3d_comic_key_camera_pan_right"
+    bl_label ="slide right"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        key_camera_auto(self, context, "camera_pan_left")
+        return {'FINISHED'}
+
+
+class BR_OT_key_camera_truck_in(bpy.types.Operator):
+    """Generate keyframes for camera truck in"""
+    bl_idname = "wm.spiraloid_3d_comic_key_camera_truck_in"
+    bl_label ="truck in"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        key_camera_auto(self, context, "camera_truck_in")
+        return {'FINISHED'}
+
+
+class BR_OT_key_camera_truck_out(bpy.types.Operator):
+    """Generate keyframes for camera truck in"""
+    bl_idname = "wm.spiraloid_3d_comic_key_camera_truck_out"
+    bl_label ="truck out"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        key_camera_auto(self, context, "camera_truck_out")
+        return {'FINISHED'}
+
+
+class  BR_OT_key_world_spin_cw(bpy.types.Operator):
+    """Generate keyframes for camera spinning clockwise"""
+    bl_idname = "wm.spiraloid_3d_comic_key_world_spin_cw"
+    bl_label ="spin CW"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        key_camera_auto(self, context, "world_spin_cw")
+        return {'FINISHED'}
+
+class  BR_OT_key_world_spin_ccw(bpy.types.Operator):
+    """Generate keyframes for camera spinning counter clockwise"""
+    bl_idname = "wm.spiraloid_3d_comic_key_world_spin_ccw"
+    bl_label ="spin CCW"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        key_camera_auto(self, context, "world_spin_ccw")
+        return {'FINISHED'}
+
+
+
+
 
 class BR_OT_panel_validate_naming(bpy.types.Operator):
     """Verify 3d panel naming is correct for export"""
@@ -6207,7 +6332,7 @@ class BR_OT_panel_init_ink_lighting(bpy.types.Operator):
         keylight.rotation_euler[0] = -2.61799
         keylight.rotation_euler[1] = -2.61799
         keylight.rotation_euler[2] = -1.5708
-        keylight.data.energy = 25000
+        keylight.data.energy = 500
         keylight.data.color = (1, 1, 1)
         keylight.data.use_contact_shadow = False
         keylight.data.shadow_buffer_clip_start = .1
@@ -6675,6 +6800,11 @@ class BR_MT_export_3d_comic_all(bpy.types.Operator):
         else:
             export_panel(self, context,False, True)
             # export_letters(self, context,False)
+
+
+
+
+
         return {'FINISHED'}
 
 # class BR_MT_export_3d_comic_letters_all(bpy.types.Operator):
@@ -6735,13 +6865,8 @@ class BR_MT_quick_save_export_3d_comic_current(bpy.types.Operator):
 
 
     def execute(self, context):
-        # path to the folder
         file_path = bpy.data.filepath
-        file_name = bpy.path.display_name_from_filepath(file_path)
-        file_ext = '.blend'
-        blend_file_dir = file_path.replace(file_name+file_ext, '')
         file_dir = os.path.dirname(os.path.dirname(file_path)) 
-        bat_file_path = (os.path.join(file_dir, "Read_Local.bat"))
         index_file_path = (os.path.join(file_dir, "index.html"))
         if os.path.isfile(index_file_path):
             print (":::::::::::::::::::")
@@ -6750,11 +6875,15 @@ class BR_MT_quick_save_export_3d_comic_current(bpy.types.Operator):
             # looks like a doesn't exist.  check if we're in a comic dbs.
             if not os.path.exists(file_dir+'\\panels\\'):
                 #we're not in a comic dbs, lets make one.
-                self.report({'WARNING'}, "No comic folders found, try making a comic first")
+                # self.report({'WARNING'}, "No comic folders found, try making a comic first")
+                self.report({'ERROR'}, 'No 3D Comic found next to .blend file!  Try Export 3D Comic first.' + bpy.context.scene.name)
             else:
                 #looks like a panel exists, generate the comic folders and files
                 bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
                 export_panel(self, context,False, True)
+                BR_MT_read_3d_comic.execute(self, context)
+
+
         return {'FINISHED'}
 
 
@@ -6774,8 +6903,8 @@ class BR_MT_read_3d_comic(bpy.types.Operator):
 
 
     def execute(self, context):
-        global pythonServerSubprocess
-
+        global localHostIsRunning
+        global active_language_abreviated
         # path to the folder
         file_path = bpy.data.filepath
         file_name = bpy.path.display_name_from_filepath(file_path)
@@ -6791,15 +6920,23 @@ class BR_MT_read_3d_comic(bpy.types.Operator):
                 bat_file = open(bat_file_path, "w")
                 bat_file.write('cd ' + file_dir +'\n')  
                 bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
-                bat_file.write('python -m SimpleHTTPServer 8002' +'\n')
+                # bat_file.write('python -m  http.server ' +'\n')
+                bat_file.write('tasklist /nh /fi "imagename eq python.exe" | find /i "python.exe" > nul | (python -m  http.server)' +'\n')
+
                 bat_file.close()
 
             # subprocess.Popen('explorer '+ file_dir)
-            if pythonServerSubprocess:
-                pythonServerSubprocess.terminate()
-            cmd = bat_file_path
-            pythonServerSubprocess = subprocess.Popen(cmd)
-            # subprocess.Popen(bat_file_path)
+
+            localHostIsRunning
+            if localHostIsRunning is False:
+                # localHostIsRunning.terminate()
+                cmd = bat_file_path
+                subprocess.Popen(cmd, shell=True)
+                localHostIsRunning = True
+                # subprocess.Popen(bat_file_path)
+            else:
+                subprocess.Popen(bat_file_path)
+
         else:
             self.report({'ERROR'}, 'No 3D Comic found next to .blend file!  Try Export 3D Comic first.' + bpy.context.scene.name)
 
@@ -8996,6 +9133,23 @@ class BR_MT_3d_comic_submenu_assets_shared(bpy.types.Menu):
 
 
 
+class BR_MT_3d_comic_submenu_key_camera(bpy.types.Menu):
+    bl_idname = 'view3d.spiraloid_3d_comic_submenu_key_camera'
+    bl_label = 'Key Camera'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("wm.spiraloid_3d_comic_key_camera_random", icon="CON_CAMERASOLVER")
+        layout.operator("wm.spiraloid_3d_comic_key_camera_slide_up", icon="CON_CAMERASOLVER")
+        layout.operator("wm.spiraloid_3d_comic_key_camera_slide_down", icon="CON_CAMERASOLVER")
+        layout.operator("wm.spiraloid_3d_comic_key_camera_pan_left", icon="CON_CAMERASOLVER")
+        layout.operator("wm.spiraloid_3d_comic_key_camera_pan_right", icon="CON_CAMERASOLVER")
+        layout.operator("wm.spiraloid_3d_comic_key_camera_truck_in", icon="CON_CAMERASOLVER")
+        layout.operator("wm.spiraloid_3d_comic_key_camera_truck_out", icon="CON_CAMERASOLVER")
+        layout.operator("wm.spiraloid_3d_comic_key_world_spin_CW", icon="CON_CAMERASOLVER")
+        layout.operator("wm.spiraloid_3d_comic_key_world_spin_CCW", icon="CON_CAMERASOLVER")
+
+
 
 class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
     bl_idname = 'view3d.spiraloid_3d_comic_submenu_utilities'
@@ -9025,6 +9179,7 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
             layout.operator("wm.spiraloid_toggle_child_lock", icon="RESTRICT_INSTANCED_OFF")
         layout.separator()
         layout.operator("wm.spiraloid_3d_comic_key_scale_hide", icon="HIDE_ON")
+        layout.menu(BR_MT_3d_comic_submenu_key_camera.bl_idname, icon="CON_CAMERASOLVER")
         layout.separator()
         if developer_mode:
             layout.operator("view3d.spiraloid_3d_comic_preview", icon= "FILE_MOVIE")
@@ -9038,7 +9193,6 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
 
         # layout.operator("view3d.spiraloid_export_3d_comic_letters_current", icon="RENDER_RESULT")
         # layout.operator("view3d.spiraloid_export_3d_comic_letters_all", icon="RENDER_RESULT")
-
 
 
 class BR_MT_3d_comic_submenu_lighting(bpy.types.Menu):
@@ -9106,6 +9260,15 @@ classes = (
     BR_MT_3d_comic_submenu_letters,
     BR_OT_spiraloid_3d_comic_workshop,
     BR_OT_key_scale_hide,
+    BR_OT_key_camera_random,
+    BR_OT_key_camera_slide_up,
+    BR_OT_key_camera_slide_down,
+    BR_OT_key_camera_pan_left,
+    BR_OT_key_camera_pan_right,
+    BR_OT_key_camera_truck_in,
+    BR_OT_key_camera_truck_out,
+     BR_OT_key_world_spin_cw,
+     BR_OT_key_world_spin_ccw,
     BR_OT_add_outline,
     BR_OT_add_toonshade,
     BR_OT_add_whiteout,
@@ -9168,7 +9331,9 @@ classes = (
     BR_OT_pose_cycle_previous,
     BR_OT_spiraloid_toggle_workmode,
     BR_OT_spiraloid_automap,
-    OBJECT_OT_drop_to_ground
+    OBJECT_OT_drop_to_ground,
+    BR_MT_3d_comic_submenu_key_camera
+
 )
 
     # ComicPreferences,

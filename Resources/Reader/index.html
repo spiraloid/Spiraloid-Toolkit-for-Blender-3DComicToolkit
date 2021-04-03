@@ -167,7 +167,7 @@
 										<!-- <img src="./images/thow_lo.gif" alt="" style="max-width:100%; height:auto; display: block; position: absolute; margin-right: -50%; top: 20%; left: 50%; transform: translate(-50%, -50%)"  href=""  > -->
 									
 										<h1>Welcome to the latest installment of</h1>
-										<div class="title_image" ><img alt="" height="100%" width="100%" src="./images/main_banner.gif" ></div>
+										<div class="title_image" ><img alt="" height="100%" width="100%" src="./images/main_banner.jpg" ></div>
 										<p>This chapter is in progress and might 
 										<font style="color:rgb(255, 255, 255);font-family:'Courier Prime';">
 											<b>update often!</b>
@@ -414,7 +414,8 @@
 				else{
 					renderer = new THREE.WebGLRenderer( { canvas: canvas, antialias: false } );
 					renderer.setPixelRatio( window.devicePixelRatio * 1.2);
-					renderer.shadowMap.type = THREE.BasicShadowMap;
+					renderer.shadowMap.type = THREE.VSMShadowMap;
+
 				}
 
 				renderer.setClearColor( 0x131313 );
