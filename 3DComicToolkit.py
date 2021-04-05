@@ -1189,11 +1189,14 @@ def automap(mesh_objects, decimate_ratio):
                 bpy.ops.mesh.uv_texture_add()
                 bpy.ops.object.mode_set(mode='EDIT', toggle=False)
                 bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.uv.smart_project(angle_limit=66, island_margin=0.02, area_weight=0.75, correct_aspect=True, scale_to_bounds=True)
-                bpy.ops.uv.seams_from_islands()
-                bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
-                # bpy.ops.uv.minimize_stretch(iterations=1024)
-                bpy.ops.uv.average_islands_scale()
+                # bpy.ops.uv.smart_project(angle_limit=66, island_margin=0.02, area_weight=0.75, correct_aspect=True, scale_to_bounds=True)
+                # bpy.ops.uv.seams_from_islands()
+                # bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
+                # # bpy.ops.uv.minimize_stretch(iterations=1024)
+                # bpy.ops.uv.average_islands_scale()
+
+
+                bpy.ops.uv.cube_project(cube_size=1)
 
                 # area = bpy.context.area
                 # old_type = area.type
@@ -1250,14 +1253,19 @@ def automap(mesh_objects, decimate_ratio):
                                 override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
                                 bpy.ops.uv.select_all(action='SELECT')
                                 bpy.context.scene.tool_settings.use_uv_select_sync = True
-                                bpy.ops.uv.average_islands_scale(override)
                                 # bpy.ops.uv.minimize_stretch(override, iterations=100)
-                                bpy.ops.uv.pack_islands(override , margin=0.05)
                                 if operator_exists("uvpackmaster2"):
                                     bpy.context.scene.uvp2_props.pack_to_others = False
-                                    bpy.context.scene.uvp2_props.margin = 0.015
+                                    bpy.context.scene.uvp2_props.margin = 0.005
                                     bpy.context.scene.uvp2_props.rot_step = 5
+                                    bpy.ops.uvpackmaster2.uv_measure_area()
                                     bpy.ops.uvpackmaster2.uv_pack()
+                                else:
+                                    bpy.ops.uv.average_islands_scale(override)
+                                    bpy.ops.uv.pack_islands(override , margin=0.005)
+
+
+
 
             # bpy.ops.mesh.select_all(action='SELECT')
             # C=bpy.context
@@ -7179,415 +7187,1402 @@ class BR_OT_bake_panel(bpy.types.Operator):
 
     def execute(self, context):  
         settings = context.scene.bake_panel_settings
-        if bpy.data.is_dirty:
-            bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
+        # if bpy.data.is_dirty:
+            # bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
             # bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
 
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
+        scene_name = bpy.context.window.scene.name
+        currSceneIndex = getCurrentSceneIndex()
+        export_collection = getCurrentExportCollection()
+        if (export_collection):
+            export_collection_name = export_collection.name
         else:
+            if settings.target_strategy != "target_existing":
+                export_collection_name = "Export"
+                e_collection = bpy.data.collections.new(export_collection_name)
+                bpy.context.scene.collection.children.link(e_collection)  
+                export_collection = bpy.data.collections.get(export_collection_name)
+
+        # panel_number = "0000"
+        # panels = []
+
+        # for scene in bpy.data.scenes:
+        #     if "p." in scene.name:
+        #         panels.append(scene.name)
+        # for panel in panels :
+        #     for i in range(len(bpy.data.scenes)):
+        #         if bpy.data.scenes[currSceneIndex].name == panel:
+        #             stringFragments = panel.split('.')
+        #             export_collection_name = "Export." + stringFragments[1]
+        #             panel_number = stringFragments[1]
+
+
+
+
+        # layer_collection = bpy.context.view_layer.layer_collection
+
+        source_collection = settings.bakeSourceCollection
+        source_collection_name = source_collection.name
+        scene_collection = bpy.context.view_layer.layer_collection
+        bake_collection_name =  (scene_name + "_" + source_collection_name  + "_baked")
+        bake_mesh_name = (scene_name + "_" + source_collection_name  + "_baked")
+
+        hasMultires = False
+
+
+
+        # if source_collection is None :
+        #     selected_objects = bpy.context.selected_objects
+        #     if len(selected_objects) > 0:
+        #         source_collection = selected_objects[0].users_collection[0]            
+        #         source_collection_name = source_collection.name  
+        #     else:
+        #         # source_collection = scene_collection
+        #         collections =  context.view_layer.objects.active.users_collection          
+        #         if len(collections) > 2:
+        #             self.report({'ERROR'}, 'You must select a collection!')
+        #     return {'FINISHED'} 
+
+
+        if bpy.ops.object.mode_set.poll():
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+
+
+        # cleanup previous bake collection 
+        if bpy.data.collections.get(bake_collection_name) : 
+            old_bake_collection = bpy.data.collections.get(bake_collection_name)
+            bpy.context.view_layer.active_layer_collection = export_collection.children[bake_collection_name]
+            bpy.data.collections.remove(old_bake_collection)
+            empty_trash(self, context)
+            self.report({'INFO'}, 'Deleted Previous Export collection!')
+
+
+        # manage export collection 
+        layer_collection = bpy.context.view_layer.layer_collection
+        # source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
+        # source_collection = bpy.data.collections.get(source_collection_name)
+        scene_collection = bpy.context.view_layer.layer_collection
+
+        if settings.target_strategy != "target_existing":
+            bake_collection = bpy.data.collections.new(bake_collection_name)
+            export_collection.children.link(bake_collection)
+        else:
+            bake_collection = settings.bakeTargetObject.users_collection[0] 
+            bake_collection_name = bake_collection.name 
+
+
+        obj = bpy.context.object
+        # print ("::::::::::::::::::::::::::::::::::::::::::::::")
+
+        # bpy.ops.object.select_all(action='DESELECT')
+
+        # path to the folder
+        file_path = bpy.data.filepath
+        file_name = bpy.path.display_name_from_filepath(file_path)
+        file_ext = '.blend'
+        file_dir = file_path.replace(file_name+file_ext, '')
+        # materials_dir = file_dir+"\Materials\"
+        materials_dir = file_dir+"\\Materials\\"
+        if not os.path.exists(materials_dir):
+            os.makedirs(materials_dir)
+        
+        settings = context.scene.bake_panel_settings
+
+        if settings.bakeSize == "size_128":
+            width = 128
+            height = 128
+            pixelMargin = 2
+        if settings.bakeSize == "size_256":
+            width = 256
+            height = 256
+            pixelMargin = 2
+        if  settings.bakeSize == "size_512":
+            width = 512
+            height = 512
+            pixelMargin = 4
+        if  settings.bakeSize == "size_1024":
+            width = 1024
+            height = 1024
+            pixelMargin = 8
+        if  settings.bakeSize == "size_2048":
+            width = 2048
+            height = 2048
+            pixelMargin = 8
+        if  settings.bakeSize == "size_4096":
+            width = 4096
+            height = 4096
+            pixelMargin = 8
+        if  settings.bakeSize == "size_8192":
+            width = 8192
+            height = 8192
+            pixelMargin = 8
+
+
+        bake_to_unlit = settings.bake_to_unlit
+        bake_to_pbr = settings.bake_to_pbr
+        bake_albedo = settings.bake_albedo
+        bake_normal = settings.bake_normal
+        bake_metallic = settings.bake_metallic
+        bake_roughness = settings.bake_roughness
+        bake_emission = settings.bake_emission
+        bake_opacity = settings.bake_opacity
+        bake_ao = settings.bake_ao
+        bake_ao_applied = settings.bake_ao_applied
+        bake_curvature = settings.bake_curvature
+        bake_curvature_applied = settings.bake_curvature_applied
+        bake_cavity = settings.bake_cavity
+        bake_cavity_applied = settings.bake_cavity_applied            
+        bake_ao_LoFi = settings.bake_ao_LoFi
+        decimate = settings.bake_w_decimate
+        ratio = settings.bake_w_decimate_ratio
+        bake_distance = settings.bake_distance
+        bake_background = settings.bake_background
+        bake_outline = settings.bake_outline
+
+        wm = context.window_manager
+        tot = 1000
+        wm.progress_begin(0,tot)       
+        progress_current = 0.0
+        process_count =   bake_to_pbr + bake_to_unlit + bake_albedo + bake_normal + bake_roughness + bake_metallic + bake_emission +  bake_opacity + bake_ao + bake_outline + bake_background
+        progress_step = tot/process_count
+        progress_current += progress_step
+        wm.progress_update(progress_current)
+        # for i in range(tot):
+        #     wm.progress_update(i)
+
+        visible_objects = []
+        visible_objects=[ob for ob in bpy.context.scene.objects if ob.visible_get()]
+
+
+        # # select all source meshes
+        # bpy.ops.object.select_all(action='DESELECT')
+        # for ob in source_collection.objects :
+        #     if ob.type == 'MESH' : 
+        #         print (ob.name)
+        #         ob.select_set(state=True)
+        #         bpy.context.view_layer.objects.active = ob
+        # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        # source_meshes = bpy.context.selected_objects
+
+        # select all source meshes
+        source_meshes = []
+        for ob in source_collection.objects :
+            if ob.type == 'MESH' : 
+                if ob.visible_get() :
+                    source_meshes.append(ob)
+
+
+        bake_meshes = []
+        tmp_meshes = []
+
+        if settings.bake_w_decimate :
+            ratio = settings.bake_w_decimate_ratio
+        else:
+            ratio = 1
+
+
+        if settings.target_strategy == "target_automesh":
+            # duplicate all collection objects and put into one collection.
+            for ob in source_meshes :
+                bpy.ops.object.select_all(action='DESELECT')
+                ob.select_set(state=True)
+                bpy.context.view_layer.objects.active = ob
+                bpy.ops.object.duplicate_move()
+                target_object = bpy.context.selected_objects[0]
+                bpy.data.collections[source_collection_name].objects.unlink(target_object)
+                bpy.data.collections[bake_collection_name].objects.link(target_object)
+                tmp_meshes.append(target_object)
+
+            #apply all modifiers
+            for tmp_ob in tmp_meshes:
+                if bpy.context.object:
+                    if "OBJECT" not in bpy.context.object.mode:
+                        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+
+                bpy.ops.object.select_all(action='DESELECT')
+                tmp_ob.select_set(state=True)
+                bpy.context.view_layer.objects.active = tmp_ob
+                for mod in [m for m in tmp_ob.modifiers]:
+                    bpy.ops.object.modifier_apply( modifier=mod.name)            
+                bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+                bpy.ops.mesh.select_mode(use_extend=False, use_expand=True, type='FACE')
+                bpy.ops.mesh.select_all(action='TOGGLE')
+                bpy.ops.mesh.delete_loose()
+                bpy.ops.mesh.dissolve_degenerate()
+                bpy.ops.mesh.remove_doubles()
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+
+            # # UV maps any objects that do not have UV's
+            automap(tmp_meshes, ratio)
+
+            #boolean objects into one mesh
+            bpy.ops.object.select_all(action='DESELECT')
+            for ob in tmp_meshes :
+                ob.select_set(state=True)
+                bpy.context.view_layer.objects.active = ob
+            bpy.ops.object.booltool_auto_union()           
+            bm = bpy.context.object
+            bm.name = bake_mesh_name
+            bake_meshes.append(bm)
+
+            # Triangulate
+            bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+            bpy.ops.mesh.select_mode(use_extend=False, use_expand=True, type='FACE')
+            bpy.ops.mesh.select_all(action='TOGGLE')
+            bpy.ops.mesh.remove_doubles()
+            bpy.ops.mesh.quads_convert_to_tris(quad_method='FIXED', ngon_method='BEAUTY')
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-            bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
-            scene_name = bpy.context.window.scene.name
-            currSceneIndex = getCurrentSceneIndex()
-            export_collection = getCurrentExportCollection()
-            if (export_collection):
-                export_collection_name = export_collection.name
-            else:
-                if settings.target_strategy != "target_existing":
-                    export_collection_name = "Export"
-                    e_collection = bpy.data.collections.new(export_collection_name)
-                    bpy.context.scene.collection.children.link(e_collection)  
-                    export_collection = bpy.data.collections.get(export_collection_name)
-
-            # panel_number = "0000"
-            # panels = []
-
-            # for scene in bpy.data.scenes:
-            #     if "p." in scene.name:
-            #         panels.append(scene.name)
-            # for panel in panels :
-            #     for i in range(len(bpy.data.scenes)):
-            #         if bpy.data.scenes[currSceneIndex].name == panel:
-            #             stringFragments = panel.split('.')
-            #             export_collection_name = "Export." + stringFragments[1]
-            #             panel_number = stringFragments[1]
 
 
 
 
+
+        # if settings.target_strategy == "target_duplicate":
+
+
+
+        # duplicate and move to bake collection
+        if settings.target_strategy == "target_duplicate":
+            for source_object in source_meshes :
+                bpy.ops.object.select_all(action='DESELECT')
+                source_object.select_set(state=True)
+                bpy.context.view_layer.objects.active = source_object
+                target_object_name = source_object.name + "_baked"
+                
+
+                bpy.ops.object.duplicate_move()
+                automap(bpy.context.selected_objects, ratio)
+                target_object = bpy.context.selected_objects[0]
+                target_object.name = target_object_name
+
+                # UV maps any objects if it does not have UV's
+
+                bpy.data.collections[source_collection_name].objects.unlink(target_object)
+                bpy.data.collections[bake_collection_name].objects.link(target_object)
+                bake_meshes.append(target_object)
+
+
+                # self.report({'ERROR'}, '======================================================')
+
+        if settings.target_strategy == "target_existing":
+            # bpy.ops.object.duplicate_move(OBJECT_OT_duplicate={"linked":False, "mode":'TRANSLATION'}, TRANSFORM_OT_translate={"value":(0, 0, 0), "orient_type":'GLOBAL', "orient_matrix":((-4.37114e-08, -1, 0), (1, -4.37114e-08, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":True, "use_proportional_edit":False, "proportional_edit_falloff":'INVERSE_SQUARE', "proportional_size":0.101089, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+            # bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name=bake_collection_name)
+            # bakemesh = bpy.context.object
+            # bake_mesh_name = bm.name
+            # bake_meshes.append(bm)
+            # target_object = settings.bakeTargetObject
+            bake_meshes.append(settings.bakeTargetObject)
+
+
+            # bpy.ops.object.duplicate_move()
+            # target_object = bpy.context.selected_objects[0]
+            # target_object.name = target_object_name
+            # bpy.data.collections[source_collection_name].objects.unlink(target_object)
+            # bpy.data.collections[bake_collection_name].objects.link(target_object)
+
+        if settings.target_strategy == "target_automesh":
+            # bake_mesh_name = ("BakeMesh  " + source_collection.name )
+            # bakemesh.name = bake_mesh_name
+            target_object = bake_meshes[0]
+            # bakemesh = bake_meshes[0]
+
+
+
+        if bake_to_unlit :
+            ## old collection logic
             # layer_collection = bpy.context.view_layer.layer_collection
-
-            source_collection = settings.bakeSourceCollection
-            source_collection_name = source_collection.name
-            scene_collection = bpy.context.view_layer.layer_collection
-            bake_collection_name =  (scene_name + "_" + source_collection_name  + "_baked")
-            bake_mesh_name = (scene_name + "_" + source_collection_name  + "_baked")
-
-            hasMultires = False
-
-
-
-            # if source_collection is None :
-            #     selected_objects = bpy.context.selected_objects
-            #     if len(selected_objects) > 0:
-            #         source_collection = selected_objects[0].users_collection[0]            
-            #         source_collection_name = source_collection.name  
-            #     else:
-            #         # source_collection = scene_collection
-            #         collections =  context.view_layer.objects.active.users_collection          
-            #         if len(collections) > 2:
-            #             self.report({'ERROR'}, 'You must select a collection!')
-            #     return {'FINISHED'} 
-
-
-            if bpy.ops.object.mode_set.poll():
-                bpy.ops.object.mode_set(mode='OBJECT')
-
-
-
-            # cleanup previous bake collection 
-            if bpy.data.collections.get(bake_collection_name) : 
-                old_bake_collection = bpy.data.collections.get(bake_collection_name)
-                bpy.context.view_layer.active_layer_collection = export_collection.children[bake_collection_name]
-                bpy.data.collections.remove(old_bake_collection)
-                empty_trash(self, context)
-                self.report({'INFO'}, 'Deleted Previous Export collection!')
-
-
-            # manage export collection 
-            layer_collection = bpy.context.view_layer.layer_collection
             # source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
             # source_collection = bpy.data.collections.get(source_collection_name)
-            scene_collection = bpy.context.view_layer.layer_collection
+            # scene_collection = bpy.context.view_layer.layer_collection
+            # if source_collection is None :
+            #     if context.view_layer.objects.active is not None :
+            #         collections =  context.view_layer.objects.active.users_collection
+            #         if len(collections) > 0:
+            #             bpy.context.view_layer.active_layer_collection = collections()
+            #             source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
+            #             source_collection = bpy.data.collections.get(source_collection_name)
+            #         else:
+            #             source_collection = scene_collection
+            #             self.report({'ERROR'}, 'You must select a collection!')
+            #             return {'FINISHED'} 
 
-            if settings.target_strategy != "target_existing":
-                bake_collection = bpy.data.collections.new(bake_collection_name)
-                export_collection.children.link(bake_collection)
-            else:
-                bake_collection = settings.bakeTargetObject.users_collection[0] 
-                bake_collection_name = bake_collection.name 
-
-
-            obj = bpy.context.object
-            # print ("::::::::::::::::::::::::::::::::::::::::::::::")
-
-            # bpy.ops.object.select_all(action='DESELECT')
-
-            # path to the folder
-            file_path = bpy.data.filepath
-            file_name = bpy.path.display_name_from_filepath(file_path)
-            file_ext = '.blend'
-            file_dir = file_path.replace(file_name+file_ext, '')
-            # materials_dir = file_dir+"\Materials\"
-            materials_dir = file_dir+"\\Materials\\"
-            if not os.path.exists(materials_dir):
-                os.makedirs(materials_dir)
-            
-            settings = context.scene.bake_panel_settings
-
-            if settings.bakeSize == "size_128":
-                width = 128
-                height = 128
-                pixelMargin = 2
-            if settings.bakeSize == "size_256":
-                width = 256
-                height = 256
-                pixelMargin = 2
-            if  settings.bakeSize == "size_512":
-                width = 512
-                height = 512
-                pixelMargin = 4
-            if  settings.bakeSize == "size_1024":
-                width = 1024
-                height = 1024
-                pixelMargin = 8
-            if  settings.bakeSize == "size_2048":
-                width = 2048
-                height = 2048
-                pixelMargin = 8
-            if  settings.bakeSize == "size_4096":
-                width = 4096
-                height = 4096
-                pixelMargin = 8
-            if  settings.bakeSize == "size_8192":
-                width = 8192
-                height = 8192
-                pixelMargin = 8
+            # bake_collection_name = ("Lightmap Bake " + source_collection.name )
+            # bake_mesh_name = ("Lightmap BakeMesh  " + source_collection.name )
 
 
-            bake_to_unlit = settings.bake_to_unlit
-            bake_to_pbr = settings.bake_to_pbr
-            bake_albedo = settings.bake_albedo
-            bake_normal = settings.bake_normal
-            bake_metallic = settings.bake_metallic
-            bake_roughness = settings.bake_roughness
-            bake_emission = settings.bake_emission
-            bake_opacity = settings.bake_opacity
-            bake_ao = settings.bake_ao
-            bake_ao_applied = settings.bake_ao_applied
-            bake_curvature = settings.bake_curvature
-            bake_curvature_applied = settings.bake_curvature_applied
-            bake_cavity = settings.bake_cavity
-            bake_cavity_applied = settings.bake_cavity_applied            
-            bake_ao_LoFi = settings.bake_ao_LoFi
-            decimate = settings.bake_w_decimate
-            ratio = settings.bake_w_decimate_ratio
-            bake_distance = settings.bake_distance
-            bake_background = settings.bake_background
-            bake_outline = settings.bake_outline
-
-            wm = context.window_manager
-            tot = 1000
-            wm.progress_begin(0,tot)       
-            progress_current = 0.0
-            process_count =   bake_to_pbr + bake_to_unlit + bake_albedo + bake_normal + bake_roughness + bake_metallic + bake_emission +  bake_opacity + bake_ao + bake_outline + bake_background
-            progress_step = tot/process_count
-            progress_current += progress_step
-            wm.progress_update(progress_current)
-            # for i in range(tot):
-            #     wm.progress_update(i)
-
-            visible_objects = []
-            visible_objects=[ob for ob in bpy.context.scene.objects if ob.visible_get()]
 
 
-            # # select all source meshes
+            # bake_to_unlit = True
+            # decimate = True
+
+
+
+            # # verify all objects have UV's, if not create some.
             # bpy.ops.object.select_all(action='DESELECT')
             # for ob in source_collection.objects :
             #     if ob.type == 'MESH' : 
             #         print (ob.name)
             #         ob.select_set(state=True)
             #         bpy.context.view_layer.objects.active = ob
-            # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-            # source_meshes = bpy.context.selected_objects
+            #         if not len( ob.data.uv_layers ):
+            #             bpy.ops.uv.smart_project()
+            #             bpy.ops.uv.smart_project(angle_limit=66)
+            #             bpy.ops.uv.smart_project(island_margin=0.05, user_area_weight=0)
 
-            # select all source meshes
-            source_meshes = []
-            for ob in source_collection.objects :
-                if ob.type == 'MESH' : 
-                    if ob.visible_get() :
-                        source_meshes.append(ob)
+            if settings.target_strategy == "target_automesh" or settings.target_strategy == "target_duplicate" :
 
 
-            bake_meshes = []
-            tmp_meshes = []
+                if decimate:
+                    bpy.ops.object.modifier_add(type='REMESH')
+                    bpy.context.object.modifiers["Remesh"].voxel_size = 0.007
+                    bpy.context.object.modifiers["Remesh"].adaptivity = 0.015
+                    bpy.context.object.modifiers["Remesh"].use_smooth_shade = True
 
-            if settings.bake_w_decimate :
-                ratio = settings.bake_w_decimate_ratio
-            else:
-                ratio = 1
+                    bpy.ops.object.modifier_add(type='DECIMATE')
+                    bpy.context.object.modifiers["Decimate"].decimate_type = 'DISSOLVE'
+                    bpy.context.object.modifiers["Decimate"].angle_limit = 0.0523599
+                    bpy.context.object.modifiers["Decimate"].delimit = {'UV'}
+                    bpy.ops.object.modifier_apply( modifier="Decimate")
+
+                    bpy.ops.object.modifier_add(type='TRIANGULATE')
+                    bpy.context.object.modifiers["Triangulate"].keep_custom_normals = True
+                    bpy.context.object.modifiers["Triangulate"].quad_method = 'FIXED'
+                    bpy.ops.object.modifier_apply( modifier="Triangulate")
+
+                    bpy.ops.object.modifier_add(type='DECIMATE')
+                    print (ratio)
+                    bpy.context.object.modifiers["Decimate"].ratio = ratio
+                    bpy.ops.object.modifier_apply( modifier="Decimate")
+
+                    for mod in [m for m in bm.modifiers]:
+                        bpy.ops.object.modifier_apply( modifier=mod.name)  
+
+                    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+                    bpy.ops.mesh.select_mode(use_extend=False, use_expand=True, type='FACE')
+                    bpy.ops.mesh.select_all(action='TOGGLE')
+                    bpy.ops.mesh.delete_loose()
+                    bpy.ops.mesh.dissolve_degenerate()
+                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+                # area = bpy.context.area
+                # old_type = area.type
+                # area.type = 'VIEW_3D'
+
+                
+                # if old_type != "":
+                    # area.type = old_type
+                # area.type = 'INFO'
 
 
-            if settings.target_strategy == "target_automesh":
-                # duplicate all collection objects and put into one collection.
-                for ob in source_meshes :
-                    bpy.ops.object.select_all(action='DESELECT')
-                    ob.select_set(state=True)
-                    bpy.context.view_layer.objects.active = ob
-                    bpy.ops.object.duplicate_move()
-                    target_object = bpy.context.selected_objects[0]
-                    bpy.data.collections[source_collection_name].objects.unlink(target_object)
-                    bpy.data.collections[bake_collection_name].objects.link(target_object)
-                    tmp_meshes.append(target_object)
 
-                #apply all modifiers
-                for tmp_ob in tmp_meshes:
-                    bpy.ops.object.select_all(action='DESELECT')
-                    tmp_ob.select_set(state=True)
-                    bpy.context.view_layer.objects.active = tmp_ob
-                    for mod in [m for m in tmp_ob.modifiers]:
-                        bpy.ops.object.modifier_apply( modifier=mod.name)            
 
-                # # UV maps any objects that do not have UV's
-                automap(tmp_meshes, ratio)
 
-                #boolean objects into one mesh
+
+
+            # bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name= bake_collection_name)
+
+            # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[-1]
+            
+            
+            # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[source_collection_name]
+            
+            
+            # bpy.context.view_layer.active_layer_collection.exclude = False
+
+            automap(bake_meshes, ratio)
+
+
+            for bakemesh in bake_meshes :
+
+
                 bpy.ops.object.select_all(action='DESELECT')
-                for ob in tmp_meshes :
+                bakemesh.select_set(state=True)
+                bpy.context.view_layer.objects.active = bakemesh
+                # selected_objects = bpy.context.selected_objects
+
+                # nuke_flat_texture(selected_objects, width, height)
+
+                if bakemesh.active_material is not None:
+                    # bakemesh.active_material.node_tree.nodes.clear()
+                    for i in range(len(bakemesh.material_slots)):
+                        bpy.ops.object.material_slot_remove({'object': ob})
+                bpy.ops.object.shade_smooth()
+
+                assetName = bakemesh.name
+                matName = (assetName + "Mat")
+                texName_lightmap = (assetName + "_lightmap")
+                mat = bpy.data.materials.new(name=matName)
+                mat.use_nodes = True
+                mat.node_tree.nodes.clear()
+                mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
+                shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                texture.image = bpy.data.images.new(texName_lightmap, width=width, height=height)
+
+                mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+
+                shader.name = "Background"
+                shader.label = "Background"
+
+                mat_output = mat.node_tree.nodes.get('Material Output')
+                mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+
+
+
+                # Assign it to object
+                if bakemesh.data.materials:
+                    bakemesh.data.materials[0] = mat
+                else:
+                    bakemesh.data.materials.append(mat)  
+
+
+                # Select Objects for Bake
+                bpy.ops.object.select_all(action='DESELECT')
+                for ob in source_meshes :
                     ob.select_set(state=True)
                     bpy.context.view_layer.objects.active = ob
-                bpy.ops.object.booltool_auto_union()           
-                bm = bpy.context.object
-                bm.name = bake_mesh_name
-                bake_meshes.append(bm)
+                bakemesh.select_set(state=True)
+                bpy.context.view_layer.objects.active = bakemesh
 
-                # Triangulate
-                bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-                bpy.ops.mesh.select_mode(use_extend=False, use_expand=True, type='FACE')
-                bpy.ops.mesh.select_all(action='TOGGLE')
-                bpy.ops.mesh.quads_convert_to_tris(quad_method='FIXED', ngon_method='BEAUTY')
-                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+                #set Redner bake settings
+                bpy.context.scene.render.engine = 'CYCLES'
+                bpy.context.scene.render.tile_x =  width
+                bpy.context.scene.render.tile_y =  height
+                bpy.context.scene.cycles.max_bounces = 4
+                bpy.context.scene.cycles.diffuse_bounces = 4
+                bpy.context.scene.cycles.glossy_bounces = 4
+                bpy.context.scene.cycles.transparent_max_bounces = 4
+                bpy.context.scene.cycles.transmission_bounces = 4
+                bpy.context.scene.cycles.volume_bounces = 0
 
+                bpy.context.scene.cycles.bake_type = 'COMBINED'
+                bpy.context.scene.render.bake.use_selected_to_active = True
+                bpy.context.scene.render.bake.use_cage = True
+                ray_length = bakemesh.dimensions[1] * bake_distance
+                bpy.context.scene.render.bake.cage_extrusion = ray_length
+                bpy.context.scene.render.bake.use_pass_direct = True
+                bpy.context.scene.render.bake.use_pass_indirect = True
+                bpy.context.scene.cycles.samples = 256  
 
-
-
-
-            # if settings.target_strategy == "target_duplicate":
-
-
-
-            # duplicate and move to bake collection
-            if settings.target_strategy == "target_duplicate":
-                for source_object in source_meshes :
-                    bpy.ops.object.select_all(action='DESELECT')
-                    source_object.select_set(state=True)
-                    bpy.context.view_layer.objects.active = source_object
-                    target_object_name = source_object.name + "_baked"
-                    
-
-                    bpy.ops.object.duplicate_move()
-                    automap(bpy.context.selected_objects, ratio)
-                    target_object = bpy.context.selected_objects[0]
-                    target_object.name = target_object_name
-
-                    # UV maps any objects if it does not have UV's
-
-                    bpy.data.collections[source_collection_name].objects.unlink(target_object)
-                    bpy.data.collections[bake_collection_name].objects.link(target_object)
-                    bake_meshes.append(target_object)
-
-
-                    # self.report({'ERROR'}, '======================================================')
-
-            if settings.target_strategy == "target_existing":
-                # bpy.ops.object.duplicate_move(OBJECT_OT_duplicate={"linked":False, "mode":'TRANSLATION'}, TRANSFORM_OT_translate={"value":(0, 0, 0), "orient_type":'GLOBAL', "orient_matrix":((-4.37114e-08, -1, 0), (1, -4.37114e-08, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":True, "use_proportional_edit":False, "proportional_edit_falloff":'INVERSE_SQUARE', "proportional_size":0.101089, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
-                # bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name=bake_collection_name)
-                # bakemesh = bpy.context.object
-                # bake_mesh_name = bm.name
-                # bake_meshes.append(bm)
-                # target_object = settings.bakeTargetObject
-                bake_meshes.append(settings.bakeTargetObject)
-
-
-                # bpy.ops.object.duplicate_move()
-                # target_object = bpy.context.selected_objects[0]
-                # target_object.name = target_object_name
-                # bpy.data.collections[source_collection_name].objects.unlink(target_object)
-                # bpy.data.collections[bake_collection_name].objects.link(target_object)
-
-            if settings.target_strategy == "target_automesh":
-                # bake_mesh_name = ("BakeMesh  " + source_collection.name )
-                # bakemesh.name = bake_mesh_name
-                target_object = bake_meshes[0]
-                # bakemesh = bake_meshes[0]
-
-
-
-            if bake_to_unlit :
-                ## old collection logic
-                # layer_collection = bpy.context.view_layer.layer_collection
-                # source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
-                # source_collection = bpy.data.collections.get(source_collection_name)
-                # scene_collection = bpy.context.view_layer.layer_collection
-                # if source_collection is None :
-                #     if context.view_layer.objects.active is not None :
-                #         collections =  context.view_layer.objects.active.users_collection
-                #         if len(collections) > 0:
-                #             bpy.context.view_layer.active_layer_collection = collections()
-                #             source_collection_name = bpy.context.view_layer.active_layer_collection.collection.name
-                #             source_collection = bpy.data.collections.get(source_collection_name)
-                #         else:
-                #             source_collection = scene_collection
-                #             self.report({'ERROR'}, 'You must select a collection!')
-                #             return {'FINISHED'} 
-
-                # bake_collection_name = ("Lightmap Bake " + source_collection.name )
-                # bake_mesh_name = ("Lightmap BakeMesh  " + source_collection.name )
+                #select the output texture node and bake
+                matnodes = bpy.context.active_object.material_slots[0].material.node_tree.nodes
+                imgnodes = [n for n in matnodes if n.type == 'TEX_IMAGE']
+                for n in imgnodes:
+                    if n.image.name == texName_lightmap:
+                        n.select = True
+                        matnodes.active = n
+                        # if os.path.exists(file_dir) and os.path.exists(materials_dir):
+                        #         outBakeFileName = n.image.name+".png"
+                        #         outRenderFileName = materials_dir+outBakeFileName
+                        #         n.image.file_format = 'PNG'
+                        #         n.image.filepath = outRenderFileName
+                        #         bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
+                        #         n.image.save()
+                        #         self.report({'INFO'},"Baked lightmap texture saved to: " + outRenderFileName )
+                        # else:
+                        bpy.ops.object.bake(type='COMBINED')
+                        n.image.pack()
 
 
 
 
-                # bake_to_unlit = True
-                # decimate = True
-
-
-
-                # # verify all objects have UV's, if not create some.
-                # bpy.ops.object.select_all(action='DESELECT')
-                # for ob in source_collection.objects :
-                #     if ob.type == 'MESH' : 
-                #         print (ob.name)
-                #         ob.select_set(state=True)
-                #         bpy.context.view_layer.objects.active = ob
-                #         if not len( ob.data.uv_layers ):
-                #             bpy.ops.uv.smart_project()
-                #             bpy.ops.uv.smart_project(angle_limit=66)
-                #             bpy.ops.uv.smart_project(island_margin=0.05, user_area_weight=0)
-
-                if settings.target_strategy == "target_automesh" or settings.target_strategy == "target_duplicate" :
-
-
-                    if decimate:
-
-                        bpy.ops.object.modifier_add(type='DECIMATE')
-                        bpy.context.object.modifiers["Decimate"].decimate_type = 'DISSOLVE'
-                        bpy.context.object.modifiers["Decimate"].angle_limit = 0.0523599
-                        bpy.context.object.modifiers["Decimate"].delimit = {'UV'}
-                        bpy.ops.object.modifier_apply( modifier="Decimate")
-
-                        bpy.ops.object.modifier_add(type='TRIANGULATE')
-                        bpy.context.object.modifiers["Triangulate"].keep_custom_normals = True
-                        bpy.context.object.modifiers["Triangulate"].quad_method = 'FIXED'
-                        bpy.ops.object.modifier_apply( modifier="Triangulate")
-
-                        bpy.ops.object.modifier_add(type='DECIMATE')
-                        print (ratio)
-                        bpy.context.object.modifiers["Decimate"].ratio = ratio
-                        bpy.ops.object.modifier_apply( modifier="Decimate")
-
-                    # area = bpy.context.area
-                    # old_type = area.type
-                    # area.type = 'VIEW_3D'
-
-                    
-                    # if old_type != "":
-                        # area.type = old_type
-                    # area.type = 'INFO'
-
-
-
-
-
-
-
-                # bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name= bake_collection_name)
-
-                # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[-1]
+                # bpy.ops.object.bake('INVOKE_DEFAULT', type='COMBINED')
+                # bpy.ops.object.bake("INVOKE_SCREEN", type='COMBINED')
                 
-                
-                # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[source_collection_name]
-                
-                
-                # bpy.context.view_layer.active_layer_collection.exclude = False
-
-                automap(bake_meshes, ratio)
+                # bpy.context.view_layer.layer_collection.children[bake_collection_name].exclude = False
+                # bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
 
 
-                for bakemesh in bake_meshes :
+                bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = False
+                bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = False
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[source_collection_name]
+
+            progress_current += progress_step
+            wm.progress_update(progress_current)
+
+        if bake_to_pbr:
+            if bake_albedo or bake_normal or bake_roughness or bake_metallic or bake_emission or bake_opacity or bake_ao or bake_curvature:
+                for target_object in bake_meshes :
+                    if target_object is not None:
+                            
+                        # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+                        bpy.ops.object.select_all(action='DESELECT')
+                        target_object.select_set(state=True)
+                        bpy.context.view_layer.objects.active = target_object
+
+                        # # UV if none exist
+                        # if not len(source_object.data.uv_layers):
+                        #     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+                        #     bpy.ops.mesh.select_all(action='SELECT')
+                        #     # bpy.ops.uv.smart_project()
+                        #     # bpy.ops.uv.smart_project(angle_limit=66)
+                        #     bpy.ops.uv.smart_project(angle_limit=66, island_margin=0.01, user_area_weight=0.75)
+                        #     bpy.ops.uv.average_islands_scale()
+
+                        #     # select all faces
+                        #     # bpy.ops.mesh.select_all(action='SELECT')
+                        #     bpy.ops.uv.pack_islands(margin=0.017)
+
+                        #     # bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.1)
+                        #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+                        #     if decimate:
+                        #         bpy.ops.object.modifier_add(type='DECIMATE')
+                        #         bpy.context.object.modifiers["Decimate"].decimate_type = 'DISSOLVE'
+                        #         bpy.context.object.modifiers["Decimate"].angle_limit = 0.0523599
+                        #         bpy.context.object.modifiers["Decimate"].delimit = {'UV'}
+                        #         bpy.ops.object.modifier_apply( modifier="Decimate")
+
+                        #         bpy.ops.object.modifier_add(type='TRIANGULATE')
+                        #         bpy.context.object.modifiers["Triangulate"].keep_custom_normals = True
+                        #         bpy.context.object.modifiers["Triangulate"].quad_method = 'FIXED'
+                        #         bpy.ops.object.modifier_apply( modifier="Triangulate")
+
+                        #         bpy.ops.object.modifier_add(type='DECIMATE')
+                        #         bpy.context.object.modifiers["Decimate"].ratio = ratio
+                        #         bpy.ops.object.modifier_apply( modifier="Decimate")
+
+                        #     # area = bpy.context.area
+                        #     # old_type = area.type
+                        #     # area.type = 'VIEW_3D'
+                        #     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+                        #     bpy.ops.mesh.select_all(action='SELECT')
+                        #     # if bakemesh.data.uv_layers:
+                        #         # area.type = 'IMAGE_EDITOR'
+                        #     bpy.ops.uv.seams_from_islands()
+
+                        #     # bpy.ops.uv.unwrap(method='CONFORMAL', margin=0.001)
+                        #     bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
+
+                        #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+                            
+                        #     # if old_type != "":
+                        #         # area.type = old_type
+                        #     # area.type = 'INFO'
 
 
-                    bpy.ops.object.select_all(action='DESELECT')
-                    bakemesh.select_set(state=True)
-                    bpy.context.view_layer.objects.active = bakemesh
-                    # selected_objects = bpy.context.selected_objects
+                        # bpy.ops.object.select_all(action='DESELECT')
+                        # bakemesh.select_set(state=True)
+                        # bpy.context.view_layer.objects.active = bakemesh
 
-                    # nuke_flat_texture(selected_objects, width, height)
 
-                    if bakemesh.active_material is not None:
-                        # bakemesh.active_material.node_tree.nodes.clear()
-                        for i in range(len(bakemesh.material_slots)):
+
+
+                        # selected_objects = bpy.context.selected_objects
+                        # nuke_bsdf_textures(selected_objects, self.width, self.height)
+
+                        # for ob in selected_objects:
+                        #         if ob.type == 'MESH':
+
+
+                        if target_object.active_material is not None:
+                            for i in range(len(target_object.material_slots)):
+                                bpy.ops.object.material_slot_remove()
+
+                        # raise Exception('stopping script')
+
+                        # bpy.ops.object.shade_smooth()
+                        # bpy.context.object.data.use_auto_smooth = False
+                        # bpy.ops.mesh.customdata_custom_splitnormals_clear()
+
+                        blend_filename = os.path.basename(bpy.data.filepath)
+                        stringFragments = blend_filename.split('_v')
+                        if stringFragments[0]:
+                            assetName = stringFragments[0] + "_" + target_object.name
+                        else:
+                            assetName = target_object.name
+                        matName = (assetName + "Mat")
+                        mat = bpy.data.materials.new(name=matName)
+                        
+                        mat.use_nodes = True
+                        texName_albedo = (assetName + "_albedo")
+                        texName_roughness = (assetName + "_roughness")
+                        texName_metal = (assetName + "_metallic")
+                        texName_emission = (assetName + "_emission")
+                        texName_opacity = (assetName + "_opacity")
+                        texName_normal = (assetName + "_normal") 
+                        texName_ao = (assetName + "_ao") 
+                        texName_curvature = (assetName + "_curvature")
+                        # texName_orm = (assetName + "_orm")
+
+                        mat.node_tree.nodes.clear()
+                        # bpy.ops.object.shade_smooth()
+                        mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
+                        shader = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
+                        shader.inputs[0].default_value = (1, 1, 1, 1)
+                        mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+
+
+
+                        if bake_albedo:
+                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            texture.image = bpy.data.images.new(texName_albedo,  width=width, height=height)
+                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+
+
+                        if bake_ao:
+                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            texture.image = bpy.data.images.new(texName_ao,  width=width, height=height)
+                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+
+                        if bake_roughness:
+                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            texture.image = bpy.data.images.new(texName_roughness,  width=width, height=height)
+                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[7])
+
+                        if bake_metallic:
+                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            texture.image = bpy.data.images.new(texName_metal,  width=width, height=height)
+                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[4])
+
+                        if bake_curvature:
+                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            texture.image = bpy.data.images.new(texName_curvature,  width=width, height=height)
+                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+
+                        if bake_emission:
+                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            texture.image = bpy.data.images.new(texName_emission,  width=width, height=height)
+                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[17])
+
+                        if bake_opacity:
+                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            texture.image = bpy.data.images.new(texName_opacity,  width=width, height=height)
+                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[19])
+                            mat.blend_method = 'BLEND'
+
+
+                        if bake_normal:
+                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            texture.image = bpy.data.images.new(texName_normal, width=width, height=height)
+                            texture.image.colorspace_settings.name = 'Non-Color'
+                            bump = mat.node_tree.nodes.new(type='ShaderNodeNormalMap')
+                            mat.node_tree.links.new(texture.outputs[0], bump.inputs[1])
+                            mat.node_tree.links.new(bump.outputs[0], shader.inputs[20])
+                            bpy.ops.object.shade_smooth()
+                            bpy.context.object.data.use_auto_smooth = False
+                            bpy.ops.mesh.customdata_custom_splitnormals_clear()
+
+
+                        # Assign it to object
+                        if target_object.data.materials:
+                            target_object.data.materials[0] = mat
+                        else:
+                            target_object.data.materials.append(mat)             
+
+                        bpy.context.scene.render.tile_x =  width
+                        bpy.context.scene.render.tile_y =  height
+                        bpy.context.scene.cycles.max_bounces = 4
+                        bpy.context.scene.cycles.diffuse_bounces = 4
+                        bpy.context.scene.cycles.glossy_bounces = 4
+                        bpy.context.scene.cycles.transparent_max_bounces = 4
+                        bpy.context.scene.cycles.transmission_bounces = 4
+                        bpy.context.scene.cycles.volume_bounces = 0
+
+                        # bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name= bake_collection_name)
+
+                        # bake_collection = bpy.data.collections.get(bake_collection_name)
+                        # bpy.context.view_layer.active_layer_collection = bake_collection
+                        # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[-1]
+
+                        # bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = False
+                        # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[source_collection_name]
+
+                        # bpy.context.view_layer.active_layer_collection.exclude = False
+
+                        bpy.ops.object.select_all(action='DESELECT')
+                        if (settings.target_strategy == "target_automesh") or (settings.target_strategy == "target_duplicate") :
+                            for ob in source_collection.objects :
+                                if ob.type == 'MESH' : 
+                                    bpy.context.view_layer.objects.active = ob
+                                    ob.select_set(state=True)
+                        target_object.select_set(state=True)                       
+                        bpy.context.view_layer.objects.active = target_object
+
+                        #bake the textures
+                        bpy.context.scene.render.engine = 'CYCLES'
+
+                        # if not len(target_object.material_slots):
+                        #     bpy.ops.object.material_slot_add()
+
+                        # if target_object.material_slots[0].material is None:
+                        #     bpy.ops.material.new()
+
+                        # matName = (target_object_name + "Mat")
+                        # texName_lightmap = (target_object_name + "_lightmap")
+                        # mat = bpy.data.materials.new(name=matName)
+                        # mat.use_nodes = True
+                        # mat.node_tree.nodes.clear()
+                        # mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
+                        # shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                        # texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                        # texture.image = bpy.data.images.new(texName_lightmap, width=width, height=height)
+
+                        # mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+
+                        # shader.name = "Background"
+                        # shader.label = "Background"
+
+                        # mat_output = mat.node_tree.nodes.get('Material Output')
+                        # mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+
+                        matnodes = target_object.material_slots[0].material.node_tree.nodes
+                        imgnodes = [n for n in matnodes if n.type == 'TEX_IMAGE']
+
+                        tmp_flat_shader = ""
+                        mat_output = ""
+                        existing_mat_output_connection = ""
+                        geometry_node = ""
+                        curvature_colorramp = ""
+
+                        for n in imgnodes:
+                            if n.image.name == texName_ao:
+                                n.select = True
+                                matnodes.active = n
+                                bpy.context.scene.cycles.bake_type = 'AO'
+                                bpy.context.scene.render.image_settings.file_format = 'PNG'
+                                bpy.context.scene.render.image_settings.color_depth = '8'
+                                bpy.context.scene.render.image_settings.color_mode = 'BW'
+                                if bake_ao_LoFi :
+                                    bpy.context.scene.render.bake.use_selected_to_active = False
+                                    bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
+                                else :
+                                    bpy.context.scene.render.bake.use_selected_to_active = True
+                                    bpy.context.scene.render.bake.use_cage = True
+                                    ray_length = target_object.dimensions[1] * bake_distance
+                                    bpy.context.scene.render.bake.cage_extrusion = ray_length
+                                bpy.context.scene.cycles.samples = 256
+                                bpy.context.scene.render.bake.margin = pixelMargin
+                                if os.path.exists(file_dir):
+                                    if os.path.exists(materials_dir):
+                                        outBakeFileName = n.image.name+".png"
+                                        outRenderFileName = materials_dir+outBakeFileName
+                                        n.image.file_format = 'PNG'
+                                        n.image.filepath = outRenderFileName
+                                        bpy.ops.object.bake(type='AO', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                        n.image.save()
+                                        self.report({'INFO'},"Ambient Oclusion texture saved to: " + outRenderFileName )
+                                else:
+                                    bpy.ops.object.bake(type='AO')
+                                    n.image.pack()
+                                
+                                bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = False
+                                progress_current += progress_step
+                                wm.progress_update(int(progress_current))
+
+
+
+
+                        if bake_ao_applied and bake_ao and bake_albedo:
+                            if os.path.exists(file_dir):
+                                if os.path.exists(materials_dir):
+                                    outBakeFileName = (texName_albedo + "_w_ao")
+                                    outRenderFileName = outBakeFileName
+
+                                    # switch on nodes and get reference
+                                    bpy.context.scene.use_nodes = True
+                                    tree = bpy.context.scene.node_tree
+
+                                    #clear default nodes
+                                    for node in tree.nodes:
+                                            tree.nodes.remove(node)
+                                    
+                                    for image in bpy.data.images:
+                                        if (texName_ao) in image.name:
+                                            ao_image = image
+                                            ao_image_node = tree.nodes.new('CompositorNodeImage')
+                                            ao_image_node.image = ao_image
+
+                                        if (texName_albedo) in image.name:
+                                            albedo_image = image
+                                            albedo_image_node = tree.nodes.new('CompositorNodeImage')
+                                            albedo_image_node.image = albedo_image
+
+
+                                    # image = bpy.data.images.load(filepath= albedo_image)
+                                    # viewer_node = bpy.context.scene.node_tree.nodes.new('CompositorNodeViewer')
+                                    comp_node = tree.nodes.new('CompositorNodeComposite')   
+                                    output_node = tree.nodes.new("CompositorNodeOutputFile")
+
+
+                                    mix_node =  bpy.context.scene.node_tree.nodes.new("CompositorNodeMixRGB")
+                                    mix_node.blend_type = 'MULTIPLY'
+
+
+                                    gamma_node =  bpy.context.scene.node_tree.nodes.new("CompositorNodeGamma")
+                                    gamma_node.inputs[1].default_value = 2
+                                    tree.links.new(ao_image_node.outputs['Image'], gamma_node.inputs[0])
+                                    tree.links.new(gamma_node.outputs['Image'], mix_node.inputs[1])
+                                    tree.links.new(albedo_image_node.outputs['Image'], mix_node.inputs[2])
+
+
+                                    # bpy.context.scene.node_tree.links.new(mix_node.outputs[0], viewer_node.inputs[0])
+
+                                    # baked_ao_image = bpy.data.images.new(texName_albedo + "_w_ao",  width=width, height=height)
+
+
+                                    output_node.base_path =  materials_dir
+                                    output_node.file_slots[0].path = outBakeFileName
+                                    output_node.format.file_format = 'PNG'
+                                    output_node.format.color_mode = 'RGB'
+
+                                    tree.links.new(mix_node.outputs[0], output_node.inputs[0])
+                                    tree.links.new(mix_node.outputs[0], comp_node.inputs[0])
+
+                                    bpy.context.scene.render.use_file_extension = True
+                                    bpy.context.scene.render.use_compositing = True
+                                    
+                                    bpy.ops.render.render(animation=False, write_still=True)
+
+                                    # bpy.app.handlers.render_complete(bake_collection_composite)
+
+                                    outRenderFileNamePadded = materials_dir+outBakeFileName+"0001.png"
+                                    outRenderFileName = materials_dir+outBakeFileName+".png"
+                                    if os.path.exists(outRenderFileName):
+                                        os.remove(outRenderFileName)
+                                    os.rename(outRenderFileNamePadded, outRenderFileName)
+
+                                    self.report({'INFO'},"Composited texture saved to: " + outRenderFileName )
+
+                                    texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                                    try:
+                                        img = bpy.data.images.load(outRenderFileName)
+                                        texture.image = img
+                                        mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+                                    except:
+                                        raise NameError("Cannot load image %s" % path)
+
+
+
+                                    # baked_ao_image.image.pack()
+
+
+
+
+                        for n in imgnodes:
+                            if n.image.name == texName_albedo:
+                                n.select = True
+                                matnodes.active = n
+                                existing_albedo_color = (0, 0, 0, 1)
+
+                                bpy.context.scene.cycles.bake_type = 'COMBINED'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
+                                bpy.context.scene.render.image_settings.file_format = 'PNG'
+                                bpy.context.scene.render.image_settings.color_depth = '8'
+                                bpy.context.scene.render.image_settings.color_mode = 'RGBA'
+                                bpy.context.scene.render.bake.use_pass_indirect = False
+                                bpy.context.scene.render.bake.use_pass_direct = False
+                                bpy.context.scene.render.bake.use_pass_color = True
+                                bpy.context.scene.render.bake.use_selected_to_active = True
+                                bpy.context.scene.render.bake.use_cage = True
+                                ray_length = target_object.dimensions[1] * bake_distance
+                                bpy.context.scene.render.bake.cage_extrusion = ray_length
+                                bpy.context.scene.cycles.samples = 1
+                                bpy.context.scene.render.bake.margin = pixelMargin
+
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            mat_output = src_mat.node_tree.nodes.get('Material Output')
+                                            existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
+                                            shandernode = src_mat.node_tree.nodes.get("Principled BSDF")
+                                            if shandernode:
+                                                tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                                src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
+                                                if not shandernode.inputs[0].links:
+                                                    existing_metal_color = shandernode.inputs[0].default_value
+                                                    tmp_flat_shader.inputs[0].default_value = existing_metal_color
+                                                else:
+                                                    existing_metal_color_input = shandernode.inputs[0].links[0].from_node
+                                                    src_mat.node_tree.links.new(existing_metal_color_input.outputs[0], tmp_flat_shader.inputs[0])
+                                    tmp_src.select_set(state=True)
+
+                                if os.path.exists(file_dir):
+                                    if os.path.exists(materials_dir):
+                                        outBakeFileName = n.image.name+".png"
+                                        outRenderFileName = materials_dir+outBakeFileName
+                                        n.image.file_format = 'PNG'
+                                        n.image.filepath = outRenderFileName
+                                        bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                        n.image.save()
+                                        self.report({'INFO'},"Baked albedo texture saved to: " + outRenderFileName )
+                                else:
+                                    bpy.ops.object.bake(type='COMBINED')
+                                    n.image.pack()
+
+                                # cleanup
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
+                                            src_mat.node_tree.nodes.remove(tmp_flat_shader)
+
+
+
+
+                        for n in imgnodes:
+                            if n.image.name == texName_normal:
+                                n.select = True
+                                matnodes.active = n
+                                bpy.context.scene.render.image_settings.file_format = 'PNG'
+                                bpy.context.scene.render.image_settings.color_depth = '16'
+                                bpy.context.scene.render.image_settings.color_mode = 'RGB'
+                                bpy.context.scene.cycles.samples = 64
+                                bpy.context.scene.render.bake.margin = pixelMargin
+
+                                for mod in [m for m in target_object.modifiers if m.type == 'MULTIRES']:
+                                    hasMultires = True
+                                    mod.levels = 0
+                                
+                                if not hasMultires :
+                                    # bpy.context.scene.render.use_bake_multires = True
+                                    # bpy.context.scene.render.bake_type = 'NORMALS'
+                                    # bpy.context.view_layer.objects.active = target_object
+                                # else :
+                                    bpy.context.scene.render.use_bake_multires = False
+                                    bpy.context.scene.cycles.bake_type = 'NORMAL'
+                                    bpy.context.scene.render.bake.use_selected_to_active = True
+                                    bpy.context.scene.render.bake.use_cage = True
+                                    ray_length = target_object.dimensions[1] * bake_distance
+                                    bpy.context.scene.render.bake.cage_extrusion = ray_length
+
+                                for tmp_src in source_meshes:
+                                    tmp_src.select_set(state=True)
+
+                                if os.path.exists(file_dir):
+                                    if os.path.exists(materials_dir):
+                                        outBakeFileName = n.image.name+".png"
+                                        outRenderFileName = materials_dir+outBakeFileName
+                                        n.image.file_format = 'PNG'
+                                        n.image.filepath = outRenderFileName
+                                        if hasMultires :
+                                            # error here because the soruce meshes might not have UV's   the logic should probably not have them selected.
+                                            bpy.ops.object.bake(type='NORMAL', filepath=outRenderFileName, save_mode='EXTERNAL', use_selected_to_active=False)
+                                        else:
+                                            bpy.ops.object.bake(type='NORMAL', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                        n.image.save()
+                                        self.report({'INFO'},"Baked normal texture saved to: " + outRenderFileName )
+                                else:
+                                    if hasMultires :
+                                        bpy.ops.object.bake(type='NORMAL', use_selected_to_active=False)
+                                    else :
+                                        bpy.ops.object.bake(type='NORMAL')
+                                    n.image.pack()
+
+                                # apply modifiers
+                                for mod in [m for m in target_object.modifiers if m.type == 'MULTIRES']:
+                                    mod.levels = 0
+                                    bpy.ops.object.modifier_apply( modifier=mod.name)     
+                                # for mod in [m for m in target_object.modifiers]:
+
+                                progress_current += progress_step
+                                wm.progress_update(int(progress_current))
+
+                        for n in imgnodes:
+                            if n.image.name == texName_metal:
+                                n.select = True
+                                matnodes.active = n
+                                existing_albedo_color = (0, 0, 0, 1)
+                                existing_metal_color = (0, 0, 0, 1)
+
+                                bpy.context.scene.cycles.bake_type = 'COMBINED'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
+                                bpy.context.scene.render.image_settings.file_format = 'PNG'
+                                bpy.context.scene.render.image_settings.color_depth = '8'
+                                bpy.context.scene.render.image_settings.color_mode = 'BW'
+                                bpy.context.scene.render.bake.use_pass_indirect = False
+                                bpy.context.scene.render.bake.use_pass_direct = False
+                                # bpy.context.scene.render.bake.use_pass_color = True
+                                bpy.context.scene.render.bake.use_selected_to_active = True
+                                bpy.context.scene.render.bake.use_cage = True
+                                ray_length = target_object.dimensions[1] * bake_distance
+                                bpy.context.scene.render.bake.cage_extrusion = ray_length
+                                bpy.context.scene.cycles.samples = 1
+                                bpy.context.scene.render.bake.margin = pixelMargin
+
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            mat_output = src_mat.node_tree.nodes.get('Material Output')
+                                            existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
+                                            shandernode = src_mat.node_tree.nodes.get("Principled BSDF")
+                                            if shandernode:
+                                                tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                                src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
+
+                                                if not shandernode.inputs[4].links:
+                                                    existing_metal_color = shandernode.inputs[4].default_value
+                                                    tmp_flat_shader.inputs[0].default_value = (existing_metal_color, existing_metal_color, existing_metal_color, 1)
+                                                else:
+                                                    existing_metal_color_input = shandernode.inputs[4].links[0].from_node
+                                                    src_mat.node_tree.links.new(existing_metal_color_input.outputs[0], tmp_flat_shader.inputs[0])
+                                    tmp_src.select_set(state=True)
+
+                                if os.path.exists(file_dir):
+                                    if os.path.exists(materials_dir):
+                                        outBakeFileName = n.image.name+".png"
+                                        outRenderFileName = materials_dir+outBakeFileName
+                                        n.image.file_format = 'PNG'
+                                        n.image.filepath = outRenderFileName
+                                        bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                        n.image.save()
+                                        self.report({'INFO'},"Baked metal texture saved to: " + outRenderFileName )
+                                else:
+                                    bpy.ops.object.bake(type='COMBINED')
+                                    n.image.pack()
+
+                                # raise KeyboardInterrupt()
+
+                                # cleanup
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
+                                            src_mat.node_tree.nodes.remove(tmp_flat_shader)
+
+                        for n in imgnodes:
+                            if n.image.name == texName_curvature:
+                                n.select = True
+                                matnodes.active = n
+                                existing_albedo_color = (0, 0, 0, 1)
+                                existing_metal_color = (0, 0, 0, 1)
+
+                                bpy.context.scene.cycles.bake_type = 'EMIT'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
+                                bpy.context.scene.render.image_settings.file_format = 'PNG'
+                                bpy.context.scene.render.image_settings.color_depth = '8'
+                                bpy.context.scene.render.image_settings.color_mode = 'BW'
+                                bpy.context.scene.render.bake.use_pass_indirect = False
+                                bpy.context.scene.render.bake.use_pass_direct = False
+                                # bpy.context.scene.render.bake.use_pass_color = True
+                                bpy.context.scene.render.bake.use_selected_to_active = True
+                                bpy.context.scene.render.bake.use_cage = True
+                                ray_length = target_object.dimensions[1] * bake_distance
+                                bpy.context.scene.render.bake.cage_extrusion = ray_length
+                                bpy.context.scene.cycles.samples = 1
+                                bpy.context.scene.render.bake.margin = pixelMargin
+
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            mat_output = src_mat.node_tree.nodes.get('Material Output')
+                                            existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
+
+                                            tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                            geometry_node = src_mat.node_tree.nodes.new(type='ShaderNodeNewGeometry')
+                                            curvature_colorramp = src_mat.node_tree.nodes.new(type='ShaderNodeValToRGB')
+                                            src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
+                                            curvature_colorramp.color_ramp.elements[1].position = 0.6
+                                            curvature_colorramp.color_ramp.elements[0].position = 0.45
+                                            curvature_colorramp.color_ramp.interpolation = 'EASE'
+
+
+                                            src_mat.node_tree.links.new(geometry_node.outputs[7], curvature_colorramp.inputs[0])
+                                            src_mat.node_tree.links.new(curvature_colorramp.outputs[0], tmp_flat_shader.inputs[0])
+
+                                    tmp_src.select_set(state=True)
+
+
+                                # raise KeyboardInterrupt()
+
+                                if os.path.exists(file_dir):
+                                    if os.path.exists(materials_dir):
+                                        outBakeFileName = n.image.name+".png"
+                                        outRenderFileName = materials_dir+outBakeFileName
+                                        n.image.file_format = 'PNG'
+                                        n.image.filepath = outRenderFileName
+                                        bpy.ops.object.bake(type='EMIT', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                        n.image.save()
+                                        self.report({'INFO'},"Baked curvature texture saved to: " + outRenderFileName )
+                                else:
+                                    bpy.ops.object.bake(type='EMIT')
+                                    n.image.pack()
+
+                                # cleanup
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
+                                            src_mat.node_tree.nodes.remove(tmp_flat_shader)
+                                            src_mat.node_tree.nodes.remove(geometry_node)
+                                            src_mat.node_tree.nodes.remove(curvature_colorramp)
+
+
+
+                        for n in imgnodes:
+                            if n.image.name == texName_roughness:
+                                n.select = True
+                                matnodes.active = n
+                                existing_albedo_color = (0, 0, 0, 1)
+                                existing_roughness_color = (0, 0, 0, 1)
+
+                                bpy.context.scene.cycles.bake_type = 'COMBINED'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
+                                bpy.context.scene.render.image_settings.file_format = 'PNG'
+                                bpy.context.scene.render.image_settings.color_depth = '8'
+                                bpy.context.scene.render.image_settings.color_mode = 'BW'
+                                bpy.context.scene.render.bake.use_pass_indirect = False
+                                bpy.context.scene.render.bake.use_pass_direct = False
+                                # bpy.context.scene.render.bake.use_pass_color = True
+                                bpy.context.scene.render.bake.use_selected_to_active = True
+                                bpy.context.scene.render.bake.use_cage = True
+                                ray_length = target_object.dimensions[1] * bake_distance
+                                bpy.context.scene.render.bake.cage_extrusion = ray_length
+                                bpy.context.scene.cycles.samples = 1
+                                bpy.context.scene.render.bake.margin = pixelMargin
+
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            mat_output = src_mat.node_tree.nodes.get('Material Output')
+                                            existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
+                                            shandernode = src_mat.node_tree.nodes.get("Principled BSDF")
+                                            if shandernode:
+                                                tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                                src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
+
+                                                if not shandernode.inputs[7].links:
+                                                    existing_roughness_color = shandernode.inputs[7].default_value
+                                                    tmp_flat_shader.inputs[0].default_value = (existing_roughness_color, existing_roughness_color, existing_roughness_color, 1)
+                                                else:
+                                                    existing_roughness_color = shandernode.inputs[7].links[0].from_node
+                                                    src_mat.node_tree.links.new(existing_roughness_color.outputs[0], tmp_flat_shader.inputs[0])
+                                    tmp_src.select_set(state=True)
+
+                                if os.path.exists(file_dir):
+                                    if os.path.exists(materials_dir):
+                                        outBakeFileName = n.image.name+".png"
+                                        outRenderFileName = materials_dir+outBakeFileName
+                                        n.image.file_format = 'PNG'
+                                        n.image.filepath = outRenderFileName
+                                        bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                        n.image.save()
+                                        self.report({'INFO'},"Baked roughness texture saved to: " + outRenderFileName )
+                                else:
+                                    bpy.ops.object.bake(type='COMBINED')
+                                    n.image.pack()
+
+                                # raise KeyboardInterrupt()
+
+
+                                # cleanup
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
+                                            src_mat.node_tree.nodes.remove(tmp_flat_shader)
+
+
+                        for n in imgnodes:
+                            if n.image.name == texName_emission:
+                                n.select = True
+                                matnodes.active = n
+                                bpy.context.scene.cycles.bake_type = 'EMIT'
+                                bpy.context.scene.render.image_settings.file_format = 'PNG'
+                                bpy.context.scene.render.image_settings.color_depth = '8'
+                                bpy.context.scene.render.image_settings.color_mode = 'BW'
+                                bpy.context.scene.render.bake.use_selected_to_active = True
+                                bpy.context.scene.render.bake.use_cage = True
+                                ray_length = target_object.dimensions[1] * bake_distance
+                                bpy.context.scene.render.bake.cage_extrusion = ray_length
+                                bpy.context.scene.cycles.samples = 64
+                                bpy.context.scene.render.bake.margin = pixelMargin
+                                if os.path.exists(file_dir):
+                                    if os.path.exists(materials_dir):
+                                        outBakeFileName = n.image.name+".png"
+                                        outRenderFileName = materials_dir+outBakeFileName
+                                        n.image.file_format = 'PNG'
+                                        n.image.filepath = outRenderFileName
+                                        bpy.ops.object.bake(type='EMIT', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                        n.image.save()
+                                        self.report({'INFO'},"Baked emission texture saved to: " + outRenderFileName )
+                                else:
+                                    bpy.ops.object.bake(type='EMIT')
+                                    n.image.pack()
+                                progress_current += progress_step
+                                wm.progress_update(int(progress_current))
+
+
+                        # bpy.context.scene.cycles.bake_type = 'NORMAL'
+                        # bpy.context.scene.cycles.bake_type = 'AO'
+                        # bpy.context.scene.cycles.bake_type = 'ROUGHNESS'
+                        # bpy.context.scene.cycles.bake_type = 'GLOSSY'
+                        # if self.bake_emmision :
+                        #     bpy.context.scene.cycles.bake_type = 'EMIT'
+                        
+
+                        # for image in bpy.data.images:
+                        #     if (bake_mesh_name + "_albedo") in image.name:
+                        #         image.pack()
+
+
+
+                        for n in imgnodes:
+                            if n.image.name == texName_opacity:
+                                n.select = True
+                                matnodes.active = n
+                                existing_albedo_color = (0, 0, 0, 1)
+                                existing_opacity_color = (0, 0, 0, 1)
+
+                                bpy.context.scene.cycles.bake_type = 'COMBINED'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
+                                bpy.context.scene.render.image_settings.file_format = 'PNG'
+                                bpy.context.scene.render.image_settings.color_depth = '8'
+                                bpy.context.scene.render.image_settings.color_mode = 'BW'
+                                bpy.context.scene.render.bake.use_pass_indirect = False
+                                bpy.context.scene.render.bake.use_pass_direct = False
+                                # bpy.context.scene.render.bake.use_pass_color = True
+                                bpy.context.scene.render.bake.use_selected_to_active = True
+                                bpy.context.scene.render.bake.use_cage = True
+                                ray_length = target_object.dimensions[1] * bake_distance
+                                bpy.context.scene.render.bake.cage_extrusion = ray_length
+                                bpy.context.scene.cycles.samples = 1
+                                bpy.context.scene.render.bake.margin = pixelMargin
+
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            mat_output = src_mat.node_tree.nodes.get('Material Output')
+                                            existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
+                                            shandernode = src_mat.node_tree.nodes.get("Principled BSDF")
+                                            if shandernode:
+                                                tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                                src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
+
+                                                if not shandernode.inputs[19].links:
+                                                    existing_opacity_color = shandernode.inputs[19].default_value
+                                                    tmp_flat_shader.inputs[0].default_value = (existing_opacity_color, existing_opacity_color, existing_opacity_color, 1)
+                                                else:
+                                                    existing_opacity_color = shandernode.inputs[19].links[0].from_node
+                                                    src_mat.node_tree.links.new(existing_opacity_color.outputs[0], tmp_flat_shader.inputs[0])
+                                    tmp_src.select_set(state=True)
+
+                                if os.path.exists(file_dir):
+                                    if os.path.exists(materials_dir):
+                                        outBakeFileName = n.image.name+".png"
+                                        outRenderFileName = materials_dir+outBakeFileName
+                                        n.image.file_format = 'PNG'
+                                        n.image.filepath = outRenderFileName
+                                        bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                        n.image.save()
+                                        self.report({'INFO'},"Baked opacity texture saved to: " + outRenderFileName )
+                                else:
+                                    bpy.ops.object.bake(type='COMBINED')
+                                    n.image.pack()
+
+                                # raise KeyboardInterrupt()
+
+
+                                # cleanup
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
+                                            src_mat.node_tree.nodes.remove(tmp_flat_shader)
+
+
+
+
+
+        bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
+        if settings.target_strategy != "target_existing":
+            bpy.context.view_layer.layer_collection.children[export_collection_name].children[bake_collection_name].exclude = False
+        
+        # export_collection.children[bake_collection_name].exclude = False
+        bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+
+
+        if bake_outline :
+            outline(bake_meshes, "ink_toon")
+            progress_current += progress_step
+            wm.progress_update(int(progress_current))
+
+
+
+        if bake_background :
+            active_camera = bpy.context.scene.camera
+            skyball_cam = bpy.context.scene.camera
+            skyball_cam_object = bpy.context.selected_objects[0]
+            bpy.context.scene.render.engine = 'CYCLES'
+
+
+
+            if active_camera is not None :
+                camera_collection = active_camera.users_collection[0]
+                if camera_collection is not export_collection:
+                    export_collection.objects.link(active_camera)
+                bpy.ops.object.select_all(action='DESELECT')
+                active_camera.select_set(state=True)
+                bpy.context.view_layer.objects.active = active_camera
+            else :
+                skyball_cam = bpy.data.cameras.new("MirrorBallCamera")
+                skyball_cam_object = bpy.data.objects.new("MirrorBallCamera",skyball_cam)
+                bpy.ops.object.select_all(action='DESELECT')
+                skyball_cam_object.select_set(state=True)
+                bpy.context.view_layer.objects.active = skyball_cam_object
+
+            bpy.context.scene.camera = skyball_cam_object
+            bpy.context.object.data.type = 'PANO'
+            bpy.context.object.data.cycles.panorama_type = 'MIRRORBALL'
+            bpy.context.object.rotation_euler[0] = 1.5708
+            # bpy.context.object.rotation_euler[2] = 3.14159 #180
+            bpy.context.object.rotation_euler[2] = 0
+
+            skyball_cam_object.location[2] = 1.61
+            bpy.context.scene.render.resolution_x = 4096
+            bpy.context.scene.render.resolution_y = 4096
+            bpy.context.scene.render.resolution_percentage = 100
+            bpy.context.scene.cycles.samples = 32
+            bpy.ops.render.render( animation=False, write_still=False )
+
+            img_name = "skyball.png"
+
+            # Render to Packed image.
+            file_path = bpy.data.filepath
+            file_name = bpy.path.display_name_from_filepath(file_path)
+            file_ext = '.blend'
+            file_dir = file_path.replace(file_name+file_ext, '')
+            outRenderFileName = file_dir + "/" + img_name
+
+            if os.path.exists(outRenderFileName):
+                os.remove(outRenderFileName)
+
+            bpy.data.images['Render Result'].save_render(outRenderFileName)
+
+            if os.path.exists(outRenderFileName):
+                bpy.ops.image.open(filepath = outRenderFileName)
+                bpy.data.images[img_name].pack()
+                os.remove(outRenderFileName)
+
+            bpy.context.view_layer.layer_collection.children[export_collection_name].children[bake_collection_name].exclude = False
+
+
+            #reset active camera
+            bpy.context.scene.camera = active_camera
+            bpy.ops.object.select_all(action='DESELECT')
+            skyball_cam_object.select_set(state=True)
+            bpy.context.view_layer.objects.active = skyball_cam_object
+            bpy.ops.object.delete(use_global=False)
+
+            bpy.ops.object.select_all(action='DESELECT')
+            load_resource(self, context, "skyball.blend", False)
+            skyball_objects = bpy.context.selected_objects
+            for ob in skyball_objects:
+                if ob.type == 'MESH':
+                    if ob.active_material is not None:
+                        ob.active_material.node_tree.nodes.clear()
+                        for i in range(len(ob.material_slots)):
                             bpy.ops.object.material_slot_remove({'object': ob})
                     bpy.ops.object.shade_smooth()
 
-                    assetName = bakemesh.name
+                    assetName = ob.name
                     matName = (assetName + "Mat")
-                    texName_lightmap = (assetName + "_lightmap")
                     mat = bpy.data.materials.new(name=matName)
                     mat.use_nodes = True
                     mat.node_tree.nodes.clear()
                     mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
                     shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
                     texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                    texture.image = bpy.data.images.new(texName_lightmap, width=width, height=height)
+                    texture.image = bpy.data.images[img_name]
 
                     mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
 
@@ -7600,1012 +8595,112 @@ class BR_OT_bake_panel(bpy.types.Operator):
 
 
                     # Assign it to object
-                    if bakemesh.data.materials:
-                        bakemesh.data.materials[0] = mat
+                    if ob.data.materials:
+                        ob.data.materials[0] = mat
                     else:
-                        bakemesh.data.materials.append(mat)  
-
-
-                    # Select Objects for Bake
-                    bpy.ops.object.select_all(action='DESELECT')
-                    for ob in source_meshes :
-                        ob.select_set(state=True)
-                        bpy.context.view_layer.objects.active = ob
-                    bakemesh.select_set(state=True)
-                    bpy.context.view_layer.objects.active = bakemesh
-
-                    #set Redner bake settings
-                    bpy.context.scene.render.engine = 'CYCLES'
-                    bpy.context.scene.render.tile_x =  width
-                    bpy.context.scene.render.tile_y =  height
-                    bpy.context.scene.cycles.max_bounces = 4
-                    bpy.context.scene.cycles.diffuse_bounces = 4
-                    bpy.context.scene.cycles.glossy_bounces = 4
-                    bpy.context.scene.cycles.transparent_max_bounces = 4
-                    bpy.context.scene.cycles.transmission_bounces = 4
-                    bpy.context.scene.cycles.volume_bounces = 0
-
-                    bpy.context.scene.cycles.bake_type = 'COMBINED'
-                    bpy.context.scene.render.bake.use_selected_to_active = True
-                    bpy.context.scene.render.bake.use_cage = True
-                    ray_length = bakemesh.dimensions[1] * bake_distance
-                    bpy.context.scene.render.bake.cage_extrusion = ray_length
-                    bpy.context.scene.render.bake.use_pass_direct = True
-                    bpy.context.scene.render.bake.use_pass_indirect = True
-                    bpy.context.scene.cycles.samples = 256  
-
-                    #select the output texture node and bake
-                    matnodes = bpy.context.active_object.material_slots[0].material.node_tree.nodes
-                    imgnodes = [n for n in matnodes if n.type == 'TEX_IMAGE']
-                    for n in imgnodes:
-                        if n.image.name == texName_lightmap:
-                            n.select = True
-                            matnodes.active = n
-                            # if os.path.exists(file_dir) and os.path.exists(materials_dir):
-                            #         outBakeFileName = n.image.name+".png"
-                            #         outRenderFileName = materials_dir+outBakeFileName
-                            #         n.image.file_format = 'PNG'
-                            #         n.image.filepath = outRenderFileName
-                            #         bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
-                            #         n.image.save()
-                            #         self.report({'INFO'},"Baked lightmap texture saved to: " + outRenderFileName )
-                            # else:
-                            bpy.ops.object.bake(type='COMBINED')
-                            n.image.pack()
+                        ob.data.materials.append(mat)
+                    export_collection.objects.link(ob)
+                    bpy.context.scene.collection.objects.unlink(ob)
 
 
 
-
-                    # bpy.ops.object.bake('INVOKE_DEFAULT', type='COMBINED')
-                    # bpy.ops.object.bake("INVOKE_SCREEN", type='COMBINED')
                     
-                    # bpy.context.view_layer.layer_collection.children[bake_collection_name].exclude = False
-                    # bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
 
-
-                    bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = False
-                    bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = False
-                    bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[source_collection_name]
-
-                progress_current += progress_step
-                wm.progress_update(progress_current)
-
-            if bake_to_pbr:
-                if bake_albedo or bake_normal or bake_roughness or bake_metallic or bake_emission or bake_opacity or bake_ao or bake_curvature:
-                    for target_object in bake_meshes :
-                        if target_object is not None:
-                                
-                            # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-                            bpy.ops.object.select_all(action='DESELECT')
-                            target_object.select_set(state=True)
-                            bpy.context.view_layer.objects.active = target_object
-
-                            # # UV if none exist
-                            # if not len(source_object.data.uv_layers):
-                            #     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-                            #     bpy.ops.mesh.select_all(action='SELECT')
-                            #     # bpy.ops.uv.smart_project()
-                            #     # bpy.ops.uv.smart_project(angle_limit=66)
-                            #     bpy.ops.uv.smart_project(angle_limit=66, island_margin=0.01, user_area_weight=0.75)
-                            #     bpy.ops.uv.average_islands_scale()
-
-                            #     # select all faces
-                            #     # bpy.ops.mesh.select_all(action='SELECT')
-                            #     bpy.ops.uv.pack_islands(margin=0.017)
-
-                            #     # bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.1)
-                            #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-
-                            #     if decimate:
-                            #         bpy.ops.object.modifier_add(type='DECIMATE')
-                            #         bpy.context.object.modifiers["Decimate"].decimate_type = 'DISSOLVE'
-                            #         bpy.context.object.modifiers["Decimate"].angle_limit = 0.0523599
-                            #         bpy.context.object.modifiers["Decimate"].delimit = {'UV'}
-                            #         bpy.ops.object.modifier_apply( modifier="Decimate")
-
-                            #         bpy.ops.object.modifier_add(type='TRIANGULATE')
-                            #         bpy.context.object.modifiers["Triangulate"].keep_custom_normals = True
-                            #         bpy.context.object.modifiers["Triangulate"].quad_method = 'FIXED'
-                            #         bpy.ops.object.modifier_apply( modifier="Triangulate")
-
-                            #         bpy.ops.object.modifier_add(type='DECIMATE')
-                            #         bpy.context.object.modifiers["Decimate"].ratio = ratio
-                            #         bpy.ops.object.modifier_apply( modifier="Decimate")
-
-                            #     # area = bpy.context.area
-                            #     # old_type = area.type
-                            #     # area.type = 'VIEW_3D'
-                            #     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-                            #     bpy.ops.mesh.select_all(action='SELECT')
-                            #     # if bakemesh.data.uv_layers:
-                            #         # area.type = 'IMAGE_EDITOR'
-                            #     bpy.ops.uv.seams_from_islands()
-
-                            #     # bpy.ops.uv.unwrap(method='CONFORMAL', margin=0.001)
-                            #     bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
-
-                            #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-                                
-                            #     # if old_type != "":
-                            #         # area.type = old_type
-                            #     # area.type = 'INFO'
-
-
-                            # bpy.ops.object.select_all(action='DESELECT')
-                            # bakemesh.select_set(state=True)
-                            # bpy.context.view_layer.objects.active = bakemesh
-
-
-
-
-                            # selected_objects = bpy.context.selected_objects
-                            # nuke_bsdf_textures(selected_objects, self.width, self.height)
-
-                            # for ob in selected_objects:
-                            #         if ob.type == 'MESH':
-
-
-                            if target_object.active_material is not None:
-                                for i in range(len(target_object.material_slots)):
-                                    bpy.ops.object.material_slot_remove()
-
-                            # raise Exception('stopping script')
-
-                            # bpy.ops.object.shade_smooth()
-                            # bpy.context.object.data.use_auto_smooth = False
-                            # bpy.ops.mesh.customdata_custom_splitnormals_clear()
-
-                            blend_filename = os.path.basename(bpy.data.filepath)
-                            stringFragments = blend_filename.split('_v')
-                            if stringFragments[0]:
-                                assetName = stringFragments[0] + "_" + target_object.name
-                            else:
-                                assetName = target_object.name
-                            matName = (assetName + "Mat")
-                            mat = bpy.data.materials.new(name=matName)
-                            
-                            mat.use_nodes = True
-                            texName_albedo = (assetName + "_albedo")
-                            texName_roughness = (assetName + "_roughness")
-                            texName_metal = (assetName + "_metallic")
-                            texName_emission = (assetName + "_emission")
-                            texName_normal = (assetName + "_normal") 
-                            texName_ao = (assetName + "_ao") 
-                            texName_curvature = (assetName + "_curvature")
-                            # texName_orm = (assetName + "_orm")
-
-                            mat.node_tree.nodes.clear()
-                            # bpy.ops.object.shade_smooth()
-                            mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
-                            shader = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
-                            shader.inputs[0].default_value = (1, 1, 1, 1)
-                            mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-
-
-
-                            if bake_albedo:
-                                texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                                texture.image = bpy.data.images.new(texName_albedo,  width=width, height=height)
-                                mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
-
-
-                            if bake_ao:
-                                texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                                texture.image = bpy.data.images.new(texName_ao,  width=width, height=height)
-                                mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
-
-                            if bake_roughness:
-                                texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                                texture.image = bpy.data.images.new(texName_roughness,  width=width, height=height)
-                                mat.node_tree.links.new(texture.outputs[0], shader.inputs[7])
-
-                            if bake_metallic:
-                                texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                                texture.image = bpy.data.images.new(texName_metal,  width=width, height=height)
-                                mat.node_tree.links.new(texture.outputs[0], shader.inputs[4])
-
-                            if bake_curvature:
-                                texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                                texture.image = bpy.data.images.new(texName_curvature,  width=width, height=height)
-                                mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
-
-                            if bake_emission:
-                                texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                                texture.image = bpy.data.images.new(texName_emission,  width=width, height=height)
-                                mat.node_tree.links.new(texture.outputs[0], shader.inputs[17])
-
-                            if bake_normal:
-                                texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                                texture.image = bpy.data.images.new(texName_normal, width=width, height=height)
-                                texture.image.colorspace_settings.name = 'Non-Color'
-                                bump = mat.node_tree.nodes.new(type='ShaderNodeNormalMap')
-                                mat.node_tree.links.new(texture.outputs[0], bump.inputs[1])
-                                mat.node_tree.links.new(bump.outputs[0], shader.inputs[20])
-                                bpy.ops.object.shade_smooth()
-                                bpy.context.object.data.use_auto_smooth = False
-                                bpy.ops.mesh.customdata_custom_splitnormals_clear()
-
-
-                            # Assign it to object
-                            if target_object.data.materials:
-                                target_object.data.materials[0] = mat
-                            else:
-                                target_object.data.materials.append(mat)             
-
-                            bpy.context.scene.render.tile_x =  width
-                            bpy.context.scene.render.tile_y =  height
-                            bpy.context.scene.cycles.max_bounces = 4
-                            bpy.context.scene.cycles.diffuse_bounces = 4
-                            bpy.context.scene.cycles.glossy_bounces = 4
-                            bpy.context.scene.cycles.transparent_max_bounces = 4
-                            bpy.context.scene.cycles.transmission_bounces = 4
-                            bpy.context.scene.cycles.volume_bounces = 0
-
-                            # bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name= bake_collection_name)
-
-                            # bake_collection = bpy.data.collections.get(bake_collection_name)
-                            # bpy.context.view_layer.active_layer_collection = bake_collection
-                            # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[-1]
-
-                            # bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = False
-                            # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[source_collection_name]
-
-                            # bpy.context.view_layer.active_layer_collection.exclude = False
-
-                            bpy.ops.object.select_all(action='DESELECT')
-                            if (settings.target_strategy == "target_automesh") or (settings.target_strategy == "target_duplicate") :
-                                for ob in source_collection.objects :
-                                    if ob.type == 'MESH' : 
-                                        bpy.context.view_layer.objects.active = ob
-                                        ob.select_set(state=True)
-                            target_object.select_set(state=True)                       
-                            bpy.context.view_layer.objects.active = target_object
-
-                            #bake the textures
-                            bpy.context.scene.render.engine = 'CYCLES'
-
-                            # if not len(target_object.material_slots):
-                            #     bpy.ops.object.material_slot_add()
-
-                            # if target_object.material_slots[0].material is None:
-                            #     bpy.ops.material.new()
-
-                            # matName = (target_object_name + "Mat")
-                            # texName_lightmap = (target_object_name + "_lightmap")
-                            # mat = bpy.data.materials.new(name=matName)
-                            # mat.use_nodes = True
-                            # mat.node_tree.nodes.clear()
-                            # mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
-                            # shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                            # texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                            # texture.image = bpy.data.images.new(texName_lightmap, width=width, height=height)
-
-                            # mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
-
-                            # shader.name = "Background"
-                            # shader.label = "Background"
-
-                            # mat_output = mat.node_tree.nodes.get('Material Output')
-                            # mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-
-                            matnodes = target_object.material_slots[0].material.node_tree.nodes
-                            imgnodes = [n for n in matnodes if n.type == 'TEX_IMAGE']
-
-
-                            for n in imgnodes:
-                                if n.image.name == texName_ao:
-                                    n.select = True
-                                    matnodes.active = n
-                                    bpy.context.scene.cycles.bake_type = 'AO'
-                                    bpy.context.scene.render.image_settings.file_format = 'PNG'
-                                    bpy.context.scene.render.image_settings.color_depth = '8'
-                                    bpy.context.scene.render.image_settings.color_mode = 'BW'
-                                    if bake_ao_LoFi :
-                                        bpy.context.scene.render.bake.use_selected_to_active = False
-                                        bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
-                                    else :
-                                        bpy.context.scene.render.bake.use_selected_to_active = True
-                                        bpy.context.scene.render.bake.use_cage = True
-                                        ray_length = target_object.dimensions[1] * bake_distance
-                                        bpy.context.scene.render.bake.cage_extrusion = ray_length
-                                    bpy.context.scene.cycles.samples = 256
-                                    bpy.context.scene.render.bake.margin = pixelMargin
-                                    if os.path.exists(file_dir):
-                                        if os.path.exists(materials_dir):
-                                            outBakeFileName = n.image.name+".png"
-                                            outRenderFileName = materials_dir+outBakeFileName
-                                            n.image.file_format = 'PNG'
-                                            n.image.filepath = outRenderFileName
-                                            bpy.ops.object.bake(type='AO', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                            n.image.save()
-                                            self.report({'INFO'},"Ambient Oclusion texture saved to: " + outRenderFileName )
-                                    else:
-                                        bpy.ops.object.bake(type='AO')
-                                        n.image.pack()
-                                    
-                                    bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = False
-                                    progress_current += progress_step
-                                    wm.progress_update(int(progress_current))
-
-
-
-
-                            if bake_ao_applied and bake_ao and bake_albedo:
-                                if os.path.exists(file_dir):
-                                    if os.path.exists(materials_dir):
-                                        outBakeFileName = (texName_albedo + "_w_ao")
-                                        outRenderFileName = outBakeFileName
-
-                                        # switch on nodes and get reference
-                                        bpy.context.scene.use_nodes = True
-                                        tree = bpy.context.scene.node_tree
-
-                                        #clear default nodes
-                                        for node in tree.nodes:
-                                                tree.nodes.remove(node)
-                                        
-                                        for image in bpy.data.images:
-                                            if (texName_ao) in image.name:
-                                                ao_image = image
-                                                ao_image_node = tree.nodes.new('CompositorNodeImage')
-                                                ao_image_node.image = ao_image
-
-                                            if (texName_albedo) in image.name:
-                                                albedo_image = image
-                                                albedo_image_node = tree.nodes.new('CompositorNodeImage')
-                                                albedo_image_node.image = albedo_image
-
-
-                                        # image = bpy.data.images.load(filepath= albedo_image)
-                                        # viewer_node = bpy.context.scene.node_tree.nodes.new('CompositorNodeViewer')
-                                        comp_node = tree.nodes.new('CompositorNodeComposite')   
-                                        output_node = tree.nodes.new("CompositorNodeOutputFile")
-
-
-                                        mix_node =  bpy.context.scene.node_tree.nodes.new("CompositorNodeMixRGB")
-                                        mix_node.blend_type = 'MULTIPLY'
-
-
-                                        gamma_node =  bpy.context.scene.node_tree.nodes.new("CompositorNodeGamma")
-                                        gamma_node.inputs[1].default_value = 2
-                                        tree.links.new(ao_image_node.outputs['Image'], gamma_node.inputs[0])
-                                        tree.links.new(gamma_node.outputs['Image'], mix_node.inputs[1])
-                                        tree.links.new(albedo_image_node.outputs['Image'], mix_node.inputs[2])
-
-
-                                        # bpy.context.scene.node_tree.links.new(mix_node.outputs[0], viewer_node.inputs[0])
-
-                                        # baked_ao_image = bpy.data.images.new(texName_albedo + "_w_ao",  width=width, height=height)
-
-
-                                        output_node.base_path =  materials_dir
-                                        output_node.file_slots[0].path = outBakeFileName
-                                        output_node.format.file_format = 'PNG'
-                                        output_node.format.color_mode = 'RGB'
-
-                                        tree.links.new(mix_node.outputs[0], output_node.inputs[0])
-                                        tree.links.new(mix_node.outputs[0], comp_node.inputs[0])
-
-                                        bpy.context.scene.render.use_file_extension = True
-                                        bpy.context.scene.render.use_compositing = True
-                                        
-                                        bpy.ops.render.render(animation=False, write_still=True)
-
-                                        # bpy.app.handlers.render_complete(bake_collection_composite)
-
-                                        outRenderFileNamePadded = materials_dir+outBakeFileName+"0001.png"
-                                        outRenderFileName = materials_dir+outBakeFileName+".png"
-                                        if os.path.exists(outRenderFileName):
-                                            os.remove(outRenderFileName)
-                                        os.rename(outRenderFileNamePadded, outRenderFileName)
-
-                                        self.report({'INFO'},"Composited texture saved to: " + outRenderFileName )
-
-                                        texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                                        try:
-                                            img = bpy.data.images.load(outRenderFileName)
-                                            texture.image = img
-                                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
-                                        except:
-                                            raise NameError("Cannot load image %s" % path)
-
-
-
-                                        # baked_ao_image.image.pack()
-
-
-
-
-
-                            for n in imgnodes:
-                                if n.image.name == texName_albedo:
-                                    n.select = True
-                                    matnodes.active = n
-                                    existing_albedo_color = (0, 0, 0, 1)
-
-                                    bpy.context.scene.cycles.bake_type = 'COMBINED'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
-                                    bpy.context.scene.render.image_settings.file_format = 'PNG'
-                                    bpy.context.scene.render.image_settings.color_depth = '8'
-                                    bpy.context.scene.render.image_settings.color_mode = 'RGBA'
-                                    bpy.context.scene.render.bake.use_pass_indirect = False
-                                    bpy.context.scene.render.bake.use_pass_direct = False
-                                    bpy.context.scene.render.bake.use_pass_color = True
-                                    bpy.context.scene.render.bake.use_selected_to_active = True
-                                    bpy.context.scene.render.bake.use_cage = True
-                                    ray_length = target_object.dimensions[1] * bake_distance
-                                    bpy.context.scene.render.bake.cage_extrusion = ray_length
-                                    bpy.context.scene.cycles.samples = 1
-                                    bpy.context.scene.render.bake.margin = pixelMargin
-
-                                    for tmp_src in source_meshes:
-                                        if tmp_src.data.materials:
-                                            for src_mat in tmp_src.data.materials:
-                                                mat_output = src_mat.node_tree.nodes.get('Material Output')
-                                                existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
-                                                shandernode = src_mat.node_tree.nodes.get("Principled BSDF")
-                                                if shandernode:
-                                                    tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                                                    src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
-                                                    if not shandernode.inputs[0].links:
-                                                        existing_metal_color = shandernode.inputs[0].default_value
-                                                        tmp_flat_shader.inputs[0].default_value = existing_metal_color
-                                                    else:
-                                                        existing_metal_color_input = shandernode.inputs[0].links[0].from_node
-                                                        src_mat.node_tree.links.new(existing_metal_color_input.outputs[0], tmp_flat_shader.inputs[0])
-                                        tmp_src.select_set(state=True)
-
-                                    if os.path.exists(file_dir):
-                                        if os.path.exists(materials_dir):
-                                            outBakeFileName = n.image.name+".png"
-                                            outRenderFileName = materials_dir+outBakeFileName
-                                            n.image.file_format = 'PNG'
-                                            n.image.filepath = outRenderFileName
-                                            bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                            n.image.save()
-                                            self.report({'INFO'},"Baked albedo texture saved to: " + outRenderFileName )
-                                    else:
-                                        bpy.ops.object.bake(type='COMBINED')
-                                        n.image.pack()
-
-                                    # # cleanup
-                                    # src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
-                                    # src_mat.node_tree.nodes.remove(tmp_flat_shader)
-
-
-
-
-
-
-                            for n in imgnodes:
-                                if n.image.name == texName_normal:
-                                    n.select = True
-                                    matnodes.active = n
-                                    bpy.context.scene.render.image_settings.file_format = 'PNG'
-                                    bpy.context.scene.render.image_settings.color_depth = '16'
-                                    bpy.context.scene.render.image_settings.color_mode = 'RGB'
-                                    bpy.context.scene.cycles.samples = 64
-                                    bpy.context.scene.render.bake.margin = pixelMargin
-
-                                    for mod in [m for m in target_object.modifiers if m.type == 'MULTIRES']:
-                                        hasMultires = True
-                                        mod.levels = 0
-                                    
-                                    if not hasMultires :
-                                        # bpy.context.scene.render.use_bake_multires = True
-                                        # bpy.context.scene.render.bake_type = 'NORMALS'
-                                        # bpy.context.view_layer.objects.active = target_object
-                                    # else :
-                                        bpy.context.scene.render.use_bake_multires = False
-                                        bpy.context.scene.cycles.bake_type = 'NORMAL'
-                                        bpy.context.scene.render.bake.use_selected_to_active = True
-                                        bpy.context.scene.render.bake.use_cage = True
-                                        ray_length = target_object.dimensions[1] * bake_distance
-                                        bpy.context.scene.render.bake.cage_extrusion = ray_length
-
-                                    for tmp_src in source_meshes:
-                                        tmp_src.select_set(state=True)
-
-                                    if os.path.exists(file_dir):
-                                        if os.path.exists(materials_dir):
-                                            outBakeFileName = n.image.name+".png"
-                                            outRenderFileName = materials_dir+outBakeFileName
-                                            n.image.file_format = 'PNG'
-                                            n.image.filepath = outRenderFileName
-                                            if hasMultires :
-                                                # error here because the soruce meshes might not have UV's   the logic should probably not have them selected.
-                                                bpy.ops.object.bake(type='NORMAL', filepath=outRenderFileName, save_mode='EXTERNAL', use_selected_to_active=False)
-                                            else:
-                                                bpy.ops.object.bake(type='NORMAL', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                            n.image.save()
-                                            self.report({'INFO'},"Baked normal texture saved to: " + outRenderFileName )
-                                    else:
-                                        if hasMultires :
-                                            bpy.ops.object.bake(type='NORMAL', use_selected_to_active=False)
-                                        else :
-                                            bpy.ops.object.bake(type='NORMAL')
-                                        n.image.pack()
-
-                                    # apply modifiers
-                                    for mod in [m for m in target_object.modifiers if m.type == 'MULTIRES']:
-                                        mod.levels = 0
-                                        bpy.ops.object.modifier_apply( modifier=mod.name)     
-                                    # for mod in [m for m in target_object.modifiers]:
-
-                                    progress_current += progress_step
-                                    wm.progress_update(int(progress_current))
-
-                            for n in imgnodes:
-                                if n.image.name == texName_metal:
-                                    n.select = True
-                                    matnodes.active = n
-                                    existing_albedo_color = (0, 0, 0, 1)
-                                    existing_metal_color = (0, 0, 0, 1)
-
-                                    bpy.context.scene.cycles.bake_type = 'COMBINED'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
-                                    bpy.context.scene.render.image_settings.file_format = 'PNG'
-                                    bpy.context.scene.render.image_settings.color_depth = '8'
-                                    bpy.context.scene.render.image_settings.color_mode = 'BW'
-                                    bpy.context.scene.render.bake.use_pass_indirect = False
-                                    bpy.context.scene.render.bake.use_pass_direct = False
-                                    # bpy.context.scene.render.bake.use_pass_color = True
-                                    bpy.context.scene.render.bake.use_selected_to_active = True
-                                    bpy.context.scene.render.bake.use_cage = True
-                                    ray_length = target_object.dimensions[1] * bake_distance
-                                    bpy.context.scene.render.bake.cage_extrusion = ray_length
-                                    bpy.context.scene.cycles.samples = 1
-                                    bpy.context.scene.render.bake.margin = pixelMargin
-
-                                    for tmp_src in source_meshes:
-                                        if tmp_src.data.materials:
-                                            for src_mat in tmp_src.data.materials:
-                                                mat_output = src_mat.node_tree.nodes.get('Material Output')
-                                                existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
-                                                shandernode = src_mat.node_tree.nodes.get("Principled BSDF")
-                                                if shandernode:
-                                                    tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                                                    src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
-
-                                                    if not shandernode.inputs[4].links:
-                                                        existing_metal_color = shandernode.inputs[4].default_value
-                                                        tmp_flat_shader.inputs[0].default_value = (existing_metal_color, existing_metal_color, existing_metal_color, 1)
-                                                    else:
-                                                        existing_metal_color_input = shandernode.inputs[4].links[0].from_node
-                                                        src_mat.node_tree.links.new(existing_metal_color_input.outputs[0], tmp_flat_shader.inputs[0])
-                                        tmp_src.select_set(state=True)
-
-                                    if os.path.exists(file_dir):
-                                        if os.path.exists(materials_dir):
-                                            outBakeFileName = n.image.name+".png"
-                                            outRenderFileName = materials_dir+outBakeFileName
-                                            n.image.file_format = 'PNG'
-                                            n.image.filepath = outRenderFileName
-                                            bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                            n.image.save()
-                                            self.report({'INFO'},"Baked metal texture saved to: " + outRenderFileName )
-                                    else:
-                                        bpy.ops.object.bake(type='COMBINED')
-                                        n.image.pack()
-
-                                    # raise KeyboardInterrupt()
-
-                                    # # cleanup
-                                    # src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
-                                    # src_mat.node_tree.nodes.remove(tmp_flat_shader)
-
-                            for n in imgnodes:
-                                if n.image.name == texName_curvature:
-                                    n.select = True
-                                    matnodes.active = n
-                                    existing_albedo_color = (0, 0, 0, 1)
-                                    existing_metal_color = (0, 0, 0, 1)
-
-                                    bpy.context.scene.cycles.bake_type = 'EMIT'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
-                                    bpy.context.scene.render.image_settings.file_format = 'PNG'
-                                    bpy.context.scene.render.image_settings.color_depth = '8'
-                                    bpy.context.scene.render.image_settings.color_mode = 'BW'
-                                    bpy.context.scene.render.bake.use_pass_indirect = False
-                                    bpy.context.scene.render.bake.use_pass_direct = False
-                                    # bpy.context.scene.render.bake.use_pass_color = True
-                                    bpy.context.scene.render.bake.use_selected_to_active = True
-                                    bpy.context.scene.render.bake.use_cage = True
-                                    ray_length = target_object.dimensions[1] * bake_distance
-                                    bpy.context.scene.render.bake.cage_extrusion = ray_length
-                                    bpy.context.scene.cycles.samples = 1
-                                    bpy.context.scene.render.bake.margin = pixelMargin
-
-                                    for tmp_src in source_meshes:
-                                        if tmp_src.data.materials:
-                                            for src_mat in tmp_src.data.materials:
-                                                mat_output = src_mat.node_tree.nodes.get('Material Output')
-                                                existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
-
-                                                tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                                                geometry_node = src_mat.node_tree.nodes.new(type='ShaderNodeNewGeometry')
-                                                curvature_colorramp = src_mat.node_tree.nodes.new(type='ShaderNodeValToRGB')
-                                                src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
-                                                curvature_colorramp.color_ramp.elements[1].position = 0.6
-                                                curvature_colorramp.color_ramp.elements[0].position = 0.45
-                                                curvature_colorramp.color_ramp.interpolation = 'EASE'
-
-
-                                                src_mat.node_tree.links.new(geometry_node.outputs[7], curvature_colorramp.inputs[0])
-                                                src_mat.node_tree.links.new(curvature_colorramp.outputs[0], tmp_flat_shader.inputs[0])
-
-                                        tmp_src.select_set(state=True)
-
-
-                                    # raise KeyboardInterrupt()
-
-                                    if os.path.exists(file_dir):
-                                        if os.path.exists(materials_dir):
-                                            outBakeFileName = n.image.name+".png"
-                                            outRenderFileName = materials_dir+outBakeFileName
-                                            n.image.file_format = 'PNG'
-                                            n.image.filepath = outRenderFileName
-                                            bpy.ops.object.bake(type='EMIT', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                            n.image.save()
-                                            self.report({'INFO'},"Baked curvature texture saved to: " + outRenderFileName )
-                                    else:
-                                        bpy.ops.object.bake(type='EMIT')
-                                        n.image.pack()
-
-
-                                            # # cleanup
-                                            # src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
-                                            # src_mat.node_tree.nodes.remove(tmp_flat_shader)
-                                            # src_mat.node_tree.nodes.remove(geometry_node)
-                                            # src_mat.node_tree.nodes.remove(curvature_colorramp)
-
-
-
-                            for n in imgnodes:
-                                if n.image.name == texName_roughness:
-                                    n.select = True
-                                    matnodes.active = n
-                                    existing_albedo_color = (0, 0, 0, 1)
-                                    existing_roughness_color = (0, 0, 0, 1)
-
-                                    bpy.context.scene.cycles.bake_type = 'COMBINED'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
-                                    bpy.context.scene.render.image_settings.file_format = 'PNG'
-                                    bpy.context.scene.render.image_settings.color_depth = '8'
-                                    bpy.context.scene.render.image_settings.color_mode = 'BW'
-                                    bpy.context.scene.render.bake.use_pass_indirect = False
-                                    bpy.context.scene.render.bake.use_pass_direct = False
-                                    # bpy.context.scene.render.bake.use_pass_color = True
-                                    bpy.context.scene.render.bake.use_selected_to_active = True
-                                    bpy.context.scene.render.bake.use_cage = True
-                                    ray_length = target_object.dimensions[1] * bake_distance
-                                    bpy.context.scene.render.bake.cage_extrusion = ray_length
-                                    bpy.context.scene.cycles.samples = 1
-                                    bpy.context.scene.render.bake.margin = pixelMargin
-
-                                    for tmp_src in source_meshes:
-                                        if tmp_src.data.materials:
-                                            for src_mat in tmp_src.data.materials:
-                                                mat_output = src_mat.node_tree.nodes.get('Material Output')
-                                                existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
-                                                shandernode = src_mat.node_tree.nodes.get("Principled BSDF")
-                                                if shandernode:
-                                                    tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                                                    src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
-
-                                                    if not shandernode.inputs[7].links:
-                                                        existing_roughness_color = shandernode.inputs[7].default_value
-                                                        tmp_flat_shader.inputs[0].default_value = (existing_roughness_color, existing_roughness_color, existing_roughness_color, 1)
-                                                    else:
-                                                        existing_roughness_color = shandernode.inputs[7].links[0].from_node
-                                                        src_mat.node_tree.links.new(existing_roughness_color.outputs[0], tmp_flat_shader.inputs[0])
-                                        tmp_src.select_set(state=True)
-
-                                    if os.path.exists(file_dir):
-                                        if os.path.exists(materials_dir):
-                                            outBakeFileName = n.image.name+".png"
-                                            outRenderFileName = materials_dir+outBakeFileName
-                                            n.image.file_format = 'PNG'
-                                            n.image.filepath = outRenderFileName
-                                            bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                            n.image.save()
-                                            self.report({'INFO'},"Baked roughness texture saved to: " + outRenderFileName )
-                                    else:
-                                        bpy.ops.object.bake(type='COMBINED')
-                                        n.image.pack()
-
-                                    # raise KeyboardInterrupt()
-
-                                    # # cleanup
-                                    # src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
-                                    # src_mat.node_tree.nodes.remove(tmp_flat_shader)
-
-                            # for n in imgnodes:
-                            #     if n.image.name == texName_roughness:
-                            #         n.select = True
-                            #         matnodes.active = n
-                            #         bpy.context.scene.cycles.bake_type = 'ROUGHNESS'
-                            #         bpy.context.scene.render.image_settings.file_format = 'PNG'
-                            #         bpy.context.scene.render.image_settings.color_depth = '8'
-                            #         bpy.context.scene.render.image_settings.color_mode = 'BW'
-                            #         bpy.context.scene.render.bake.use_selected_to_active = True
-                            #         bpy.context.scene.render.bake.use_cage = True
-                            #         ray_length = target_object.dimensions[1] * bake_distance
-                            #         bpy.context.scene.render.bake.cage_extrusion = ray_length
-                            #         bpy.context.scene.cycles.samples = 64
-                            #         bpy.context.scene.render.bake.margin = pixelMargin
-                            #         if os.path.exists(file_dir):
-                            #             if os.path.exists(materials_dir):
-                            #                 outBakeFileName = n.image.name+".png"
-                            #                 outRenderFileName = materials_dir+outBakeFileName
-                            #                 n.image.file_format = 'PNG'
-                            #                 n.image.filepath = outRenderFileName
-                            #                 bpy.ops.object.bake(type='ROUGHNESS', filepath=outRenderFileName, save_mode='EXTERNAL')
-                            #                 n.image.save()
-                            #                 self.report({'INFO'},"Baked roughness texture saved to: " + outRenderFileName )
-                            #         else:
-                            #             bpy.ops.object.bake(type='ROUGHNESS')
-                            #             n.image.pack()
-                            #         progress_current += progress_step
-                            #         wm.progress_update(int(progress_current))
-
-
-                            for n in imgnodes:
-                                if n.image.name == texName_emission:
-                                    n.select = True
-                                    matnodes.active = n
-                                    bpy.context.scene.cycles.bake_type = 'EMIT'
-                                    bpy.context.scene.render.image_settings.file_format = 'PNG'
-                                    bpy.context.scene.render.image_settings.color_depth = '8'
-                                    bpy.context.scene.render.image_settings.color_mode = 'BW'
-                                    bpy.context.scene.render.bake.use_selected_to_active = True
-                                    bpy.context.scene.render.bake.use_cage = True
-                                    ray_length = target_object.dimensions[1] * bake_distance
-                                    bpy.context.scene.render.bake.cage_extrusion = ray_length
-                                    bpy.context.scene.cycles.samples = 64
-                                    bpy.context.scene.render.bake.margin = pixelMargin
-                                    if os.path.exists(file_dir):
-                                        if os.path.exists(materials_dir):
-                                            outBakeFileName = n.image.name+".png"
-                                            outRenderFileName = materials_dir+outBakeFileName
-                                            n.image.file_format = 'PNG'
-                                            n.image.filepath = outRenderFileName
-                                            bpy.ops.object.bake(type='EMIT', filepath=outRenderFileName, save_mode='EXTERNAL')
-                                            n.image.save()
-                                            self.report({'INFO'},"Baked emission texture saved to: " + outRenderFileName )
-                                    else:
-                                        bpy.ops.object.bake(type='EMIT')
-                                        n.image.pack()
-                                    progress_current += progress_step
-                                    wm.progress_update(int(progress_current))
-
-
-                            # bpy.context.scene.cycles.bake_type = 'NORMAL'
-                            # bpy.context.scene.cycles.bake_type = 'AO'
-                            # bpy.context.scene.cycles.bake_type = 'ROUGHNESS'
-                            # bpy.context.scene.cycles.bake_type = 'GLOSSY'
-                            # if self.bake_emmision :
-                            #     bpy.context.scene.cycles.bake_type = 'EMIT'
-                            
-
-                            # for image in bpy.data.images:
-                            #     if (bake_mesh_name + "_albedo") in image.name:
-                            #         image.pack()
-
-            bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
-            if settings.target_strategy != "target_existing":
-                bpy.context.view_layer.layer_collection.children[export_collection_name].children[bake_collection_name].exclude = False
-            
-            # export_collection.children[bake_collection_name].exclude = False
-            bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-
-
-            if bake_outline :
-                outline(bake_meshes, "ink_toon")
+            bpy.ops.object.select_all(action='DESELECT')
+            load_resource(self, context, "skyball_warp.blend", False)
+            skyball_warp_objects = bpy.context.selected_objects
+            for ob in skyball_warp_objects:
+                if ob.type == 'MESH':
+                    if ob.active_material is not None:
+                        ob.active_material.node_tree.nodes.clear()
+                        for i in range(len(ob.material_slots)):
+                            bpy.ops.object.material_slot_remove({'object': ob})
+                    bpy.ops.object.shade_smooth()
+
+                    assetName = ob.name
+                    matName = (assetName + "Mat")
+                    mat = bpy.data.materials.new(name=matName)
+                    mat.use_nodes = True
+                    mat.node_tree.nodes.clear()
+                    mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
+                    shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                    texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                    texture.image = bpy.data.images.new("skyball_warp.png", width=width, height=height)
+
+                    mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+
+                    shader.name = "Background"
+                    shader.label = "Background"
+
+                    mat_output = mat.node_tree.nodes.get('Material Output')
+                    mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+
+
+
+                    # Assign it to object
+                    if ob.data.materials:
+                        ob.data.materials[0] = mat
+                    else:
+                        ob.data.materials.append(mat)
+                    export_collection.objects.link(ob)
+                    bpy.context.scene.collection.objects.unlink(ob)
+                    
+
+            bpy.ops.object.select_all(action='DESELECT')
+            skyball_objects[0].select_set(state=True)
+            skyball_warp_objects[0].select_set(state=True)
+            bpy.context.view_layer.objects.active = skyball_warp_objects[0]
+
+            #bake the textures
+            bpy.context.scene.render.tile_x =  width
+            bpy.context.scene.render.tile_y =  height
+            bpy.context.scene.cycles.max_bounces = 1
+            bpy.context.scene.cycles.diffuse_bounces = 1
+            bpy.context.scene.cycles.glossy_bounces = 1
+            bpy.context.scene.cycles.transparent_max_bounces = 1
+            bpy.context.scene.cycles.transmission_bounces = 1
+            bpy.context.scene.cycles.volume_bounces = 0
+
+            bpy.context.scene.render.engine = 'CYCLES'
+            bpy.context.scene.cycles.samples = 1
+
+            matnodes = bpy.context.active_object.material_slots[0].material.node_tree.nodes
+            imgnodes = [n for n in matnodes if n.type == 'TEX_IMAGE']
+
+            for n in imgnodes:
+                n.select = True
+                matnodes.active = n
+                bpy.context.scene.cycles.bake_type = 'COMBINED'
+                bpy.context.scene.render.image_settings.color_depth = '8'
+                bpy.context.scene.render.image_settings.color_mode = 'RGB'
+                bpy.context.scene.render.image_settings.file_format = 'PNG'
+                bpy.context.scene.render.bake.use_pass_indirect = False
+                bpy.context.scene.render.bake.use_pass_direct = False
+                bpy.context.scene.render.bake.use_pass_color = True
+                bpy.context.scene.render.bake.use_selected_to_active = True
+                bpy.context.scene.render.bake.use_cage = True
+                ray_length = skyball_warp_objects[0].dimensions[1] * bake_distance
+                bpy.context.scene.render.bake.cage_extrusion = ray_length
+                if os.path.exists(file_dir):
+                    if os.path.exists(materials_dir):
+                        outBakeFileName = n.image.name+".png"
+                        outRenderFileName = materials_dir+outBakeFileName
+                        n.image.file_format = 'PNG'
+                        n.image.filepath = outRenderFileName
+                        bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
+                        n.image.save()
+                        self.report({'INFO'},"Baked skyball texture saved to: " + outRenderFileName )
+                else:
+                    bpy.ops.object.bake(type='COMBINED')
+                    n.image.pack()
                 progress_current += progress_step
                 wm.progress_update(int(progress_current))
 
 
+            # bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name= bake_collection_name)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[source_collection_name]
 
-            if bake_background :
-                active_camera = bpy.context.scene.camera
-                skyball_cam = bpy.context.scene.camera
-                skyball_cam_object = bpy.context.selected_objects[0]
-                bpy.context.scene.render.engine = 'CYCLES'
-
-
-
-                if active_camera is not None :
-                    camera_collection = active_camera.users_collection[0]
-                    if camera_collection is not export_collection:
-                        export_collection.objects.link(active_camera)
-                    bpy.ops.object.select_all(action='DESELECT')
-                    active_camera.select_set(state=True)
-                    bpy.context.view_layer.objects.active = active_camera
-                else :
-                    skyball_cam = bpy.data.cameras.new("MirrorBallCamera")
-                    skyball_cam_object = bpy.data.objects.new("MirrorBallCamera",skyball_cam)
-                    bpy.ops.object.select_all(action='DESELECT')
-                    skyball_cam_object.select_set(state=True)
-                    bpy.context.view_layer.objects.active = skyball_cam_object
-
-                bpy.context.scene.camera = skyball_cam_object
-                bpy.context.object.data.type = 'PANO'
-                bpy.context.object.data.cycles.panorama_type = 'MIRRORBALL'
-                bpy.context.object.rotation_euler[0] = 1.5708
-                # bpy.context.object.rotation_euler[2] = 3.14159 #180
-                bpy.context.object.rotation_euler[2] = 0
-
-                skyball_cam_object.location[2] = 1.61
-                bpy.context.scene.render.resolution_x = 4096
-                bpy.context.scene.render.resolution_y = 4096
-                bpy.context.scene.render.resolution_percentage = 100
-                bpy.context.scene.cycles.samples = 32
-                bpy.ops.render.render( animation=False, write_still=False )
-
-                img_name = "skyball.png"
-
-                # Render to Packed image.
-                file_path = bpy.data.filepath
-                file_name = bpy.path.display_name_from_filepath(file_path)
-                file_ext = '.blend'
-                file_dir = file_path.replace(file_name+file_ext, '')
-                outRenderFileName = file_dir + "/" + img_name
-
-                if os.path.exists(outRenderFileName):
-                    os.remove(outRenderFileName)
-
-                bpy.data.images['Render Result'].save_render(outRenderFileName)
-
-                if os.path.exists(outRenderFileName):
-                    bpy.ops.image.open(filepath = outRenderFileName)
-                    bpy.data.images[img_name].pack()
-                    os.remove(outRenderFileName)
-
-                bpy.context.view_layer.layer_collection.children[export_collection_name].children[bake_collection_name].exclude = False
-
-
-                #reset active camera
-                bpy.context.scene.camera = active_camera
-                bpy.ops.object.select_all(action='DESELECT')
-                skyball_cam_object.select_set(state=True)
-                bpy.context.view_layer.objects.active = skyball_cam_object
-                bpy.ops.object.delete(use_global=False)
-
-                bpy.ops.object.select_all(action='DESELECT')
-                load_resource(self, context, "skyball.blend", False)
-                skyball_objects = bpy.context.selected_objects
-                for ob in skyball_objects:
-                    if ob.type == 'MESH':
-                        if ob.active_material is not None:
-                            ob.active_material.node_tree.nodes.clear()
-                            for i in range(len(ob.material_slots)):
-                                bpy.ops.object.material_slot_remove({'object': ob})
-                        bpy.ops.object.shade_smooth()
-
-                        assetName = ob.name
-                        matName = (assetName + "Mat")
-                        mat = bpy.data.materials.new(name=matName)
-                        mat.use_nodes = True
-                        mat.node_tree.nodes.clear()
-                        mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
-                        shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                        texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                        texture.image = bpy.data.images[img_name]
-
-                        mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
-
-                        shader.name = "Background"
-                        shader.label = "Background"
-
-                        mat_output = mat.node_tree.nodes.get('Material Output')
-                        mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-
-
-
-                        # Assign it to object
-                        if ob.data.materials:
-                            ob.data.materials[0] = mat
-                        else:
-                            ob.data.materials.append(mat)
-                        export_collection.objects.link(ob)
-                        bpy.context.scene.collection.objects.unlink(ob)
-
-
-
-                        
-
-                bpy.ops.object.select_all(action='DESELECT')
-                load_resource(self, context, "skyball_warp.blend", False)
-                skyball_warp_objects = bpy.context.selected_objects
-                for ob in skyball_warp_objects:
-                    if ob.type == 'MESH':
-                        if ob.active_material is not None:
-                            ob.active_material.node_tree.nodes.clear()
-                            for i in range(len(ob.material_slots)):
-                                bpy.ops.object.material_slot_remove({'object': ob})
-                        bpy.ops.object.shade_smooth()
-
-                        assetName = ob.name
-                        matName = (assetName + "Mat")
-                        mat = bpy.data.materials.new(name=matName)
-                        mat.use_nodes = True
-                        mat.node_tree.nodes.clear()
-                        mat_output = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
-                        shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                        texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                        texture.image = bpy.data.images.new("skyball_warp.png", width=width, height=height)
-
-                        mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
-
-                        shader.name = "Background"
-                        shader.label = "Background"
-
-                        mat_output = mat.node_tree.nodes.get('Material Output')
-                        mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-
-
-
-                        # Assign it to object
-                        if ob.data.materials:
-                            ob.data.materials[0] = mat
-                        else:
-                            ob.data.materials.append(mat)
-                        export_collection.objects.link(ob)
-                        bpy.context.scene.collection.objects.unlink(ob)
-                        
-
-                bpy.ops.object.select_all(action='DESELECT')
-                skyball_objects[0].select_set(state=True)
-                skyball_warp_objects[0].select_set(state=True)
-                bpy.context.view_layer.objects.active = skyball_warp_objects[0]
-
-                #bake the textures
-                bpy.context.scene.render.tile_x =  width
-                bpy.context.scene.render.tile_y =  height
-                bpy.context.scene.cycles.max_bounces = 1
-                bpy.context.scene.cycles.diffuse_bounces = 1
-                bpy.context.scene.cycles.glossy_bounces = 1
-                bpy.context.scene.cycles.transparent_max_bounces = 1
-                bpy.context.scene.cycles.transmission_bounces = 1
-                bpy.context.scene.cycles.volume_bounces = 0
-
-                bpy.context.scene.render.engine = 'CYCLES'
-                bpy.context.scene.cycles.samples = 1
-
-                matnodes = bpy.context.active_object.material_slots[0].material.node_tree.nodes
-                imgnodes = [n for n in matnodes if n.type == 'TEX_IMAGE']
-
-                for n in imgnodes:
-                    n.select = True
-                    matnodes.active = n
-                    bpy.context.scene.cycles.bake_type = 'COMBINED'
-                    bpy.context.scene.render.image_settings.color_depth = '8'
-                    bpy.context.scene.render.image_settings.color_mode = 'RGB'
-                    bpy.context.scene.render.image_settings.file_format = 'PNG'
-                    bpy.context.scene.render.bake.use_pass_indirect = False
-                    bpy.context.scene.render.bake.use_pass_direct = False
-                    bpy.context.scene.render.bake.use_pass_color = True
-                    bpy.context.scene.render.bake.use_selected_to_active = True
-                    bpy.context.scene.render.bake.use_cage = True
-                    ray_length = skyball_warp_objects[0].dimensions[1] * bake_distance
-                    bpy.context.scene.render.bake.cage_extrusion = ray_length
-                    if os.path.exists(file_dir):
-                        if os.path.exists(materials_dir):
-                            outBakeFileName = n.image.name+".png"
-                            outRenderFileName = materials_dir+outBakeFileName
-                            n.image.file_format = 'PNG'
-                            n.image.filepath = outRenderFileName
-                            bpy.ops.object.bake(type='COMBINED', filepath=outRenderFileName, save_mode='EXTERNAL')
-                            n.image.save()
-                            self.report({'INFO'},"Baked skyball texture saved to: " + outRenderFileName )
-                    else:
-                        bpy.ops.object.bake(type='COMBINED')
-                        n.image.pack()
-                    progress_current += progress_step
-                    wm.progress_update(int(progress_current))
-
-
-                # bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name= bake_collection_name)
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[source_collection_name]
-
-            wm.progress_end()
+        wm.progress_end()
 
         return {'FINISHED'}
 
