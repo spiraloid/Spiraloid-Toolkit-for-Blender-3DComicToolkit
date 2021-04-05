@@ -8,7 +8,7 @@ bl_info = {
         'wiki_url': ''
 }
 
-modulesNames = ['3DComicToolkit', 'BakeMeshFlipbook']
+modulesNames = ['3DComicToolkit', 'BakeMeshFlipbook', 'KeyCollectionTreadmill']
 
 modulesFullNames = []
 for currentModuleName in modulesNames:

@@ -7132,9 +7132,10 @@ class BR_OT_bake_panel(bpy.types.Operator):
             col_3 = split.column()
             col_4 = split.column()
             col_2.prop(bake_panel_settings, "bake_curvature")
-            if bake_panel_settings.bake_curvature:
-                col_3.enabled = True
-                col_3.prop(bake_panel_settings, "bake_curvature_applied")
+            if developer_mode:
+                if bake_panel_settings.bake_curvature:
+                    col_3.enabled = True
+                    col_3.prop(bake_panel_settings, "bake_curvature_applied")
 
             split = layout.split(factor=0.05)
             col_1 = split.column()
@@ -7142,14 +7143,11 @@ class BR_OT_bake_panel(bpy.types.Operator):
             col_3 = split.column()
             col_4 = split.column()
             col_2.prop(bake_panel_settings, "bake_ao")
-            if bake_panel_settings.bake_ao:
-                col_3.enabled = True
-                col_3.prop(bake_panel_settings, "bake_ao_applied")
-                col_4.prop(bake_panel_settings, "bake_ao_LoFi")
-
-
-
-
+            if developer_mode:
+                if bake_panel_settings.bake_ao:
+                    col_3.enabled = True
+                    col_3.prop(bake_panel_settings, "bake_ao_applied")
+                    col_4.prop(bake_panel_settings, "bake_ao_LoFi")
 
         if developer_mode:
             normal_cavity_row = layout.row(align=True)
@@ -7226,8 +7224,8 @@ class BR_OT_bake_panel(bpy.types.Operator):
         source_collection = settings.bakeSourceCollection
         source_collection_name = source_collection.name
         scene_collection = bpy.context.view_layer.layer_collection
-        bake_collection_name =  (scene_name + "_" + source_collection_name  + "_baked")
-        bake_mesh_name = (scene_name + "_" + source_collection_name  + "_baked")
+        bake_collection_name =  (source_collection_name  + "_baked")
+        bake_mesh_name = (source_collection_name  + "_baked")
 
         hasMultires = False
 
@@ -7816,18 +7814,27 @@ class BR_OT_bake_panel(bpy.types.Operator):
                         shader.inputs[0].default_value = (1, 1, 1, 1)
                         mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
 
-
+                        albedo_texture = ""
 
                         if bake_albedo:
-                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                            texture.image = bpy.data.images.new(texName_albedo,  width=width, height=height)
-                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+                            albedo_texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            albedo_texture.image = bpy.data.images.new(texName_albedo,  width=width, height=height)
+                            mat.node_tree.links.new(albedo_texture.outputs[0], shader.inputs[0])
 
 
                         if bake_ao:
                             texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
                             texture.image = bpy.data.images.new(texName_ao,  width=width, height=height)
                             mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+
+                            if bake_albedo and not bake_curvature and not bake_ao_applied:
+                                albedo_mixer = mat.node_tree.nodes.new(type="ShaderNodeMixRGB")
+                                mat.node_tree.links.new(albedo_mixer.outputs[0], shader.inputs[0])
+                                mat.node_tree.links.new(albedo_texture.outputs[0], albedo_mixer.inputs[1])
+                                mat.node_tree.links.new(texture.outputs[0], albedo_mixer.inputs[2])
+                                albedo_mixer.blend_type = 'OVERLAY'
+                                albedo_mixer.inputs[0].default_value = 0.5
+
 
                         if bake_roughness:
                             texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
@@ -7843,6 +7850,15 @@ class BR_OT_bake_panel(bpy.types.Operator):
                             texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
                             texture.image = bpy.data.images.new(texName_curvature,  width=width, height=height)
                             mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+
+                            if bake_albedo and not bake_ao and not bake_curvature_applied:
+                                albedo_mixer = mat.node_tree.nodes.new(type="ShaderNodeMixRGB")
+                                mat.node_tree.links.new(albedo_mixer.outputs[0], shader.inputs[0])
+                                mat.node_tree.links.new(albedo_texture.outputs[0], albedo_mixer.inputs[1])
+                                mat.node_tree.links.new(texture.outputs[0], albedo_mixer.inputs[2])
+                                albedo_mixer.blend_type = 'OVERLAY'
+                                albedo_mixer.inputs[0].default_value = 0.5
+
 
                         if bake_emission:
                             texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
@@ -7955,7 +7971,13 @@ class BR_OT_bake_panel(bpy.types.Operator):
                                     bpy.context.scene.render.bake.use_cage = True
                                     ray_length = target_object.dimensions[1] * bake_distance
                                     bpy.context.scene.render.bake.cage_extrusion = ray_length
-                                bpy.context.scene.cycles.samples = 256
+
+
+                                # bpy.data.materials["MeshMat"].node_tree.nodes["Ambient Occlusion"].inputs[1].default_value = 60
+                                # bpy.ops.mesh.primitive_cube_add(enter_editmode=False, align='WORLD', location=(0, 0, 6.25), scale=(50, 50, 25))
+
+
+                                bpy.context.scene.cycles.samples = 128
                                 bpy.context.scene.render.bake.margin = pixelMargin
                                 if os.path.exists(file_dir):
                                     if os.path.exists(materials_dir):
@@ -9433,6 +9455,9 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
         layout.operator("wm.spiraloid_subcollection_cycler", icon="MATCLOTH")
         if operator_exists("BakeMeshFlipbook"):
             layout.operator("view3d.bake_mesh_flipbook", icon="MATCLOTH")
+        if developer_mode:
+            if operator_exists("KeyCollectionTreadmill"):
+                layout.operator("wm.spiraloid_key_collection_readmill", icon="MATCLOTH")
         layout.separator()
         layout.operator("wm.spiraloid_pose_cycle_next", icon="ARMATURE_DATA")
         layout.operator("wm.spiraloid_pose_cycle_previous", icon="ARMATURE_DATA")
