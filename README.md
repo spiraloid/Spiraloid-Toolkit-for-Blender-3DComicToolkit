@@ -85,7 +85,9 @@ This is how I like to test out the comic in chrome.  I usually spend a lot of ti
 (PROTIP:  In your web browser, the 3D comic should reload automatically, however this can fail sometimes.  if you browser isn't showing the latest awesomeness. make sure you're looking at the right tab and hold down the shift key when you press reload page button)
 
 PUBLISHING:
-Even though you are seeing your 3D Comic in your webbrowser, it's only on your machine.  This is because it is using a python local server on your machine in your blender system console. To share your 3D Comic online, you must publish it onlione just like any website. This involves geting a server and then uploading directory when you made your 3D Comic.  I use https://pages.github.com with my github account, but you can use whatever you like.  when I want to update or publish a new comic, I use githubdesktop app and push my changes to my 3D Comic repository.
+Even though you are seeing your 3D Comic in your webbrowser, it's only on your machine.  This is because it is using a python local server on your machine in your blender system console. To share your 3D Comic online, you must publish it onlione just like any website. This involves geting a server and then uploading directory when you made your 3D Comic.  
+
+(PROTIP: I use https://pages.github.com with my github account, but you can use whatever you like.  when I want to update or publish a new comic, I use githubdesktop)
 
 
 ---
