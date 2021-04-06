@@ -6794,7 +6794,7 @@ class BuildComicSettings(bpy.types.PropertyGroup):
 class BR_MT_export_3d_comic_all(bpy.types.Operator):
     """Print to Audience.  Export all 3D Comic panels and start a local server.  Existing panels will be overwritten"""
     bl_idname = "view3d.spiraloid_export_3d_comic_all"
-    bl_label ="Export Complete 3D Comic"
+    bl_label ="Build 3D Comic"
     bl_options = {'REGISTER', 'UNDO'}
     # config: bpy.props.PointerProperty(type=BuildComicSettings)
 
@@ -6872,7 +6872,7 @@ class BR_MT_export_3d_comic_current(bpy.types.Operator):
 
  
 class BR_MT_quick_save_export_3d_comic_current(bpy.types.Operator):
-    """Save scene, Export current 3D Comic panel scene and start a local server.  Existing files will be overwritten"""
+    """Export current 3D Comic panel scene and start a local server.  Only Existing panel will be overwritten"""
     bl_idname = "wm.spiraloid_quicks_save_export_3d_comic_current"
     bl_label ="Quick Export Panel"
     bl_options = {'REGISTER', 'UNDO'}
@@ -9488,7 +9488,8 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
         layout.menu(BR_MT_3d_comic_submenu_utilities.bl_idname, icon="PREFERENCES")
         layout.separator()
         layout.operator("view3d.spiraloid_export_3d_comic_all", icon="NODE_COMPOSITING")
-        layout.operator("view3d.spiraloid_export_3d_comic_current", icon="FILE_BLANK")
+        if developer_mode:
+            layout.operator("view3d.spiraloid_export_3d_comic_current", icon="FILE_BLANK")
         layout.operator("wm.spiraloid_quicks_save_export_3d_comic_current", icon="SOLO_ON")
         layout.separator()
         layout.operator("view3d.spiraloid_read_3d_comic", icon="HIDE_OFF")
