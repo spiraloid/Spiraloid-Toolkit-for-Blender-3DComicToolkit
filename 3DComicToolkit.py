@@ -95,6 +95,21 @@ def toHex(r,g,b):
 
 
 #################################################################
+# mesh tools 
+
+def NormalInDirection( normal, direction, limit = 0.5 ):
+    return direction.dot( normal ) > limit
+
+def GoingUp( normal, limit = 0.5):
+    return NormalInDirection( normal, Vector( (0, 0, 1 ) ), limit )
+
+def GoingDown( normal, limit = 0.5):
+    return NormalInDirection( normal, Vector( (0, 0, -1 ) ), limit )
+
+def GoingSide( normal, limit = 0.5):
+    return GoingUp( normal, limit ) == False and GoingDown( normal, limit ) == False
+
+#################################################################
 
 
 def get_align_matrix(location, normal):
@@ -1192,11 +1207,10 @@ def automap(mesh_objects, decimate_ratio):
                 # bpy.ops.uv.smart_project(angle_limit=66, island_margin=0.02, area_weight=0.75, correct_aspect=True, scale_to_bounds=True)
                 # bpy.ops.uv.seams_from_islands()
                 # bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
-                # # bpy.ops.uv.minimize_stretch(iterations=1024)
+                # bpy.ops.uv.minimize_stretch(iterations=1024)
                 # bpy.ops.uv.average_islands_scale()
 
-
-                bpy.ops.uv.cube_project(cube_size=1)
+                bpy.ops.uv.cube_project(cube_size=10, scale_to_bounds=True)
 
                 # area = bpy.context.area
                 # old_type = area.type
@@ -1236,6 +1250,13 @@ def automap(mesh_objects, decimate_ratio):
                     bpy.ops.object.modifier_add(type='DECIMATE')
                     bpy.context.object.modifiers["Decimate"].ratio = decimate_ratio
                     bpy.ops.object.modifier_apply( modifier="Decimate")
+
+                    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+                    bpy.ops.mesh.delete_loose()
+                    bpy.ops.mesh.dissolve_degenerate()
+                    bpy.ops.mesh.remove_doubles()
+                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
 
 
         #select all meshes and pack into one UV set together
@@ -6787,7 +6808,8 @@ class BR_MT_export_3d_comic_all(bpy.types.Operator):
     def execute(self, context):
         if bpy.data.is_dirty:
             # self.report({'WARNING'}, "You must save your file first!")
-            bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
+            # bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
+            self.report({'WARNING'}, "You must save your file first!")
         else:
             export_panel(self, context,False, True)
             # export_letters(self, context,False)
@@ -6841,7 +6863,9 @@ class BR_MT_export_3d_comic_current(bpy.types.Operator):
     def execute(self, context):
         if bpy.data.is_dirty:
             # self.report({'WARNING'}, "You must save your file first!")
-            bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
+            # bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
+            self.report({'WARNING'}, "You must save your file first!")
+
         else:
             export_panel(self, context,True, True)
         return {'FINISHED'}
@@ -7070,22 +7094,26 @@ class BR_OT_save_check(bpy.types.Operator):
         if bpy.data.is_dirty:
             bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
         else:
-            bpy.ops.view3d.spiraloid_bake_panel()
+            bpy.ops.wm.spiraloid_bake_collection()
 
 
 
-class BR_OT_bake_panel(bpy.types.Operator):
+class BR_OT_bake_collection(bpy.types.Operator):
     """Merge all meshes in active collection, unwrap and toggle_workmodeing and textures into a new "Export" collection"""
-    bl_idname = "wm.spiraloid_bake_panel"
+    bl_idname = "wm.spiraloid_bake_collection"
     bl_label = "Bake Collection..."
     bl_options = {'REGISTER', 'UNDO'}
     config: bpy.props.PointerProperty(type=BakePanelSettings)
 
+
+
     def draw(self, context):
         global developer_mode
         # bpy.types.Scene.bake_panel_settings = bpy.props.CollectionProperty(type=BakePanelSettings)
-    
         # scene = bpy.data.scene[0]
+
+        # if bpy.data.is_dirty:
+        #     bpy.types.Operator.report({'WARNING'}, "Unsaved changes, save?")
 
         layout = self.layout
         scene = context.scene
@@ -7185,23 +7213,23 @@ class BR_OT_bake_panel(bpy.types.Operator):
 
     def execute(self, context):  
         settings = context.scene.bake_panel_settings
-        # if bpy.data.is_dirty:
-            # bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
-            # bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
-
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
         scene_name = bpy.context.window.scene.name
         currSceneIndex = getCurrentSceneIndex()
-        export_collection = getCurrentExportCollection()
-        if (export_collection):
-            export_collection_name = export_collection.name
-        else:
-            if settings.target_strategy != "target_existing":
-                export_collection_name = "Export"
-                e_collection = bpy.data.collections.new(export_collection_name)
-                bpy.context.scene.collection.children.link(e_collection)  
-                export_collection = bpy.data.collections.get(export_collection_name)
+
+        isComicPanel = False
+        if "p." in context.scene.name:
+            isComicPanel = True
+            export_collection = getCurrentExportCollection()
+            if (export_collection):
+                export_collection_name = export_collection.name
+            else:
+                if settings.target_strategy != "target_existing":
+                    export_collection_name = "Export"
+                    e_collection = bpy.data.collections.new(export_collection_name)
+                    bpy.context.scene.collection.children.link(e_collection)  
+                    export_collection = bpy.data.collections.get(export_collection_name)
 
         # panel_number = "0000"
         # panels = []
@@ -7252,7 +7280,8 @@ class BR_OT_bake_panel(bpy.types.Operator):
         # cleanup previous bake collection 
         if bpy.data.collections.get(bake_collection_name) : 
             old_bake_collection = bpy.data.collections.get(bake_collection_name)
-            bpy.context.view_layer.active_layer_collection = export_collection.children[bake_collection_name]
+            if isComicPanel:
+                bpy.context.view_layer.active_layer_collection = export_collection.children[bake_collection_name]
             bpy.data.collections.remove(old_bake_collection)
             empty_trash(self, context)
             self.report({'INFO'}, 'Deleted Previous Export collection!')
@@ -7265,8 +7294,12 @@ class BR_OT_bake_panel(bpy.types.Operator):
         scene_collection = bpy.context.view_layer.layer_collection
 
         if settings.target_strategy != "target_existing":
-            bake_collection = bpy.data.collections.new(bake_collection_name)
-            export_collection.children.link(bake_collection)
+                bake_collection = bpy.data.collections.new(bake_collection_name)
+                if isComicPanel:
+                    export_collection.children.link(bake_collection)
+                else:
+                    bpy.context.scene.collection.children.link(bake_collection)
+
         else:
             bake_collection = settings.bakeTargetObject.users_collection[0] 
             bake_collection_name = bake_collection.name 
@@ -7292,11 +7325,11 @@ class BR_OT_bake_panel(bpy.types.Operator):
         if settings.bakeSize == "size_128":
             width = 128
             height = 128
-            pixelMargin = 2
+            pixelMargin = 4
         if settings.bakeSize == "size_256":
             width = 256
             height = 256
-            pixelMargin = 2
+            pixelMargin = 4
         if  settings.bakeSize == "size_512":
             width = 512
             height = 512
@@ -7304,19 +7337,19 @@ class BR_OT_bake_panel(bpy.types.Operator):
         if  settings.bakeSize == "size_1024":
             width = 1024
             height = 1024
-            pixelMargin = 8
+            pixelMargin = 4
         if  settings.bakeSize == "size_2048":
             width = 2048
             height = 2048
-            pixelMargin = 8
+            pixelMargin = 4
         if  settings.bakeSize == "size_4096":
             width = 4096
             height = 4096
-            pixelMargin = 8
+            pixelMargin = 4
         if  settings.bakeSize == "size_8192":
             width = 8192
             height = 8192
-            pixelMargin = 8
+            pixelMargin = 4
 
 
         bake_to_unlit = settings.bake_to_unlit
@@ -7694,8 +7727,8 @@ class BR_OT_bake_panel(bpy.types.Operator):
                 # bpy.context.view_layer.layer_collection.children[bake_collection_name].exclude = False
                 # bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
 
-
-                bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = False
+                if isComicPanel:
+                    bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = False
                 bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = False
                 bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[source_collection_name]
 
@@ -7954,50 +7987,172 @@ class BR_OT_bake_panel(bpy.types.Operator):
                         existing_mat_output_connection = ""
                         geometry_node = ""
                         curvature_colorramp = ""
+                        ao_node = ""
+                        
+                        # for n in imgnodes:
+                        #     if n.image.name == texName_ao:
+                        #         n.select = True
+                        #         matnodes.active = n
+                        #         bpy.context.scene.cycles.bake_type = 'AO'
+                        #         bpy.context.scene.render.image_settings.file_format = 'PNG'
+                        #         bpy.context.scene.render.image_settings.color_depth = '8'
+                        #         bpy.context.scene.render.image_settings.color_mode = 'BW'
+                        #         if bake_ao_LoFi :
+                        #             bpy.context.scene.render.bake.use_selected_to_active = False
+                        #             bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
+                        #         else :
+                        #             bpy.context.scene.render.bake.use_selected_to_active = True
+                        #             bpy.context.scene.render.bake.use_cage = True
+                        #             ray_length = target_object.dimensions[1] * bake_distance
+                        #             bpy.context.scene.render.bake.cage_extrusion = ray_length
+                        #         bpy.context.scene.cycles.samples = 128
+                        #         bpy.context.scene.render.bake.margin = pixelMargin
+                        #         if os.path.exists(file_dir):
+                        #             if os.path.exists(materials_dir):
+                        #                 outBakeFileName = n.image.name+".png"
+                        #                 outRenderFileName = materials_dir+outBakeFileName
+                        #                 n.image.file_format = 'PNG'
+                        #                 n.image.filepath = outRenderFileName
+                        #                 bpy.ops.object.bake(type='AO', filepath=outRenderFileName, save_mode='EXTERNAL')
+                        #                 n.image.save()
+                        #                 self.report({'INFO'},"Ambient Oclusion texture saved to: " + outRenderFileName )
+                        #         else:
+                        #             bpy.ops.object.bake(type='AO')
+                        #             n.image.pack()
+                        #         bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = False
+                        #         progress_current += progress_step
+                        #         wm.progress_update(int(progress_current))
+
 
                         for n in imgnodes:
                             if n.image.name == texName_ao:
                                 n.select = True
                                 matnodes.active = n
-                                bpy.context.scene.cycles.bake_type = 'AO'
+                                existing_albedo_color = (0, 0, 0, 1)
+                                existing_metal_color = (0, 0, 0, 1)
+
+                                bpy.context.scene.cycles.bake_type = 'EMIT'  #('COMBINED', 'AO', 'SHADOW', 'NORMAL', 'UV', 'ROUGHNESS', 'EMIT', 'ENVIRONMENT', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION')
                                 bpy.context.scene.render.image_settings.file_format = 'PNG'
                                 bpy.context.scene.render.image_settings.color_depth = '8'
                                 bpy.context.scene.render.image_settings.color_mode = 'BW'
-                                if bake_ao_LoFi :
-                                    bpy.context.scene.render.bake.use_selected_to_active = False
-                                    bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
-                                else :
-                                    bpy.context.scene.render.bake.use_selected_to_active = True
-                                    bpy.context.scene.render.bake.use_cage = True
-                                    ray_length = target_object.dimensions[1] * bake_distance
-                                    bpy.context.scene.render.bake.cage_extrusion = ray_length
-
-
-                                # bpy.data.materials["MeshMat"].node_tree.nodes["Ambient Occlusion"].inputs[1].default_value = 60
-                                # bpy.ops.mesh.primitive_cube_add(enter_editmode=False, align='WORLD', location=(0, 0, 6.25), scale=(50, 50, 25))
-
-
-                                bpy.context.scene.cycles.samples = 128
+                                bpy.context.scene.render.bake.use_pass_indirect = False
+                                bpy.context.scene.render.bake.use_pass_direct = False
+                                bpy.context.scene.render.bake.use_selected_to_active = True
+                                bpy.context.scene.render.bake.use_cage = True
+                                ray_length = target_object.dimensions[1] * bake_distance
+                                bpy.context.scene.render.bake.cage_extrusion = ray_length
+                                bpy.context.scene.cycles.samples = 8
                                 bpy.context.scene.render.bake.margin = pixelMargin
+
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            mat_output = src_mat.node_tree.nodes.get('Material Output')
+                                            existing_mat_output_connection = mat_output.inputs[0].links[0].from_node
+                                            tmp_flat_shader = src_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                            ao_node = src_mat.node_tree.nodes.new(type='ShaderNodeAmbientOcclusion')
+                                            ao_node.inputs[1].default_value = 60
+                                            ao_node.samples = 64
+
+                                            src_mat.node_tree.links.new(tmp_flat_shader.outputs[0], mat_output.inputs[0])
+                                            src_mat.node_tree.links.new(ao_node.outputs[0], tmp_flat_shader.inputs[0])
+
+                                    tmp_src.select_set(state=True)
+
+                                temp_stored_selection = bpy.context.selected_objects
+
+                                bpy.ops.object.select_all(action='DESELECT')
+                                bpy.ops.mesh.primitive_cube_add(enter_editmode=False, align='WORLD', location=(0, 0, 0), scale=(50, 50, 25))
+                                ao_cube = bpy.context.selected_objects[0]
+                                ao_cube_mat = bpy.data.materials.new(name="aoMatName")
+                                ao_cube_mat.use_nodes = True
+                                ao_cube.data.materials.append(ao_cube_mat)
+                                ao_mat_output = ao_cube_mat.node_tree.nodes.get('Material Output')
+
+                                ao_nodes = ao_cube_mat.node_tree.nodes
+                                for node in ao_nodes:
+                                    if node.type != 'OUTPUT_MATERIAL': # skip the material output node as we'll need it later
+                                        ao_nodes.remove(node) 
+
+                                tmp_black_shader = ao_cube_mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                tmp_black_shader.inputs[0].default_value = (0, 0, 0, 1)
+                                ao_cube_mat.node_tree.links.new(tmp_black_shader.outputs[0], ao_mat_output.inputs[0])
+
+
+                                # delete top and bottom face
+                                bm = bmesh.new()
+                                bm.from_mesh( ao_cube.data )
+                                bm.faces.ensure_lookup_table()
+                                faces = [f for f in bm.faces if GoingUp( f.normal )]
+                                bmesh.ops.delete( bm, geom = faces, context = 'FACES_ONLY' )
+                                faces = [f for f in bm.faces if GoingDown( f.normal )]
+                                bm.to_mesh( ao_cube.data )
+
+                                # warp cube to tune ground and toplight
+                                # m_taper = bpy.ops.object.modifier_add(type='SIMPLE_DEFORM')
+                                m_taper = ao_cube.modifiers.new(name="SIMPLE_DEFORM", type='SIMPLE_DEFORM')
+                                m_taper.deform_method = 'TAPER'
+                                m_taper.deform_axis = 'Z'
+                                m_taper.factor = -1.7
+                                # m_stretcher = bpy.ops.object.modifier_add(type='SIMPLE_DEFORM')
+                                m_stretcher = ao_cube.modifiers.new(name="SIMPLE_DEFORM", type='SIMPLE_DEFORM')
+                                m_stretcher.deform_method = 'STRETCH'
+                                m_stretcher.deform_axis = 'Z'
+                                m_stretcher.factor = -0.55
+
+                                # raise KeyboardInterrupt()
+
+
+                                for mod in [m for m in ao_cube.modifiers]:
+                                    bpy.ops.object.modifier_apply( modifier=mod.name)   
+
+
+                                bpy.ops.object.select_all(action='DESELECT')
+                                for o in temp_stored_selection:
+                                    o.select_set(state=True)
+                                target_object.select_set(state=True)
+                                bpy.context.view_layer.objects.active = target_object
+
                                 if os.path.exists(file_dir):
                                     if os.path.exists(materials_dir):
                                         outBakeFileName = n.image.name+".png"
                                         outRenderFileName = materials_dir+outBakeFileName
                                         n.image.file_format = 'PNG'
                                         n.image.filepath = outRenderFileName
-                                        bpy.ops.object.bake(type='AO', filepath=outRenderFileName, save_mode='EXTERNAL')
+                                        bpy.ops.object.bake(type='EMIT', filepath=outRenderFileName, save_mode='EXTERNAL')
                                         n.image.save()
-                                        self.report({'INFO'},"Ambient Oclusion texture saved to: " + outRenderFileName )
+                                        self.report({'INFO'},"Baked ao texture saved to: " + outRenderFileName )
                                 else:
-                                    bpy.ops.object.bake(type='AO')
+                                    bpy.ops.object.bake(type='EMIT')
                                     n.image.pack()
-                                
-                                bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = False
-                                progress_current += progress_step
-                                wm.progress_update(int(progress_current))
+
+                                # raise KeyboardInterrupt()
 
 
 
+                                # cleanup
+                                for tmp_src in source_meshes:
+                                    if tmp_src.data.materials:
+                                        for src_mat in tmp_src.data.materials:
+                                            src_mat.node_tree.links.new(existing_mat_output_connection.outputs[0], mat_output.inputs[0])
+                                            src_mat.node_tree.nodes.remove(tmp_flat_shader)
+                                            src_mat.node_tree.nodes.remove(ao_node)
+                                bpy.ops.object.select_all(action='DESELECT')
+                                ao_cube.select_set(state=True)
+                                bpy.context.view_layer.objects.active = ao_cube
+                                bpy.ops.object.delete(use_global=False)
+                                if isComicPanel:
+                                    bpy.context.view_layer.layer_collection.children[export_collection_name].exclude = False
+
+
+                                # reselect objects
+                                target_object.select_set(state=True)
+                                bpy.ops.object.select_all(action='DESELECT')
+                                for o in temp_stored_selection:
+                                    o.select_set(state=True)
+                                target_object.select_set(state=True)
+                                bpy.context.view_layer.objects.active = target_object
+                                            
 
                         if bake_ao_applied and bake_ao and bake_albedo:
                             if os.path.exists(file_dir):
@@ -8039,7 +8194,7 @@ class BR_OT_bake_panel(bpy.types.Operator):
                                     gamma_node.inputs[1].default_value = 2
                                     tree.links.new(ao_image_node.outputs['Image'], gamma_node.inputs[0])
                                     tree.links.new(gamma_node.outputs['Image'], mix_node.inputs[1])
-                                    tree.links.new(albedo_image_node.outputs['Image'], mix_node.inputs[2])
+                                    treeF(albedo_image_node.outputs['Image'], mix_node.inputs[2])
 
 
                                     # bpy.context.scene.node_tree.links.new(mix_node.outputs[0], viewer_node.inputs[0])
@@ -8506,7 +8661,8 @@ class BR_OT_bake_panel(bpy.types.Operator):
 
 
         bpy.context.view_layer.layer_collection.children[source_collection_name].exclude = True
-        if settings.target_strategy != "target_existing":
+
+        if settings.target_strategy != "target_existing" and isComicPanel:
             bpy.context.view_layer.layer_collection.children[export_collection_name].children[bake_collection_name].exclude = False
         
         # export_collection.children[bake_collection_name].exclude = False
@@ -8530,8 +8686,9 @@ class BR_OT_bake_panel(bpy.types.Operator):
 
             if active_camera is not None :
                 camera_collection = active_camera.users_collection[0]
-                if camera_collection is not export_collection:
-                    export_collection.objects.link(active_camera)
+                if isComicPanel:
+                    if camera_collection is not export_collection:
+                        export_collection.objects.link(active_camera)
                 bpy.ops.object.select_all(action='DESELECT')
                 active_camera.select_set(state=True)
                 bpy.context.view_layer.objects.active = active_camera
@@ -8575,7 +8732,8 @@ class BR_OT_bake_panel(bpy.types.Operator):
                 bpy.data.images[img_name].pack()
                 os.remove(outRenderFileName)
 
-            bpy.context.view_layer.layer_collection.children[export_collection_name].children[bake_collection_name].exclude = False
+            if isComicPanel:
+                bpy.context.view_layer.layer_collection.children[export_collection_name].children[bake_collection_name].exclude = False
 
 
             #reset active camera
@@ -8621,7 +8779,8 @@ class BR_OT_bake_panel(bpy.types.Operator):
                         ob.data.materials[0] = mat
                     else:
                         ob.data.materials.append(mat)
-                    export_collection.objects.link(ob)
+
+                    bake_collection.objects.link(ob)
                     bpy.context.scene.collection.objects.unlink(ob)
 
 
@@ -8664,7 +8823,7 @@ class BR_OT_bake_panel(bpy.types.Operator):
                         ob.data.materials[0] = mat
                     else:
                         ob.data.materials.append(mat)
-                    export_collection.objects.link(ob)
+                    bake_collection.objects.link(ob)
                     bpy.context.scene.collection.objects.unlink(ob)
                     
 
@@ -8727,6 +8886,7 @@ class BR_OT_bake_panel(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
+
         return context.window_manager.invoke_props_dialog(self)
 
 
@@ -9449,7 +9609,7 @@ class BR_MT_3d_comic_submenu_utilities(bpy.types.Menu):
         layout = self.layout
         layout.operator("wm.spiraloid_toggle_workmode", icon="SEQ_PREVIEW")
         layout.separator()
-        layout.operator("wm.spiraloid_bake_panel", icon="TEXTURE_DATA")
+        layout.operator("wm.spiraloid_bake_collection", icon="TEXTURE_DATA")
         layout.operator("wm.spiraloid_automap", icon="UV_VERTEXSEL")
         layout.separator()
         layout.operator("wm.spiraloid_subcollection_cycler", icon="MATCLOTH")
@@ -9566,7 +9726,7 @@ classes = (
     BR_OT_add_blackout,
     BR_OT_add_toon_outline,
     BR_OT_save_check,
-    BR_OT_bake_panel,
+    BR_OT_bake_collection,
     BR_OT_new_3d_comic,
     BR_OT_next_panel_scene,
     BR_OT_previous_panel_scene,
@@ -9712,7 +9872,7 @@ if __name__ == "__main__":
 #     bpy.utils.register_class(BR_OT_spiraloid_3d_comic_workshop)
 #     bpy.utils.register_class(BR_OT_add_outline)
 
-#     bpy.utils.register_class(BR_OT_bake_panel)
+#     bpy.utils.register_class(BR_OT_bake_collection)
 #     bpy.utils.register_class(BR_OT_new_3d_comic) 
 
 #     bpy.utils.register_class(BR_OT_next_panel_scene)      
@@ -9757,7 +9917,7 @@ if __name__ == "__main__":
 #     bpy.utils.unregister_class(BR_MT_3d_comic_submenu_letters)
 #     bpy.utils.unregister_class(BR_OT_spiraloid_3d_comic_workshop) 
 #     bpy.utils.unregister_class(BR_OT_add_outline) 
-#     bpy.utils.unregister_class(BR_OT_bake_panel) 
+#     bpy.utils.unregister_class(BR_OT_bake_collection) 
 #     bpy.utils.unregister_class(BR_OT_new_3d_comic)
 #     bpy.utils.unregister_class(BR_OT_next_panel_scene)      
 #     bpy.utils.unregister_class(BR_OT_previous_panel_scene)  
