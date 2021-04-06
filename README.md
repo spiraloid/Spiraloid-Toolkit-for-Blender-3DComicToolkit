@@ -7,6 +7,8 @@ This is a 3D Comic toolkit for Blender that allows you to save out your own scro
 
 The Toolkit comes with all you need to start creating your own 3D Comic directly from your Blender scenes.  These are not 2D rendered comics, but true 3D Comics where every panel is rendered live using real time 3D Graphics.  
 
+---
+
 Features:
 
 -3D Panel scene manager.  Since every panel in your comic is a scene inside your .blend file, the scene manager will let you read and edit your comic directly inside Blender.   Adjusting all Lettering, Lighting, Visuals and story flow in context, just as you'd expect.
@@ -25,6 +27,8 @@ Features:
 
 https://3dcomic.shop/inkbots/s01e01/index.html?lan=es
 
+---
+
 REQUIREMENTS:
 
 a WINDOWS 10 PC (sorry I don't have a mac).
@@ -41,12 +45,15 @@ https://gumroad.com/l/3dcomictoolkit
 
 Be warned, This is a tool I use and update frequently so there may be bugs and I may not care to fix them.   
 
+---
+
 INSTALLATION:  
 click the green button and download the zip.   do not unpack just install the zipped addon as you would normally, be sure to deactivate and remove any previous versions.   
 note: do not rename the zip or the addon folder that gets installed in your in addons directory. The load resources commands are hardcoded to assume the addon folder is named "Spiraloid-Toolkit-for-Blender-3DComicToolkit-master".  don't download duplicates and install as a file named Spiraloid-Toolkit-for-Blender-3DComicToolkit-master (1).zip will break.
 
 I'll try not to break things, but if you get stuck feel free to dig into the code yourself, or report the issue here, and I'll see what I can do as I find the time  (it's free afterall).  
 
+---
 
 GETTING STARTED:
 
