@@ -1736,7 +1736,8 @@ def outline(mesh_objects, mode):
 
                             if "ink" in mode and "toon" in mode:
                                 if mesh_object.active_material:
-                                    mesh_object.active_material.node_tree.nodes.clear()
+                                    # mesh_object.active_material.use_nodes = True
+                                    # mesh_object.active_material.node_tree.nodes.clear()
                                     for i in range(len(mesh_object.material_slots)):
                                         bpy.ops.object.material_slot_remove({'object': mesh_object})
                                 for mod in mesh_object.modifiers:
@@ -1753,6 +1754,7 @@ def outline(mesh_objects, mode):
                                 bpy.ops.object.select_all(action='DESELECT')
                                 mesh_object.select_set(state=True)
                                 bpy.context.view_layer.objects.active = mesh_object
+                                # if "EDIT" not in bpy.context.object.mode:
                                 bpy.ops.object.mode_set(mode='EDIT', toggle=False)
                                 if mesh_object.type == 'MESH':
                                     bpy.ops.mesh.select_all(action='SELECT')
@@ -7432,7 +7434,6 @@ class BR_OT_bake_collection(bpy.types.Operator):
                 if bpy.context.object:
                     if "OBJECT" not in bpy.context.object.mode:
                         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-
                 bpy.ops.object.select_all(action='DESELECT')
                 tmp_ob.select_set(state=True)
                 bpy.context.view_layer.objects.active = tmp_ob
@@ -7467,7 +7468,6 @@ class BR_OT_bake_collection(bpy.types.Operator):
             bpy.ops.mesh.remove_doubles()
             bpy.ops.mesh.quads_convert_to_tris(quad_method='FIXED', ngon_method='BEAUTY')
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-
 
 
 
@@ -7848,6 +7848,8 @@ class BR_OT_bake_collection(bpy.types.Operator):
                         mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
 
                         albedo_texture = ""
+                        ao_texture = ""
+                        curvature_texture = ""
 
                         if bake_albedo:
                             albedo_texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
@@ -7856,18 +7858,17 @@ class BR_OT_bake_collection(bpy.types.Operator):
 
 
                         if bake_ao:
-                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                            texture.image = bpy.data.images.new(texName_ao,  width=width, height=height)
-                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+                            ao_texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            ao_texture.image = bpy.data.images.new(texName_ao,  width=width, height=height)
+                            mat.node_tree.links.new(ao_texture.outputs[0], shader.inputs[0])
 
                             if bake_albedo and not bake_curvature and not bake_ao_applied:
                                 albedo_mixer = mat.node_tree.nodes.new(type="ShaderNodeMixRGB")
                                 mat.node_tree.links.new(albedo_mixer.outputs[0], shader.inputs[0])
                                 mat.node_tree.links.new(albedo_texture.outputs[0], albedo_mixer.inputs[1])
-                                mat.node_tree.links.new(texture.outputs[0], albedo_mixer.inputs[2])
+                                mat.node_tree.links.new(ao_texture.outputs[0], albedo_mixer.inputs[2])
                                 albedo_mixer.blend_type = 'OVERLAY'
                                 albedo_mixer.inputs[0].default_value = 0.5
-
 
                         if bake_roughness:
                             texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
@@ -7880,15 +7881,36 @@ class BR_OT_bake_collection(bpy.types.Operator):
                             mat.node_tree.links.new(texture.outputs[0], shader.inputs[4])
 
                         if bake_curvature:
-                            texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
-                            texture.image = bpy.data.images.new(texName_curvature,  width=width, height=height)
-                            mat.node_tree.links.new(texture.outputs[0], shader.inputs[0])
+                            curvature_texture = mat.node_tree.nodes.new(type='ShaderNodeTexImage')
+                            curvature_texture.image = bpy.data.images.new(texName_curvature,  width=width, height=height)
+                            mat.node_tree.links.new(curvature_texture.outputs[0], shader.inputs[0])
 
                             if bake_albedo and not bake_ao and not bake_curvature_applied:
                                 albedo_mixer = mat.node_tree.nodes.new(type="ShaderNodeMixRGB")
                                 mat.node_tree.links.new(albedo_mixer.outputs[0], shader.inputs[0])
                                 mat.node_tree.links.new(albedo_texture.outputs[0], albedo_mixer.inputs[1])
-                                mat.node_tree.links.new(texture.outputs[0], albedo_mixer.inputs[2])
+                                mat.node_tree.links.new(curvature_texture.outputs[0], albedo_mixer.inputs[2])
+                                albedo_mixer.blend_type = 'OVERLAY'
+                                albedo_mixer.inputs[0].default_value = 0.5
+
+                        if bake_curvature and not bake_ao_applied and not bake_curvature_applied:
+                                albedo_mixer = mat.node_tree.nodes.new(type="ShaderNodeMixRGB")
+                                if bake_albedo:
+                                    albedo_color_input = albedo_texture
+                                    mat.node_tree.links.new(albedo_color_input.outputs[0], albedo_mixer.inputs[1])
+                                else:
+                                    existing_albedo_color = shader.inputs[0].default_value
+                                    albedo_mixer.inputs[1].default_value = existing_albedo_color
+
+                                curvature_ao_mixer = mat.node_tree.nodes.new(type="ShaderNodeMixRGB")
+                                mat.node_tree.links.new(curvature_ao_mixer.outputs[0], shader.inputs[0])
+                                mat.node_tree.links.new(ao_texture.outputs[0], curvature_ao_mixer.inputs[1])
+                                mat.node_tree.links.new(curvature_texture.outputs[0], curvature_ao_mixer.inputs[2])
+                                curvature_ao_mixer.blend_type = 'MULTIPLY'
+                                curvature_ao_mixer.inputs[0].default_value = 0.5
+                                mat.node_tree.links.new(albedo_mixer.outputs[0], shader.inputs[0])
+
+                                mat.node_tree.links.new(curvature_ao_mixer.outputs[0], albedo_mixer.inputs[2])
                                 albedo_mixer.blend_type = 'OVERLAY'
                                 albedo_mixer.inputs[0].default_value = 0.5
 
