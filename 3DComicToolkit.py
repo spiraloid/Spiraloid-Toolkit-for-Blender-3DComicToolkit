@@ -2988,8 +2988,8 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
                             # obj.data["toon_color"] = (Color((ToonLightColor[0], ToonLightColor[1], ToonLightColor[2])))
                             # obj.data["toon_color"] = "0x" + hex_color
-                            obj.data["toon_color_light"] = hex_color_light
-                            obj.data["toon_color_dark"] = hex_color_dark
+                            obj.data["toon_color_light"] = "#" + hex_color_light
+                            obj.data["toon_color_dark"] = "#" + hex_color_dark
                         except:
                             pass
 

@@ -619,21 +619,6 @@
 					element.style.paddingTop = ( height / aspect ) + '%';
 					content.appendChild( element );
 
-					var colors = new Uint8Array( [ 0, 0, 255 ] );
-					var gradientMap = new THREE.DataTexture( colors, 3, 1, THREE.LuminanceFormat );
-					gradientMap.minFilter = THREE.NearestFilter;
-					gradientMap.magFilter = THREE.NearestFilter;
-					gradientMap.generateMipmaps = false;
-
-
-					function toHex(str) {
-						var hash = 0;
-						for (var i = 0; i < str.length; i++) {
-						hash = str.charCodeAt(i) + ((hash << 5) - hash);
-						}
-						return hash;
-					} 
-
 					loader.load( path, function ( gltf ) {
 
 						var scene = gltf.scene;
@@ -693,34 +678,26 @@
 								child.castShadow = true;
 								child.receiveShadow = true;
 								var color = child.material.color;
-
-								// var toon_color_light;
-								// var toon_color_dark;
-								// if (child.userData.toon_color_light) {
-								// 	isColor = true;
-								// 	toon_color_light = new THREE.Color(toHex(child.userData.toon_color_light));
-								// } else {
-								// 	toon_color_light = new Uint8Array( [ 0, 128, 255 ] );
-								// }
-								// if (child.userData.toon_color_dark) {
-								// 	isColor = true;
-								// 	toon_color_dark = new THREE.Color(toHex(child.userData.toon_color_dark));
-								// } else {
-								// 	toon_color_dark = new Uint8Array( [ 0, 128, 255 ] );
-								// }
-								// var color2 = new THREE.Color( toon_color_light );
-								// var gradientMap = new THREE.DataTexture( color2, 3, 1, THREE.RGBFormat );
-								// gradientMap.minFilter = THREE.NearestFilter;
-								// gradientMap.magFilter = THREE.NearestFilter;
-								// gradientMap.generateMipmaps = false;
+								if (child.userData.toon_color_light) {
+									isColor = true;
+									toon_color_light = new THREE.Color(child.userData.toon_color_light);
+								} 
+								toon_color_dark = new THREE.Color(child.userData.toon_color_dark);
+								var color = child.material.color;
+								var colors = new Uint8Array( [ 255, 255, 255 ] );
+								var gradientMap = new THREE.DataTexture( colors, 3, 1, THREE.LuminanceFormat );
+								gradientMap.minFilter = THREE.NearestFilter;
+								gradientMap.magFilter = THREE.NearestFilter;
+								gradientMap.generateMipmaps = false;
 
 								child.material = new THREE.MeshToonMaterial( {
-									// color: toon_color_light,
-									color: color,
+									color: toon_color_light,
 									gradientMap: gradientMap,
-									// shininess: 0.9,
 								} );
+								// console.log(child.userData.toon_color_light);
+								console.log(child.userData.toon_color_dark);
 
+								// console.log(color);
 							}
 
 							if ( child.isMesh && child.material.isMeshBasicMaterial ) {
@@ -733,9 +710,10 @@
 						} );
 
 						if (isColor){
-							const light = new THREE.AmbientLight( 0x808080 ); // soft white light
+							const light = new THREE.AmbientLight( toon_color_dark ); // soft white light
 							scene.add( light );
 						}
+
 
 						var mixer = new THREE.AnimationMixer( scene );
 						gltf.animations.forEach( function ( clip ) {
