@@ -115,5 +115,4 @@ https://www.amazon.com/dp/B08J2455QL
 https://gumroad.com/l/3dcomictoolkit
 
 
-(it's also a good idea for creator owners to think about making it easy for you fans to buy stuff if they like what you're doing,  on demand stores like gumroad, printful, zazzle, merch.amazon.com etc are an interesting option along with patreon, kofi and ntf's)
 
