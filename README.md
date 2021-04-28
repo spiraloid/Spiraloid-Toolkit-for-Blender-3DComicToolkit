@@ -107,9 +107,13 @@ The world needs more 3D Comics.
 
 ps: if you want to support 3d-comics, buy a sticker, t-shirt or go pro!
 
+
 https://gumroad.com/l/inkbots_sticker
+
 https://www.amazon.com/dp/B08J2455QL
+
 https://gumroad.com/l/3dcomictoolkit
+
 
 (you can sell your own shirts by applying for a merch.amazon.com account)
 
