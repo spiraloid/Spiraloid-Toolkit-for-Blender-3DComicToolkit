@@ -649,6 +649,7 @@
 
 							if ( child.isLight ) {
 								child.intensity = 1;
+								child.penumbra  = 0;
 								child.castShadow = true;
 								if (running_on_desktop == true){
 									child.shadow.mapSize.set( 2048, 2048 );
@@ -886,7 +887,7 @@
 							rect.right < 0 || rect.left > renderer.domElement.clientWidth ) {
 						if (developer_mode == true){
 							last_rendered_panel = scene.name;
-							console.log(last_rendered_panel)
+							// console.log(last_rendered_panel)
 						}
 						return; // it's off screen
 
