@@ -33,8 +33,8 @@ REQUIREMENTS:
 
 a WINDOWS 10 PC (sorry I don't have a mac).
 
-Blender 2.92 or later.
-https://www.blender.org/download/releases/2-92/
+Blender 2.93 or later.
+https://www.blender.org/download/Blender2.93/blender-2.93.1-windows-x64.msi/
 
 Python 3.8 or later. 
 (ALERT: be sure to check the box to add python to your environment path vairable on install.  this step is needed to make "read 3d comic" menu work since it runs a local python server)
