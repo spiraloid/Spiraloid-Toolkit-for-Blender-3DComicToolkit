@@ -6,12 +6,13 @@
 		<meta name="author" content="3D Comic Creator Extraordaire">
 		<meta name="description" content="New 3D Comic - Chapter 1 - Beginning">
 		<meta name="keywords" content="3DComic, 3D Comic, Webtoon, Webcomic, Digital Comic, Spiraloid, Online Graphic Novel, Graphic Novel, 3D Art, 3D model, Concept Art, Digital Painting, VFX">
-
+		<meta name="viewport" content="width=device-width">
 		<script>
 			var next_issue_url = "https://3dcomic.shop/store";
 			var previous_issue_url = null;
 			var uncollectedBonuses = null;
-			var developer_mode = false;
+			var developer_mode = true;
+			var last_rendered_panel = null;
 
 		</script>
 
@@ -60,9 +61,6 @@
 
 		<script>history.scrollRestoration = "manual"</script>
 
-		</head>
-		<body class="body">
-
 	</head>
 	<body class="body">
 
@@ -97,6 +95,14 @@
 								<span id="button_counter">99</span>
 								<!-- <div id="homebutton">◄Home</div> -->
 								<img  id="bonus_badge" src="./images/bonus_badge.png" alt="" width="100%" style="display: block;" >
+						</a>
+					</div>
+
+					<!-- The Tip-Button -->
+					<div style="width:100%">
+						<a  href="https://ko-fi.com/spiraloid">
+								<!-- <div id="homebutton">◄Home</div> -->
+								<img  id="tipbutton" src="./images/tip_button.png" alt="Enter creator storefront url" width="100%" style="display: block;">
 						</a>
 					</div>
 
@@ -173,18 +179,20 @@
 									</p>
 									</center>
 									<div align="left" style="transform: translateX(6vh);">
-										<p>
-										<font style="color:rgb(255, 255, 255);font-family:'Courier Prime';">
-											Scroll up to read the story
+											<div align="left">
+													<font style="color:rgb(255, 255, 255);font-family:'Courier Prime';text-shadow: 2px 2px 10px #000000e5;">
+														<ul>
+														<li>Scroll up to read the story</li>
+														<li>Drag sideways to move camera</li>
+														<li>Aim and Release to capture hidden
+														<br>
+														<font style="color:rgb(153, 243, 255);font-family:'Audiowide'; ">
+															<b>BONUSES!</b></li>
+														</font>
+													</ul>
+												</font>
+											</div>
 											<br>
-											Drag sideways to move camera
-											<br>
-											Aim and Release to capture hidden
-										</font>
-
-										<font style="color:rgb(122, 239, 255);font-family:'Audiowide'; ">
-											<b>BONUSES!</b>
-										</font>
 									</div>
 									<div>
 										<div style=" margin: auto; width: 100%; display: block;"> 
@@ -192,14 +200,61 @@
 										</div>
 									</div>
 									<center>
-									<br>
 									<div id="prize_banner"> 
 										<img alt=""  width="100%" height="100%"  src="./images/prize_banner.png" style="display: block;"  href=""  >
 									</div>
 									<br>
+									<br>
+									<div >
+										<a href="https://3dcomic.shop/inkbots/s01e01/?lan=en&savepoint=4200" alt="If you are a returning reader, this button will jump to the latest content">
+											▼<b>JUMP To LATEST</b>▼
+										</a>
+									</div>
+									<div id="homescreen_tip" style="display:none;">
+										<p >
+											(Add to Homescreen for fullscreen) 
+										</p>
+									</div>
+
+									<!-- <div id="busker_hat"> 
+										<img alt=""  width="40%" height="40%"  src="./images/busker_hat.png" style="display: block;"  href=""  >
+									</div>
+									<div >
+										<font style="font-size:0.66em;color:rgb(132, 201, 138);font-family:'monospace'; ">
+											<input  type="text" id="clipboardCopyInput" value="DQJKBcXweFVKA6FJRcPyRt9mSuJ7WmvEfv">
+											<br>
+											<div class="tooltip">
+												<button id="tipbutton" onclick="clipboardCopy()" onmouseout="outFunc()" class="copybutton">
+													<span class="tooltiptext" id="clipboardCopyTooltip">Copy Doge Wallet</span>
+													Tip Creator
+												</button>
+											</div>
+										</font>
+									</div> -->
+
 								</center>
 							</div>
-						<img alt="" height="100%" width="100%"  style  src="./images/construction_bar.jpg" style="display:block; margin-left: auto; margin-right: auto; ">
+
+							<!-- <div style="width:100%">
+									<br>
+									<font style="color:rgb(0, 0, 0);font-family:'Courier Prime'; ">
+										If you plan to check this page for updates regularly,
+										bookmark so it always sends you to the bottom of the page!
+									</font>
+							</div> -->
+
+							<!-- <div style="width:100%; text-align:center; margin-top:16px; line-height: 10pt; font-size:1.875em; text-decoration: none">
+									<a href="https://3dcomic.shop/inkbots/s01e01/#bottom">
+											<center>
+												<br>
+												<font style="font-size:1.875em;color:chartreuse;font-family:Audiowide;">
+												<p><b></b> SAVE BOOKMARK </b></p>
+												</font>
+												<br>
+											</center>
+									</a>
+							</div> -->
+						</div>
 					</div>
 
 					<div class="coverwrapper">
@@ -315,24 +370,29 @@
 			var progress = "0";
 			path = window.location.href
 			var parameters = path.split("?")[1]; 
-			var para1 = parameters.split("&")[0];
-			var para2 = parameters.split("&")[1];
-			// console.log(para2)
-
-			if ( para1.substr( 0, 4 ) === 'lan=' ) {
-
-				language = para1.substr( 4 );
-				// console.log(language)
-
-			}
+			var para1, para2;
 			try{
-
-				if ( para2.substr( 0, 10 ) === 'savepoint=' ) {
-					progress = Number(para2.substr( 10 ));
-					// console.log(savepoint);
+				var para1 = parameters.split("&")[0];
+				var para2 = parameters.split("&")[1];
+				// console.log(para2)
+				if ( para1.substr( 0, 4 ) === 'lan=' ) {
+	
+					language = para1.substr( 4 );
+					// console.log(language)
+	
 				}
+				try{
+	
+					if ( para2.substr( 0, 10 ) === 'savepoint=' ) {
+						progress = Number(para2.substr( 10 ));
+						// console.log(savepoint);
+					}
+				} catch {
+				}		
 			} catch {
-			}		
+				language = "en";
+				progress = "0"
+			}
 	
 			function shuffle_banner() {
 				var el=document.getElementById("shuffle");	
@@ -389,7 +449,7 @@
 
 				if (running_on_desktop == true){
 					renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-					renderer.setPixelRatio(window.devicePixelRatio * 1.333);
+					renderer.setPixelRatio(window.devicePixelRatio * 1.2);
 					if (developer_mode){
 						renderer.setPixelRatio(window.devicePixelRatio * 2);
 					}
@@ -398,8 +458,8 @@
 				}
 				else{
 					renderer = new THREE.WebGLRenderer( { canvas: canvas, antialias: false } );
-					renderer.setPixelRatio( window.devicePixelRatio * 1.2);
-					renderer.shadowMap.type = THREE.VSMShadowMap;
+					renderer.setPixelRatio( window.devicePixelRatio );
+					renderer.shadowMap.type = THREE.BasicShadowMap;
 
 				}
 
@@ -414,6 +474,8 @@
 				document.body.addEventListener( 'pointermove', onPointerMove );
 				document.body.addEventListener( 'pointerout', onPointerUp );
 				document.body.addEventListener( 'pointerup', onPointerUp );
+				// document.addEventListener('scroll', onScroll);
+				document.body.addEventListener('keydown', onKeyDown);
 
 			}
 
@@ -453,6 +515,9 @@
 
 			}
 
+			function onKeyDown() {
+				// nextPage();
+			}
 			// var delay = ( function() {
 			// 	var timer = 0;
 			// 	return function(callback, ms) {
@@ -603,6 +668,12 @@
 					element.style.height = '0';
 					element.style.paddingTop = ( height / aspect ) + '%';
 					content.appendChild( element );
+					// element.dataset.panel_count = loadedPanelCount;
+					var colors = new Uint8Array( [ 0, 0, 255 ] );
+					var gradientMap = new THREE.DataTexture( colors, 3, 1, THREE.LuminanceFormat );
+					gradientMap.minFilter = THREE.NearestFilter;
+					gradientMap.magFilter = THREE.NearestFilter;
+					gradientMap.generateMipmaps = false;
 
 					loader.load( path, function ( gltf ) {
 
@@ -818,7 +889,10 @@
 			
 			window.onload = function(){
 				window.scrollTo(0,progress);
-
+				if(isMobile.any()) {
+					document.getElementById("homescreen_tip").style.display = "block";
+					document.getElementById("homescreen_tip").style.visibility = "visible";
+				}
 			}
 
 
@@ -895,9 +969,9 @@
 					if ( camera.aspect < 1 ) {
 						// Use horizontal fov in vertical aspect ratios
 						camera.fov = Math.atan( Math.tan( camera.fov * Math.PI / 360 ) / camera.aspect ) * 360 / Math.PI;
-					}
-					else{
-						orbit_ratio_speed_offset =  (rect.width - rect.height) * .0001;
+						
+					}else{
+						orbit_ratio_speed_offset =  (rect.width - rect.height) * .0002;
 					}
 
 					camera.updateProjectionMatrix();
@@ -928,7 +1002,7 @@
 					var bonusGemstone = scene.userData.bonusGemstone;
 					var frustum = scene.userData.frustum;
 					var isBonusFound = scene.userData.isBonusFound;
-					var cameraOrbitSpeed = scene.userData.cameraOrbitSpeed + orbit_ratio_speed_offset
+					var cameraOrbitSpeed = scene.userData.cameraOrbitSpeed + orbit_ratio_speed_offset;
 
 					if ( cameraOrigin ) {
 
