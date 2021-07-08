@@ -49,8 +49,8 @@ from bpy.types import (Panel,
                        )
 
 import bmesh
-import bpy.utils.previews
-from bpy.app.handlers import persistent
+# import bpy.utils.previews
+# from bpy.app.handlers import persistent
 
 
 #------------------------------------------------------
@@ -77,7 +77,7 @@ from bpy.app.handlers import persistent
 # global variables
 
 developer_mode = False
-backstage_collection_name = False
+backstage_collection_name = ""
 localHostIsRunning = False
 last_applied_pose_index = 0
 isChildLock = False
@@ -94,7 +94,7 @@ active_language = "english"
 working_folder = ""
 ink_swatch_object = ""
 issue_folder = ""
-
+localComicServerProcess = False
 
 
 #------------------------------------------------------
@@ -745,6 +745,23 @@ def getCurrentMaterialSwatch():
                     ink_swatch_object = mobj
                     # bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
     return ink_swatch_object
+
+def getMaterialSwatch(isGlobal):
+    if isGlobal:
+        ink_swatch_object_name = "Materials.Global"
+    else:
+        panel_number = getCurrentPanelNumber(True)
+        ink_swatch_object_name = "Materials." + panel_number
+    backstage_collection = getCurrentBackstageCollection()
+    if backstage_collection:
+            backstage_objects = backstage_collection.objects
+            for mobj in backstage_objects:
+                if ink_swatch_object_name in mobj.name:
+                    ink_swatch_object = mobj
+    return ink_swatch_object
+
+
+
 
 #------------------------------------------------------
 # scene tools
@@ -1682,13 +1699,21 @@ def outline(self,context,mesh_objects, mode):
         self.report({'INFO'}, 'No Backstage Collection found, initializng as 3D Comic Panel!')
         BR_OT_panel_init.execute(self, context)
 
-
-
-
-    ink_swatch_object = getCurrentMaterialSwatch()
+    # ink_swatch_object = getCurrentMaterialSwatch()
+    panel_material_swatch = getMaterialSwatch(False)
+    global_material_swatch = getMaterialSwatch(True)
     export_collection = getCurrentExportCollection(self, context)
     backstage_collection = getCurrentBackstageCollection()
     backstage_collection_name = getCurrentBackstageCollectionName()
+    toonfill_use_global_ink = bpy.context.scene.panel_settings.s3dc_toonfill_use_global_ink
+    panel_number = getCurrentPanelNumber(True)
+
+    if toonfill_use_global_ink:
+        ink_swatch_object = global_material_swatch
+    else:
+        ink_swatch_object = panel_material_swatch
+
+
     if backstage_collection:
         try:
             bpy.context.view_layer.layer_collection.children[backstage_collection_name].exclude = False
@@ -1759,32 +1784,38 @@ def outline(self,context,mesh_objects, mode):
                         mesh_object.select_set(state=True)
                         bpy.context.view_layer.objects.active = mesh_object
 
-                        ink_thick_tex_name = "L_InkThickness." + str(paddedNumString)
-                        for itex in bpy.data.textures: 
-                            if ink_thick_tex_name in itex.name:
-                                ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
-                            else:
-                                ink_thick_tex_name = ink_thick_tex_name
-                                ink_thick_tex_slot = bpy.data.textures.new(ink_thick_tex_name, type='CLOUDS')
-                                ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
-                            
-                            ink_thick_tex.noise_type = 'SOFT_NOISE'
-                            ink_thick_tex.noise_depth = 0
-                            ink_thick_tex.nabla = 0.001
-                            ink_thick_tex.intensity = 0.99
+                        if not toonfill_use_global_ink:
+                            ink_thick_tex_name = "L_InkThickness." + str(paddedNumString)
+                            for itex in bpy.data.textures: 
+                                if ink_thick_tex_name in itex.name:
+                                    ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
+                                else:
+                                    ink_thick_tex_name = ink_thick_tex_name
+                                    ink_thick_tex_slot = bpy.data.textures.new(ink_thick_tex_name, type='CLOUDS')
+                                    ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
+                                
+                                ink_thick_tex.noise_type = 'SOFT_NOISE'
+                                ink_thick_tex.noise_depth = 0
+                                ink_thick_tex.nabla = 0.001
+                                ink_thick_tex.intensity = 0.99
 
-                            if ink_swatch_object:
-                                objectInkSmoothnessDriver = ink_thick_tex.driver_add('noise_scale')
-                                objectInkSmoothnessDriver.driver.type = 'SUM'
-                                newVar = objectInkSmoothnessDriver.driver.variables.new()
-                                newVar.name = "ink_wobble"
-                                newVar.type = 'SINGLE_PROP'
-                                newVar.targets[0].id = ink_swatch_object 
-                                newVar.targets[0].data_path = '["OutlineWobble"]'
-                                objectInkSmoothnessDriver.driver.expression =  "ink_wobble"
-                                objectInkSmoothnessDriver = "ink_wobble"
-                            else:
-                                ink_thick_tex.noise_scale = 0.3
+                                if ink_swatch_object:
+                                    objectInkSmoothnessDriver = ink_thick_tex.driver_add('noise_scale')
+                                    objectInkSmoothnessDriver.driver.type = 'SUM'
+                                    newVar = objectInkSmoothnessDriver.driver.variables.new()
+                                    newVar.name = "ink_wobble"
+                                    newVar.type = 'SINGLE_PROP'
+                                    newVar.targets[0].id = ink_swatch_object 
+                                    newVar.targets[0].data_path = '["OutlineWobble"]'
+                                    objectInkSmoothnessDriver.driver.expression =  "ink_wobble"
+                                    objectInkSmoothnessDriver = "ink_wobble"
+                                else:
+                                    ink_thick_tex.noise_scale = 0.3
+                        else:
+                            ink_thick_tex_name = "L_InkThickness.Global"
+                            for itex in bpy.data.textures: 
+                                if ink_thick_tex_name in itex.name:
+                                    ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
 
 
 
@@ -1817,6 +1848,8 @@ def outline(self,context,mesh_objects, mode):
 
                     if not ink_swatch_object:
                         mesh_object["OutlineThickness"] = 0.5
+
+
                     objectInkThicknessDriver = white_outline_mod.driver_add('thickness')
                     objectInkThicknessDriver.driver.type = 'SCRIPTED'
                     newVar = objectInkThicknessDriver.driver.variables.new()
@@ -3483,12 +3516,14 @@ def export_panel(self, context, export_only_current, remove_skeletons):
         stringFragments = file_dir.split(':')
         drive_letter = stringFragments[0] + ":"
 
-
+        bat_file.write('@echo off' +'\n')  
         bat_file.write(drive_letter +'\n')  
         bat_file.write('cd ' + file_dir +'\n')  
+        bat_file.write('taskkill /IM "python.exe" /F' +'\n')
         bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
-        # bat_file.write('python -m  http.server ' +'\n')
-        bat_file.write('tasklist /nh /fi "imagename eq python.exe" | find /i "python.exe" > nul | (python -m  http.server)' +'\n')
+        bat_file.write('python -m  http.server ' +'\n')
+        # bat_file.write('tasklist /nh /fi "imagename eq python.exe" | find /i "python.exe" > nul | (python -m  http.server)' +'\n')
+        bat_file.write('pause' +'\n')
         bat_file.close()
     else:
         js_file = open(js_file_path, "w")
@@ -6963,27 +6998,30 @@ class BR_OT_toonfill(bpy.types.Operator):
             export_collection = getCurrentExportCollection(self, context)
             lighting_collection = getCurrentLightingCollection(self, context)
             backstage_collection = getCurrentBackstageCollection()
+            panel_material_swatch = getMaterialSwatch(False)
+            ink_swatch_object = getCurrentMaterialSwatch()
+
 
             if not backstage_collection:
                 self.report({'INFO'}, 'No Backstage Collection found, initializng as 3D Comic Panel!')
                 BR_OT_panel_init.execute(self, context)
                 backstage_collection = getCurrentBackstageCollection()
 
-            if backstage_collection:
-                backstage_objects = backstage_collection.objects
-                for obj in backstage_objects:
-                    if "Materials" in obj.name:
-                        material_swatch_object = obj
+            # if backstage_collection:
+            #     backstage_objects = backstage_collection.objects
+            #     for obj in backstage_objects:
+            #         if "Materials" in obj.name:
+            #             material_swatch_object = obj
             
-            if material_swatch_object:
+            if ink_swatch_object:
                 sky_color = (0, 0, 0, 1)
                 bpy.ops.object.select_all(action='DESELECT')
                 visible_objects = []
                 for obj in bpy.context.view_layer.objects:
                     if obj.visible_get: 
                         if obj.type == 'MESH' or obj.type == 'CURVE' :
-                            material_swatch_object_name = material_swatch_object.name
-                            if not "ground" in obj.name and not material_swatch_object_name in obj.name: 
+                            ink_swatch_object_name = ink_swatch_object.name
+                            if not "ground" in obj.name and not ink_swatch_object_name in obj.name: 
                                 visible_objects.append(obj)
                             else:
                                 tmp_array = [obj]
@@ -7090,16 +7128,18 @@ class BR_OT_toonfill(bpy.types.Operator):
 
                 if backstage_collection:
                     bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = False
-                    backstage_objects = backstage_collection.objects
-                    for mobj in backstage_objects:
-                        if "Materials." in mobj.name:
-                            sky_color = mobj["Sky"]
+
+                if ink_swatch_object:
+                    # backstage_objects = backstage_collection.objects
+                    # for mobj in backstage_objects:
+                    #     if "Materials." in mobj.name:
+                            sky_color = ink_swatch_object["Sky"]
                             if sky_color:
                                 if sky_color == colorSwatch[0]:
-                                    mobj["Sky"] = colorSwatch[1]
+                                    ink_swatch_object["Sky"] = colorSwatch[1]
 
                                 if sky_color == colorSwatch[1]:
-                                    mobj["Sky"] = colorSwatch[0]                     
+                                    ink_swatch_object["Sky"] = colorSwatch[0]                     
 
                                 colorDriverRed = background_color.outputs[0].driver_add("default_value")[0] 
                                 colorDriverGreen = background_color.outputs[0].driver_add("default_value")[1] 
@@ -7109,21 +7149,21 @@ class BR_OT_toonfill(bpy.types.Operator):
                                 newVar = colorDriverRed.driver.variables.new()
                                 newVar.name = "Sky"
                                 newVar.type = 'SINGLE_PROP'
-                                newVar.targets[0].id = mobj
+                                newVar.targets[0].id = ink_swatch_object
                                 newVar.targets[0].data_path = '["Sky"][0]' 
 
                                 colorDriverGreen.driver.type = 'SUM'
                                 newVar = colorDriverGreen.driver.variables.new()
                                 newVar.name = "Sky"
                                 newVar.type = 'SINGLE_PROP'
-                                newVar.targets[0].id = mobj
+                                newVar.targets[0].id = ink_swatch_object
                                 newVar.targets[0].data_path = '["Sky"][1]' 
 
                                 colorDriverBlue.driver.type = 'SUM'
                                 newVar = colorDriverBlue.driver.variables.new()
                                 newVar.name = "Sky"
                                 newVar.type = 'SINGLE_PROP'
-                                newVar.targets[0].id = mobj
+                                newVar.targets[0].id = ink_swatch_object
                                 newVar.targets[0].data_path = '["Sky"][2]' 
 
                 bpy.context.scene.eevee.use_gtao = False
@@ -7413,6 +7453,8 @@ class BR_MT_read_3d_comic(bpy.types.Operator):
     def execute(self, context):
         global localHostIsRunning
         global active_language_abreviated
+        global localComicServerProcess
+
         # path to the folder
         file_path = bpy.data.filepath
         file_name = bpy.path.display_name_from_filepath(file_path)
@@ -7426,28 +7468,26 @@ class BR_MT_read_3d_comic(bpy.types.Operator):
         if os.path.isfile(index_file_path):
             if not os.path.isfile(bat_file_path):
                 bat_file = open(bat_file_path, "w")
+                stringFragments = file_dir.split(':')
+                drive_letter = stringFragments[0] + ":"
                 bat_file.write('@echo off' +'\n')  
+                bat_file.write(drive_letter +'\n')  
                 bat_file.write('cd ' + file_dir +'\n')  
-                bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
-                # bat_file.write('python -m  http.server ' +'\n')
-                # bat_file.write('tasklist /nh /fi "imagename eq python.exe" | find /i "python.exe" > nul | (python -m  http.server)' +'\n')
                 bat_file.write('taskkill /IM "python.exe" /F' +'\n')
-                bat_file.write('python Read_Local.py' +'\n')
+                bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
+                bat_file.write('python -m  http.server ' +'\n')
                 bat_file.write('pause' +'\n')
-
                 bat_file.close()
 
             # subprocess.Popen('explorer '+ file_dir)
 
-            localHostIsRunning
-            if localHostIsRunning is False:
-                # localHostIsRunning.terminate()
-                cmd = bat_file_path
-                subprocess.Popen(cmd, shell=True)
-                localHostIsRunning = True
-                # subprocess.Popen(bat_file_path)
-            else:
-                subprocess.Popen(bat_file_path)
+            if localComicServerProcess:
+                localComicServerProcess.terminate()
+
+            cmd = bat_file_path
+            localComicServerProcess = subprocess.Popen(cmd, shell=True)
+
+                # os.system(bat_file_path)
 
         else:
             self.report({'ERROR'}, 'No 3D Comic found next to .blend file!  Try Export 3D Comic first.' + bpy.context.scene.name)
@@ -10218,8 +10258,13 @@ class PanelSettings(PropertyGroup):
                     default=True,
                     description='Use global materials for toonshading')
 
+    s3dc_toonfill_use_global_ink :  bpy.props.BoolProperty(
+                    name='s3dc_toonfill_use_global_ink',
+                    default=False,
+                    description='Use global ink texture for ink wobble')
+
     s3dc_dynamic_shadows :  bpy.props.BoolProperty(
-                    name='s3dc_toonfill_use_global',
+                    name='s3dc_dynamic_shadows',
                     default=False,
                     description='Use per frame shadowmaps in browser (warning perf cost)') 
 
@@ -10310,7 +10355,8 @@ class BR_MT_3d_comic_panels(bpy.types.Panel):
 
     @classmethod 
     def poll(self, context):
-        return backstage_collection_name
+        backstage_collection = getCurrentBackstageCollection()
+        return backstage_collection
 
     def draw(self, context):
         global ink_swatch_object
@@ -10363,7 +10409,8 @@ class BR_MT_3d_comic_panel_color(bpy.types.Panel):
 
     @classmethod 
     def poll(self, context):
-        return backstage_collection_name
+        backstage_collection = getCurrentBackstageCollection()
+        return backstage_collection
 
 
     def draw(self, context):
@@ -10371,6 +10418,8 @@ class BR_MT_3d_comic_panel_color(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         ink_swatch_object = getCurrentMaterialSwatch()
+        panel_material_swatch = getMaterialSwatch(False)
+
         panel_settings = scene.panel_settings
         backstage_collection_name = getCurrentBackstageCollectionName()
         if "Backstage.Global" not in backstage_collection_name:
@@ -10396,15 +10445,18 @@ class BR_MT_3d_comic_panel_color(bpy.types.Panel):
                 col = split.column(align=True)
                 col.prop(ink_swatch_object, '["ToonBlack"]', text="Toonshade Shadow")
 
+
                 split = layout.split()
                 col = split.column()
                 col.prop(ink_swatch_object, '["OutlineNoShadowDark"]', text="Ink Inner")
                 col = split.column(align=True)
                 col.prop(ink_swatch_object, '["OutlineNoShadowLight"]', text="Ink Outer")
 
-                layout.prop(ink_swatch_object, '["OutlineThickness"]', text="Ink Thickness")
-                layout.prop(ink_swatch_object, '["OutlineWobble"]', text="Ink Wobble")
-                layout.prop(ink_swatch_object, '["OutlineSmooth"]', text="Ink Smoothness")
+                layout.separator()
+                layout.prop(panel_settings, "s3dc_toonfill_use_global_ink", text="Use Global Ink Thickness")
+                layout.prop(panel_material_swatch, '["OutlineThickness"]', text="Ink Thickness")
+                layout.prop(panel_material_swatch, '["OutlineWobble"]', text="Ink Wobble")
+                layout.prop(panel_material_swatch, '["OutlineSmooth"]', text="Ink Smoothness")
                 layout.separator()
                         
                 layout.label(text="Actions:")
@@ -10429,7 +10481,8 @@ class BR_MT_3d_comic_panel_letters(bpy.types.Panel):
 
     @classmethod 
     def poll(self, context):
-        return backstage_collection_name
+        backstage_collection = getCurrentBackstageCollection()
+        return backstage_collection
 
 
     def draw(self, context):
@@ -10556,7 +10609,6 @@ class BR_MT_3d_comic_panel_build(bpy.types.Panel):
             self.layout.label(text= 'No Backstage material object found !')
 
             # Big render button
-            layout.label(text="Scene Actions:")
             row = layout.row()
             row.scale_y = 1.0
             if developer_mode:
