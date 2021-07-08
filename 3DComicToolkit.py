@@ -317,51 +317,76 @@ def automap(mesh_objects, decimate_ratio):
 
 
 
-        #select all meshes and pack into one UV set together
-        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        bpy.ops.object.select_all(action='DESELECT')
-        for mesh_object in mesh_objects:
-            mesh_object.select_set(state=True)
-            bpy.context.view_layer.objects.active = mesh_object
+    #select all meshes and pack into one UV set together
+    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    bpy.ops.object.select_all(action='DESELECT')
+    for mesh_object in mesh_objects:
+        mesh_object.select_set(state=True)
+        bpy.context.view_layer.objects.active = mesh_object
 
-            bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-            for area in bpy.context.screen.areas:
-                    if area.type == 'VIEW_3D':
-                        for region in area.regions:
-                            if region.type == 'WINDOW':
-                                override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
-                                bpy.ops.uv.select_all(action='SELECT')
-                                bpy.ops.mesh.select_all(action='SELECT')
-                                bpy.context.scene.tool_settings.use_uv_select_sync = True
-                                # bpy.ops.uv.minimize_stretch(override, iterations=100)
-                                if operator_exists("uvpackmaster2"):
-                                    bpy.context.scene.uvp2_props.pack_to_others = False
-                                    bpy.context.scene.uvp2_props.margin = 0.01
-                                    bpy.context.scene.uvp2_props.rot_step = 5
-                                    bpy.ops.uvpackmaster2.uv_measure_area()
-                                    bpy.ops.uv.average_islands_scale()
-                                    bpy.ops.uv.pack_islands(override , margin=0.005)
-                                    bpy.ops.uvpackmaster2.uv_pack()
-                                else:
-                                    bpy.ops.uv.average_islands_scale(override)
-                                    bpy.ops.uv.pack_islands(override , margin=0.005)
-
-
-
-
-            # bpy.ops.mesh.select_all(action='SELECT')
-            # C=bpy.context
-            # old_area_type = C.area.type
-            # C.area.type='IMAGE_EDITOR'
-            # bpy.ops.uv.pack_islands(margin=0.017)
-            # C.area.type=old_area_type
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    C=bpy.context
+    old_area_type = C.area.type
+    C.area.type='IMAGE_EDITOR'
+    C.area.ui_type = 'UV'
+    bpy.context.scene.tool_settings.use_uv_select_sync = True
+    bpy.ops.uv.select_all(action='SELECT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    # bpy.ops.uv.select_all(action='SELECT')
+    # bpy.ops.uv.minimize_stretch(override, iterations=100)
+    if operator_exists("uvpackmaster2"):
+        bpy.context.scene.uvp2_props.pack_to_others = False
+        bpy.context.scene.uvp2_props.margin = 0.01
+        bpy.context.scene.uvp2_props.rot_step = 5
+        bpy.ops.uvpackmaster2.uv_measure_area()
+        bpy.ops.uv.average_islands_scale()
+        bpy.ops.uv.pack_islands(margin=0.005)
+        bpy.ops.uvpackmaster2.uv_pack()
+    else:
+        bpy.ops.uv.average_islands_scale()
+        bpy.ops.uv.pack_islands(margin=0.005)
+    C.area.type=old_area_type
 
 
-        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        bpy.ops.object.select_all(action='DESELECT')
-        for mesh_object in mesh_objects:
-            mesh_object.select_set(state=True)
-            bpy.context.view_layer.objects.active = mesh_object
+    # bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    # for area in bpy.context.screen.areas:
+    #         if area.type == 'IMAGE_EDITOR':
+    #             for region in area.regions:
+    #                 if region.type == 'WINDOW':
+    #                     override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
+    #                     bpy.context.scene.tool_settings.use_uv_select_sync = True
+    #                     bpy.ops.uv.select_all(action='SELECT')
+    #                     bpy.ops.mesh.select_all(action='SELECT')
+    #                     # bpy.ops.uv.minimize_stretch(override, iterations=100)
+    #                     if operator_exists("uvpackmaster2"):
+    #                         bpy.context.scene.uvp2_props.pack_to_others = False
+    #                         bpy.context.scene.uvp2_props.margin = 0.01
+    #                         bpy.context.scene.uvp2_props.rot_step = 5
+    #                         bpy.ops.uvpackmaster2.uv_measure_area()
+    #                         bpy.ops.uv.average_islands_scale()
+    #                         bpy.ops.uv.pack_islands(override , margin=0.005)
+    #                         bpy.ops.uvpackmaster2.uv_pack()
+    #                     else:
+    #                         bpy.ops.uv.average_islands_scale(override)
+    #                         bpy.ops.uv.pack_islands(override , margin=0.005)
+
+
+
+
+
+        # bpy.ops.mesh.select_all(action='SELECT')
+        # C=bpy.context
+        # old_area_type = C.area.type
+        # C.area.type='IMAGE_EDITOR'
+        # bpy.ops.uv.pack_islands(margin=0.017)
+        # C.area.type=old_area_type
+
+
+    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    bpy.ops.object.select_all(action='DESELECT')
+    for mesh_object in mesh_objects:
+        mesh_object.select_set(state=True)
+        bpy.context.view_layer.objects.active = mesh_object
 
 
         # raise Exception('stopping script')
@@ -1271,7 +1296,6 @@ def toggle_workmode(self, context, rendermode):
     for area in my_areas:
         for space in area.spaces:
             if space.type == 'VIEW_3D':
-
                 my_shading = 'WIREFRAME'  # 'WIREFRAME' 'SOLID' 'MATERIAL' 'RENDERED'
                 space.overlay.show_overlays = True
                 space.overlay.show_floor = True
@@ -1287,13 +1311,12 @@ def toggle_workmode(self, context, rendermode):
                 space.overlay.show_annotation = True
                 space.overlay.show_text = True
                 space.overlay.show_stats = True
+                previous_toolbar_state = space.show_region_toolbar
+                previous_region_ui_state = space.show_region_ui
 
 
                 if isWorkmodeToggled:
                     previous_selection = bpy.context.selected_objects
-                    previous_toolbar_state = space.show_region_toolbar
-                    previous_region_ui_state = space.show_region_ui
-
                     space.overlay.show_overlays = True
                     space.overlay.show_floor = False
                     space.overlay.show_axis_x = False
@@ -1311,9 +1334,9 @@ def toggle_workmode(self, context, rendermode):
                     space.show_gizmo = False
                     space.overlay.show_text = False
                     space.overlay.show_stats = False
-                    space.show_region_toolbar = False
-                    space.show_region_ui = False
-                    space.show_region_header = False
+                    space.show_region_toolbar = previous_toolbar_state
+                    space.show_region_ui = previous_region_ui_state
+                    # space.show_region_header = False
 
 
 
@@ -1396,7 +1419,7 @@ def toggle_workmode(self, context, rendermode):
                     space.overlay.show_stats = True
                     space.overlay.wireframe_threshold = 1
                     space.show_gizmo = True
-                    space.show_region_header = True
+                    # space.show_region_header = True
                     space.show_region_toolbar = previous_toolbar_state
                     space.show_region_ui = previous_region_ui_state
 
@@ -7236,14 +7259,34 @@ class BR_MT_export_3d_comic_all(bpy.types.Operator):
         # scene = context.scene
         # build_panel_settings = scene.build_panel_settings
 
+    # def execute(self, context):
+    #     if bpy.data.is_dirty:
+    #         # self.report({'WARNING'}, "You must save your file first!")
+    #         # bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
+    #         self.report({'WARNING'}, "You must save your file first!")
+    #     else:
+    #         export_panel(self, context,False, True)
+    #         # export_letters(self, context,False)
+
+
+
     def execute(self, context):
+        file_path = bpy.data.filepath
+        file_dir = os.path.dirname(os.path.dirname(file_path)) 
+        index_file_path = (os.path.join(file_dir, "index.html"))
+
         if bpy.data.is_dirty:
-            # self.report({'WARNING'}, "You must save your file first!")
-            # bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
             self.report({'WARNING'}, "You must save your file first!")
         else:
             export_panel(self, context,False, True)
-            # export_letters(self, context,False)
+            BR_MT_read_3d_comic.execute(self, context)
+
+
+        return {'FINISHED'}
+
+
+
+
 
 
 
@@ -7379,10 +7422,14 @@ class BR_MT_read_3d_comic(bpy.types.Operator):
         if os.path.isfile(index_file_path):
             if not os.path.isfile(bat_file_path):
                 bat_file = open(bat_file_path, "w")
+                bat_file.write('@echo off' +'\n')  
                 bat_file.write('cd ' + file_dir +'\n')  
                 bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
                 # bat_file.write('python -m  http.server ' +'\n')
-                bat_file.write('tasklist /nh /fi "imagename eq python.exe" | find /i "python.exe" > nul | (python -m  http.server)' +'\n')
+                # bat_file.write('tasklist /nh /fi "imagename eq python.exe" | find /i "python.exe" > nul | (python -m  http.server)' +'\n')
+                bat_file.write('taskkill /IM "python.exe" /F' +'\n')
+                bat_file.write('python Read_Local.py' +'\n')
+                bat_file.write('pause' +'\n')
 
                 bat_file.close()
 
