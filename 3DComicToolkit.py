@@ -76,6 +76,8 @@ from bpy.app.handlers import persistent
 #------------------------------------------------------
 # global variables
 
+developer_mode = False
+backstage_collection_name = False
 localHostIsRunning = False
 last_applied_pose_index = 0
 isChildLock = False
@@ -87,7 +89,6 @@ previous_toolbar_state = False
 previous_region_ui_state = False
 previous_mode = 'EDIT'
 previous_selection = ""
-developer_mode = False
 active_language_abreviated = "en"
 active_language = "english"
 working_folder = ""
@@ -3563,6 +3564,7 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
 
     def execute(self, context):
         global active_language_abreviated
+        global backstage_collection_name
         root_folder, extension = os.path.splitext(self.filepath)
         comic_name = os.path.basename(self.filepath) 
         issue_name = "s01e01"
@@ -3678,6 +3680,8 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
             bpy.context.scene.render.image_settings.file_format='JPEG'
             bpy.ops.render.render(use_viewport = True, write_still=True)
 
+            # set backstage collection variable so new panel menu knows to draw
+            backstage_collection_name = getCurrentBackstageCollectionName()
 
         # panels = []
         # for scene in bpy.data.scenes:
@@ -10304,6 +10308,10 @@ class BR_MT_3d_comic_panels(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_category = "3D Comics"
 
+    @classmethod 
+    def poll(self, context):
+        return backstage_collection_name
+
     def draw(self, context):
         global ink_swatch_object
         layout = self.layout
@@ -10352,6 +10360,11 @@ class BR_MT_3d_comic_panel_color(bpy.types.Panel):
     # bl_space_type = 'PROPERTIES'
     # bl_context = "scene"
     # config: bpy.props.PointerProperty(type=PanelSettings)
+
+    @classmethod 
+    def poll(self, context):
+        return backstage_collection_name
+
 
     def draw(self, context):
         global ink_swatch_object
@@ -10414,6 +10427,11 @@ class BR_MT_3d_comic_panel_letters(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_category = "3D Comics"
 
+    @classmethod 
+    def poll(self, context):
+        return backstage_collection_name
+
+
     def draw(self, context):
         backstage_collection_name = getCurrentBackstageCollectionName()
         if "Backstage.Global" not in backstage_collection_name:
@@ -10454,6 +10472,12 @@ class BR_MT_3d_comic_panel_contents(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "3D Comics"
+
+
+    # @classmethod 
+    # def poll(self, context):
+    #     backstage_collection_name = getCurrentBackstageCollectionName()
+    #     return backstage_collection_name
 
 
     @classmethod 
@@ -10505,6 +10529,8 @@ class BR_MT_3d_comic_panel_build(bpy.types.Panel):
     # bl_context = "scene"
     # config: bpy.props.PointerProperty(type=PanelSettings)
 
+
+
     def draw(self, context):
         global ink_swatch_object
         layout = self.layout
@@ -10523,9 +10549,7 @@ class BR_MT_3d_comic_panel_build(bpy.types.Panel):
             row.scale_y = 2.0
             row.operator("view3d.spiraloid_export_3d_comic_all")
             row.operator("wm.spiraloid_quicks_save_export_3d_comic_current")
-            if developer_mode:
-                layout.operator("view3d.spiraloid_explore_3d_comic", text="Open 3D Comic Folder", icon="FILE_FOLDER")
-
+            layout.operator("view3d.spiraloid_explore_3d_comic", text="Open 3D Comic Folder", icon="FILE_FOLDER")
             layout.operator("view3d.spiraloid_read_3d_comic", icon="HIDE_OFF")
 
         else:
@@ -10535,7 +10559,8 @@ class BR_MT_3d_comic_panel_build(bpy.types.Panel):
             layout.label(text="Scene Actions:")
             row = layout.row()
             row.scale_y = 1.0
-            row.operator("view3d.spiraloid_3d_comic_panel_init", text="Initialize as Template Panel?")
+            if developer_mode:
+                row.operator("view3d.spiraloid_3d_comic_panel_init", text="Initialize as Template Panel?")
             row = layout.row()
             row.scale_y = 1.0
             row.operator("wm.spiraloid_new_3d_comic", text="Initialize as new 3D Comic?")
