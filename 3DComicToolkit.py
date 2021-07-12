@@ -1794,23 +1794,23 @@ def outline(self,context,mesh_objects, mode):
                                     ink_thick_tex_slot = bpy.data.textures.new(ink_thick_tex_name, type='CLOUDS')
                                     ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
                                 
-                                ink_thick_tex.noise_type = 'SOFT_NOISE'
-                                ink_thick_tex.noise_depth = 0
-                                ink_thick_tex.nabla = 0.001
-                                ink_thick_tex.intensity = 0.99
+                                # ink_thick_tex.noise_type = 'SOFT_NOISE'
+                                # ink_thick_tex.noise_depth = 0
+                                # ink_thick_tex.nabla = 0.001
+                                # ink_thick_tex.intensity = 0.99
 
-                                if ink_swatch_object:
-                                    objectInkSmoothnessDriver = ink_thick_tex.driver_add('noise_scale')
-                                    objectInkSmoothnessDriver.driver.type = 'SUM'
-                                    newVar = objectInkSmoothnessDriver.driver.variables.new()
-                                    newVar.name = "ink_wobble"
-                                    newVar.type = 'SINGLE_PROP'
-                                    newVar.targets[0].id = ink_swatch_object 
-                                    newVar.targets[0].data_path = '["OutlineWobble"]'
-                                    objectInkSmoothnessDriver.driver.expression =  "ink_wobble"
-                                    objectInkSmoothnessDriver = "ink_wobble"
-                                else:
-                                    ink_thick_tex.noise_scale = 0.3
+                                # if ink_swatch_object:
+                                #     objectInkSmoothnessDriver = ink_thick_tex.driver_add('noise_scale')
+                                #     objectInkSmoothnessDriver.driver.type = 'SUM'
+                                #     newVar = objectInkSmoothnessDriver.driver.variables.new()
+                                #     newVar.name = "ink_wobble"
+                                #     newVar.type = 'SINGLE_PROP'
+                                #     newVar.targets[0].id = ink_swatch_object 
+                                #     newVar.targets[0].data_path = '["OutlineWobble"]'
+                                #     objectInkSmoothnessDriver.driver.expression =  "ink_wobble"
+                                #     objectInkSmoothnessDriver = "ink_wobble"
+                                # else:
+                                #     ink_thick_tex.noise_scale = 0.3
                         else:
                             ink_thick_tex_name = "L_InkThickness.Global"
                             for itex in bpy.data.textures: 
@@ -7481,13 +7481,11 @@ class BR_MT_read_3d_comic(bpy.types.Operator):
 
             # subprocess.Popen('explorer '+ file_dir)
 
-            if localComicServerProcess:
-                localComicServerProcess.terminate()
-
-            cmd = bat_file_path
+            if not localComicServerProcess:
+                cmd = bat_file_path
+            else:
+                cmd = "start http://localhost:8000/?lan=en^&savepoint=0"
             localComicServerProcess = subprocess.Popen(cmd, shell=True)
-
-                # os.system(bat_file_path)
 
         else:
             self.report({'ERROR'}, 'No 3D Comic found next to .blend file!  Try Export 3D Comic first.' + bpy.context.scene.name)
