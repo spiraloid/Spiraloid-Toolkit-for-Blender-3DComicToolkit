@@ -671,7 +671,13 @@ def getCurrentLightingCollection(self, context):
     scene_collections = bpy.data.scenes[currSceneIndex].collection.children
     scene_cameras = currScene.collection.children
 
-    for col in scene_collections:
+    all_collections = []
+    coll = bpy.context.scene.collection
+    for c in traverse_tree(coll):
+        all_collections.append(c)
+
+
+    for col in all_collections:
         if lighting_collection_name in col.name:
             lighting_collection = bpy.data.collections.get(lighting_collection_name)
             if lighting_collection:
@@ -1690,9 +1696,10 @@ def add_ao(self, context, objects):
             bpy.context.view_layer.objects.active = ob
     return {'FINISHED'}
 
-def outline(self,context,mesh_objects, mode):
+def outline(self,context,mesh_objects, toonfill_mode ):
     # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     # bpy.ops.object.select_all(action='DESELECT')
+
     paddedNumString = getCurrentPanelNumber(True)
     backstage_collection = getCurrentBackstageCollection()
     if not backstage_collection:
@@ -1721,273 +1728,391 @@ def outline(self,context,mesh_objects, mode):
             pass
     backstage_objects = backstage_collection.objects
 
-    for mesh_object in mesh_objects:
-        is_toon_shaded = mesh_object.get("is_toon_shaded")
-        if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' or mesh_object.type == 'FONT':
-            if not is_toon_shaded:
-                is_insensitive = False
+    if bpy.context.mode != 'EDIT_MESH':
+        for mesh_object in mesh_objects:
+            is_toon_shaded = mesh_object.get("is_toon_shaded")
+            if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' or mesh_object.type == 'FONT':
+                if not is_toon_shaded:
+                    is_insensitive = False
 
-                if "ink" in mode and "toon" in mode:
-                    if mesh_object.active_material:
-                        # mesh_object.active_material.use_nodes = True
-                        # mesh_object.active_material.node_tree.nodes.clear()
-                        for i in range(len(mesh_object.material_slots)):
-                            bpy.ops.object.material_slot_remove({'object': mesh_object})
-                    for mod in mesh_object.modifiers:
-                        if 'InkThickness' in mod.name:
-                            bpy.ops.object.modifier_remove(modifier=mod.name)
-                        if 'WhiteOutline' in mod.name:
-                            bpy.ops.object.modifier_remove(modifier=mod.name)
-                        if 'BlackOutline' in mod.name:
-                            bpy.ops.object.modifier_remove(modifier=mod.name)
-
-                    for vgroup in mesh_object.vertex_groups:
-                        if 'Ink_Thickness' in vgroup.name:
-                            mesh_object.vertex_groups.remove(vgroup)
-
-                    try:
-                        drivers_data = mesh_object.animation_data.drivers
-                        for dr in drivers_data:  
-                            mesh_object.driver_remove(dr.data_path, -1)
-                    except:
-                        pass
-                    
-                    empty_trash(self, context)
-                if "ink" in mode:
-                    ink_thickness = mesh_object.dimensions[1] * 0.035
-                    if bpy.context.object:
-                        if "OBJECT" not in bpy.context.object.mode:
-                            if "DRAW" in bpy.context.object.mode :
-                                bpy.ops.gpencil.paintmode_toggle(back=False)
-                                bpy.ops.object.select_all(action='DESELECT')
-                            else:
-                                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
-                                bpy.ops.object.select_all(action='DESELECT')
-
-                    mesh_object.select_set(state=True)
-                    bpy.context.view_layer.objects.active = mesh_object
-                    # if "EDIT" not in bpy.context.object.mode:
-                    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-                    if mesh_object.type == 'MESH':
-                        bpy.ops.mesh.select_all(action='SELECT')
-                    # if mesh_object.type == 'CURVE':
-                    #     bpy.ops.curve.select_all(action='TOGGLE')
-
-                        ink_thickness_vgroup_name = "Ink_Thickness"
-                        mesh_object.vertex_groups.new(name = ink_thickness_vgroup_name)
-                        ink_thickness_vgroup = mesh_object.vertex_groups[-1]
-                        bpy.ops.object.vertex_group_assign()
-
-                        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-
-                        bpy.ops.object.select_all(action='DESELECT')
-                        mesh_object.select_set(state=True)
-                        bpy.context.view_layer.objects.active = mesh_object
-
-                        if not toonfill_use_global_ink:
-                            ink_thick_tex_name = "L_InkThickness." + str(paddedNumString)
-                            for itex in bpy.data.textures: 
-                                if ink_thick_tex_name in itex.name:
-                                    ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
-                                else:
-                                    ink_thick_tex_name = ink_thick_tex_name
-                                    ink_thick_tex_slot = bpy.data.textures.new(ink_thick_tex_name, type='CLOUDS')
-                                    ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
-                                
-                                # ink_thick_tex.noise_type = 'SOFT_NOISE'
-                                # ink_thick_tex.noise_depth = 0
-                                # ink_thick_tex.nabla = 0.001
-                                # ink_thick_tex.intensity = 0.99
-
-                                # if ink_swatch_object:
-                                #     objectInkSmoothnessDriver = ink_thick_tex.driver_add('noise_scale')
-                                #     objectInkSmoothnessDriver.driver.type = 'SUM'
-                                #     newVar = objectInkSmoothnessDriver.driver.variables.new()
-                                #     newVar.name = "ink_wobble"
-                                #     newVar.type = 'SINGLE_PROP'
-                                #     newVar.targets[0].id = ink_swatch_object 
-                                #     newVar.targets[0].data_path = '["OutlineWobble"]'
-                                #     objectInkSmoothnessDriver.driver.expression =  "ink_wobble"
-                                #     objectInkSmoothnessDriver = "ink_wobble"
-                                # else:
-                                #     ink_thick_tex.noise_scale = 0.3
-                        else:
-                            ink_thick_tex_name = "L_InkThickness.Global"
-                            for itex in bpy.data.textures: 
-                                if ink_thick_tex_name in itex.name:
-                                    ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
-
-
-
-                        ink_thick_mod = mesh_object.modifiers.new(name = 'InkThickness', type = 'VERTEX_WEIGHT_EDIT')
-                        ink_thick_mod.vertex_group = ink_thickness_vgroup.name
-                        ink_thick_mod.default_weight = 0
-                        ink_thick_mod.use_add = True
-
-                        ink_thick_mod.normalize = False
-                        ink_thick_mod.falloff_type = 'STEP'
-                        ink_thick_mod.invert_falloff = True
-                        ink_thick_mod.mask_constant = 1
-                        ink_thick_mod.mask_texture = ink_thick_tex
-                        ink_thick_mod.mask_tex_use_channel = 'INT'
-                        # ink_thick_mod.mask_tex_mapping = 'LOCAL'
-                        ink_thick_mod.mask_tex_mapping = 'GLOBAL'
-
-                    white_outline_mod = mesh_object.modifiers.new(name = 'WhiteOutline', type = 'SOLIDIFY')
-                    white_outline_mod.use_flat_faces = True
-                    white_outline_mod.use_flip_normals = True
-                    white_outline_mod.thickness = -ink_thickness / 2
-                    white_outline_mod.offset = -1
-                    white_outline_mod.material_offset = 2
-                    if mesh_object.type == 'MESH':
-                        white_outline_mod.vertex_group = ink_thickness_vgroup.name
-                    white_outline_mod.show_in_editmode = False
-                    white_outline_mod.thickness_clamp = 0.5
-                    white_outline_mod.thickness_vertex_group = 0.1
-
-
-                    if not ink_swatch_object:
-                        mesh_object["OutlineThickness"] = 0.5
-
-
-                    objectInkThicknessDriver = white_outline_mod.driver_add('thickness')
-                    objectInkThicknessDriver.driver.type = 'SCRIPTED'
-                    newVar = objectInkThicknessDriver.driver.variables.new()
-                    newVar.name = "ink_thickness"
-                    newVar.type = 'SINGLE_PROP'
-                    if ink_swatch_object:
-                        newVar.targets[0].id = ink_swatch_object 
-                    else:
-                        newVar.targets[0].id = mesh_object 
-                    newVar.targets[0].data_path = '["OutlineThickness"]'
-                    objectInkThicknessDriver.driver.expression =  "ink_thickness  * -0.1"
-                    objectInkThicknessDriver = "ink_thickness * -.1"
-
-                    if ink_swatch_object:
-                        objectInkSmoothnessDriver = white_outline_mod.driver_add('thickness_vertex_group')
-                        objectInkSmoothnessDriver.driver.type = 'SUM'
-                        newVar = objectInkSmoothnessDriver.driver.variables.new()
-                        newVar.name = "ink_smooth"
-                        newVar.type = 'SINGLE_PROP'
-                        newVar.targets[0].id = ink_swatch_object 
-                        newVar.targets[0].data_path = '["OutlineSmooth"]'
-                        objectInkSmoothnessDriver.driver.expression =  "ink_smooth"
-                        objectInkSmoothnessDriver = "ink_smooth"
-
-
-
-                    black_outline_mod = mesh_object.modifiers.new(name = 'BlackOutline', type = 'SOLIDIFY')
-                    black_outline_mod.use_flip_normals = True
-                    black_outline_mod.use_flat_faces = True
-
-                    # black_outline_mod.thickness = ink_thickness 
-
-                    thicknessDriver = black_outline_mod.driver_add('thickness')
-                    thicknessDriver.driver.type = 'SCRIPTED'
-                    newVar = thicknessDriver.driver.variables.new()
-                    newVar.name = "thickness"
-                    newVar.type = 'SINGLE_PROP'
-                    newVar.targets[0].id = mesh_object 
-                    newVar.targets[0].data_path = 'modifiers["WhiteOutline"].thickness'
-                    # thicknessDriver.driver.expression =  "(thickness  * 1.15) - .02"
-                    # thicknessDriver.driver.expression =  "(thickness  * -1) - (thickness  * 1)"
-                    thicknessDriver.driver.expression =  "thickness  * -1.5"
-
-                    factorDriver = black_outline_mod.driver_add('thickness_vertex_group')
-                    factorDriver.driver.type = 'SCRIPTED'
-                    newVar = factorDriver.driver.variables.new()
-                    newVar.name = "thickness_vertex_group"
-                    newVar.type = 'SINGLE_PROP'
-                    newVar.targets[0].id = mesh_object 
-                    newVar.targets[0].data_path = 'modifiers["WhiteOutline"].thickness_vertex_group'
-                    factorDriver.driver.expression =  "thickness_vertex_group"
-
-
-                    black_outline_mod.offset = 1
-                    black_outline_mod.material_offset = 1
-                    if mesh_object.type == 'MESH':
-                        black_outline_mod.vertex_group = ink_thickness_vgroup.name
-                    black_outline_mod.show_in_editmode = False
-                    black_outline_mod.thickness_clamp = 0
-                    # black_outline_mod.thickness_vertex_group = 0.2
-
-                    decimators = []
-                    for i in range(len(mesh_object.modifiers)):
-                        mod = mesh_object.modifiers[i]
-                        if 'Decimate' in mod.name:
-                            decimators.append(i)
-                    if decimators:
-                        firstDecimatorIndex = int(decimators[0])
-                        ink_thick_mod_name = ink_thick_mod.name
-                        white_outline_mod_name = white_outline_mod.name
-                        black_outline_mod_name = black_outline_mod.name
-
-                        # bpy.ops.object.modifier_move_to_index(modifier=black_outline_mod_name, index=firstDecimatorIndex)
-                        # bpy.ops.object.modifier_move_to_index(modifier=white_outline_mod_name, index=firstDecimatorIndex)
-                        # bpy.ops.object.modifier_move_to_index(modifier=ink_thick_mod_name, index=firstDecimatorIndex)
-
-                    # bpy.ops.object.modifier_move_to_index(modifier=ink_thick_mod_name, firstDecimatorIndex)
-                    # bpy.ops.object.modifier_move_to_index(modifier=white_outline_mod_name, firstDecimatorIndex)
-                    # bpy.ops.object.modifier_move_to_index(modifier=black_outline_mod_name, firstDecimatorIndex)
-
-
-
-                    # bpy.context.object.material_slots[1].link = 'DATA'
-                    # bpy.ops.object.material_slot_add()
-                if "toon" in mode:
-                    hasVertexColor = False
-                    if mesh_object.hide_select:
-                        mesh_object.hide_select = False
-                        is_insensitive = True
-
-                    if backstage_collection:
-                        # bpy.context.scene.collection.objects.link(mobj)
-                        # bpy.ops.object.select_all(action='DESELECT')
-                        # mesh_object.select_set(state=True)
-                        # mobj.select_set(state=True)
-                        # bpy.context.view_layer.objects.active = mobj
-                        # bpy.ops.object.material_slot_copy()
-                        # bpy.context.scene.collection.objects.unlink(mobj)
-                        # bpy.ops.object.select_all(action='DESELECT')
-                        # mesh_object.select_set(state=True)
-                        # bpy.context.view_layer.objects.active = mesh_object
-
-                        bpy.ops.object.select_all(action='DESELECT')
-                        mesh_object.select_set(state=True)
-                        ink_swatch_object.select_set(state=True)
-                        bpy.context.view_layer.objects.active = ink_swatch_object
-                        bpy.ops.object.material_slot_copy()
-
-                        bpy.ops.object.select_all(action='DESELECT')
-                        mesh_object.select_set(state=True)
-                        bpy.context.view_layer.objects.active = mesh_object
-                        for i, mat in reversed(list(enumerate(mesh_object.data.materials))):
-                            if "L_Toon." not in mat.name:
-                                # letter.data.materials.pop(index=i)
-                                mesh_object.active_material_index = i
-                                bpy.ops.object.material_slot_remove()
-
-                        for p in mesh_object.data.polygons:
-                            if p.material_index >= len(mesh_object.data.materials):
-                                p.material_index = -1
-                        bpy.ops.object.select_all(action='DESELECT')
-                        mesh_object.select_set(state=True)
-                        bpy.context.view_layer.objects.active = mesh_object
-                    else:
+                    if "ink" in toonfill_mode and "toon" in toonfill_mode:
                         if mesh_object.active_material:
-                            mesh_object.active_material.node_tree.nodes.clear()
+                            # mesh_object.active_material.use_nodes = True
+                            # mesh_object.active_material.node_tree.nodes.clear()
                             for i in range(len(mesh_object.material_slots)):
                                 bpy.ops.object.material_slot_remove({'object': mesh_object})
+                        for mod in mesh_object.modifiers:
+                            if 'InkThickness' in mod.name:
+                                bpy.ops.object.modifier_remove(modifier=mod.name)
+                            if 'WhiteOutline' in mod.name:
+                                bpy.ops.object.modifier_remove(modifier=mod.name)
+                            if 'BlackOutline' in mod.name:
+                                bpy.ops.object.modifier_remove(modifier=mod.name)
+
+                        for vgroup in mesh_object.vertex_groups:
+                            if 'Ink_Thickness' in vgroup.name:
+                                mesh_object.vertex_groups.remove(vgroup)
+
+                        try:
+                            drivers_data = mesh_object.animation_data.drivers
+                            for dr in drivers_data:  
+                                mesh_object.driver_remove(dr.data_path, -1)
+                        except:
+                            pass
+                        
+                        empty_trash(self, context)
+                    if "ink" in toonfill_mode:
+                        ink_thickness = mesh_object.dimensions[1] * 0.035
+                        if bpy.context.object:
+                            if "OBJECT" not in bpy.context.object.mode:
+                                if "DRAW" in bpy.context.object.mode :
+                                    bpy.ops.gpencil.paintmode_toggle(back=False)
+                                    bpy.ops.object.select_all(action='DESELECT')
+                                else:
+                                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                                    bpy.ops.object.select_all(action='DESELECT')
+
+                        mesh_object.select_set(state=True)
+                        bpy.context.view_layer.objects.active = mesh_object
+                        # if "EDIT" not in bpy.context.object.mode:
+                        bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+                        if mesh_object.type == 'MESH':
+                            bpy.ops.mesh.select_all(action='SELECT')
+                        # if mesh_object.type == 'CURVE':
+                        #     bpy.ops.curve.select_all(action='TOGGLE')
+
+                            ink_thickness_vgroup_name = "Ink_Thickness"
+                            mesh_object.vertex_groups.new(name = ink_thickness_vgroup_name)
+                            ink_thickness_vgroup = mesh_object.vertex_groups[-1]
+                            bpy.ops.object.vertex_group_assign()
+
+                            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = mesh_object
+
+                            if not toonfill_use_global_ink:
+                                ink_thick_tex_name = "L_InkThickness." + str(paddedNumString)
+                                for itex in bpy.data.textures: 
+                                    if ink_thick_tex_name in itex.name:
+                                        ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
+                                    else:
+                                        ink_thick_tex_name = ink_thick_tex_name
+                                        ink_thick_tex_slot = bpy.data.textures.new(ink_thick_tex_name, type='CLOUDS')
+                                        ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
+                                    
+                                    # ink_thick_tex.noise_type = 'SOFT_NOISE'
+                                    # ink_thick_tex.noise_depth = 0
+                                    # ink_thick_tex.nabla = 0.001
+                                    # ink_thick_tex.intensity = 0.99
+
+                                    # if ink_swatch_object:
+                                    #     objectInkSmoothnessDriver = ink_thick_tex.driver_add('noise_scale')
+                                    #     objectInkSmoothnessDriver.driver.type = 'SUM'
+                                    #     newVar = objectInkSmoothnessDriver.driver.variables.new()
+                                    #     newVar.name = "ink_wobble"
+                                    #     newVar.type = 'SINGLE_PROP'
+                                    #     newVar.targets[0].id = ink_swatch_object 
+                                    #     newVar.targets[0].data_path = '["OutlineWobble"]'
+                                    #     objectInkSmoothnessDriver.driver.expression =  "ink_wobble"
+                                    #     objectInkSmoothnessDriver = "ink_wobble"
+                                    # else:
+                                    #     ink_thick_tex.noise_scale = 0.3
+                            else:
+                                ink_thick_tex_name = "L_InkThickness.Global"
+                                for itex in bpy.data.textures: 
+                                    if ink_thick_tex_name in itex.name:
+                                        ink_thick_tex = bpy.data.textures[ink_thick_tex_name]
 
 
-                        if mesh_object.active_material is None:
-                            if mesh_object.type == 'MESH':
-                                if mesh_object.data.vertex_colors:
-                                    hasVertexColor = True
 
-                            assetName = mesh_object.name
-                            matName = (assetName + "Mat")
+                            ink_thick_mod = mesh_object.modifiers.new(name = 'InkThickness', type = 'VERTEX_WEIGHT_EDIT')
+                            ink_thick_mod.vertex_group = ink_thickness_vgroup.name
+                            ink_thick_mod.default_weight = 0
+                            ink_thick_mod.use_add = True
+
+                            ink_thick_mod.normalize = False
+                            ink_thick_mod.falloff_type = 'STEP'
+                            ink_thick_mod.invert_falloff = True
+                            ink_thick_mod.mask_constant = 1
+                            ink_thick_mod.mask_texture = ink_thick_tex
+                            ink_thick_mod.mask_tex_use_channel = 'INT'
+                            # ink_thick_mod.mask_tex_mapping = 'LOCAL'
+                            ink_thick_mod.mask_tex_mapping = 'GLOBAL'
+
+                        white_outline_mod = mesh_object.modifiers.new(name = 'WhiteOutline', type = 'SOLIDIFY')
+                        white_outline_mod.use_flat_faces = True
+                        white_outline_mod.use_flip_normals = True
+                        white_outline_mod.thickness = -ink_thickness / 2
+                        white_outline_mod.offset = -1
+                        white_outline_mod.material_offset = 2
+                        if mesh_object.type == 'MESH':
+                            white_outline_mod.vertex_group = ink_thickness_vgroup.name
+                        white_outline_mod.show_in_editmode = False
+                        white_outline_mod.thickness_clamp = 0.5
+                        white_outline_mod.thickness_vertex_group = 0.1
+
+
+                        if not ink_swatch_object:
+                            mesh_object["OutlineThickness"] = 0.5
+
+
+                        objectInkThicknessDriver = white_outline_mod.driver_add('thickness')
+                        objectInkThicknessDriver.driver.type = 'SCRIPTED'
+                        newVar = objectInkThicknessDriver.driver.variables.new()
+                        newVar.name = "ink_thickness"
+                        newVar.type = 'SINGLE_PROP'
+                        if ink_swatch_object:
+                            newVar.targets[0].id = ink_swatch_object 
+                        else:
+                            newVar.targets[0].id = mesh_object 
+                        newVar.targets[0].data_path = '["OutlineThickness"]'
+                        objectInkThicknessDriver.driver.expression =  "ink_thickness  * -0.1"
+                        objectInkThicknessDriver = "ink_thickness * -.1"
+
+                        if ink_swatch_object:
+                            objectInkSmoothnessDriver = white_outline_mod.driver_add('thickness_vertex_group')
+                            objectInkSmoothnessDriver.driver.type = 'SUM'
+                            newVar = objectInkSmoothnessDriver.driver.variables.new()
+                            newVar.name = "ink_smooth"
+                            newVar.type = 'SINGLE_PROP'
+                            newVar.targets[0].id = ink_swatch_object 
+                            newVar.targets[0].data_path = '["OutlineSmooth"]'
+                            objectInkSmoothnessDriver.driver.expression =  "ink_smooth"
+                            objectInkSmoothnessDriver = "ink_smooth"
+
+
+
+                        black_outline_mod = mesh_object.modifiers.new(name = 'BlackOutline', type = 'SOLIDIFY')
+                        black_outline_mod.use_flip_normals = True
+                        black_outline_mod.use_flat_faces = True
+
+                        # black_outline_mod.thickness = ink_thickness 
+
+                        thicknessDriver = black_outline_mod.driver_add('thickness')
+                        thicknessDriver.driver.type = 'SCRIPTED'
+                        newVar = thicknessDriver.driver.variables.new()
+                        newVar.name = "thickness"
+                        newVar.type = 'SINGLE_PROP'
+                        newVar.targets[0].id = mesh_object 
+                        newVar.targets[0].data_path = 'modifiers["WhiteOutline"].thickness'
+                        # thicknessDriver.driver.expression =  "(thickness  * 1.15) - .02"
+                        # thicknessDriver.driver.expression =  "(thickness  * -1) - (thickness  * 1)"
+                        thicknessDriver.driver.expression =  "thickness  * -1.5"
+
+                        factorDriver = black_outline_mod.driver_add('thickness_vertex_group')
+                        factorDriver.driver.type = 'SCRIPTED'
+                        newVar = factorDriver.driver.variables.new()
+                        newVar.name = "thickness_vertex_group"
+                        newVar.type = 'SINGLE_PROP'
+                        newVar.targets[0].id = mesh_object 
+                        newVar.targets[0].data_path = 'modifiers["WhiteOutline"].thickness_vertex_group'
+                        factorDriver.driver.expression =  "thickness_vertex_group"
+
+
+                        black_outline_mod.offset = 1
+                        black_outline_mod.material_offset = 1
+                        if mesh_object.type == 'MESH':
+                            black_outline_mod.vertex_group = ink_thickness_vgroup.name
+                        black_outline_mod.show_in_editmode = False
+                        black_outline_mod.thickness_clamp = 0
+                        # black_outline_mod.thickness_vertex_group = 0.2
+
+                        decimators = []
+                        for i in range(len(mesh_object.modifiers)):
+                            mod = mesh_object.modifiers[i]
+                            if 'Decimate' in mod.name:
+                                decimators.append(i)
+                        if decimators:
+                            firstDecimatorIndex = int(decimators[0])
+                            ink_thick_mod_name = ink_thick_mod.name
+                            white_outline_mod_name = white_outline_mod.name
+                            black_outline_mod_name = black_outline_mod.name
+
+                            # bpy.ops.object.modifier_move_to_index(modifier=black_outline_mod_name, index=firstDecimatorIndex)
+                            # bpy.ops.object.modifier_move_to_index(modifier=white_outline_mod_name, index=firstDecimatorIndex)
+                            # bpy.ops.object.modifier_move_to_index(modifier=ink_thick_mod_name, index=firstDecimatorIndex)
+
+                        # bpy.ops.object.modifier_move_to_index(modifier=ink_thick_mod_name, firstDecimatorIndex)
+                        # bpy.ops.object.modifier_move_to_index(modifier=white_outline_mod_name, firstDecimatorIndex)
+                        # bpy.ops.object.modifier_move_to_index(modifier=black_outline_mod_name, firstDecimatorIndex)
+
+
+
+                        # bpy.context.object.material_slots[1].link = 'DATA'
+                        # bpy.ops.object.material_slot_add()
+                    if "toon" in toonfill_mode:
+                        hasVertexColor = False
+                        if mesh_object.hide_select:
+                            mesh_object.hide_select = False
+                            is_insensitive = True
+
+                        if backstage_collection:
+                            # bpy.context.scene.collection.objects.link(mobj)
+                            # bpy.ops.object.select_all(action='DESELECT')
+                            # mesh_object.select_set(state=True)
+                            # mobj.select_set(state=True)
+                            # bpy.context.view_layer.objects.active = mobj
+                            # bpy.ops.object.material_slot_copy()
+                            # bpy.context.scene.collection.objects.unlink(mobj)
+                            # bpy.ops.object.select_all(action='DESELECT')
+                            # mesh_object.select_set(state=True)
+                            # bpy.context.view_layer.objects.active = mesh_object
+
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            ink_swatch_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = ink_swatch_object
+                            bpy.ops.object.material_slot_copy()
+
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = mesh_object
+                            for i, mat in reversed(list(enumerate(mesh_object.data.materials))):
+                                if "L_Toon." not in mat.name:
+                                    # letter.data.materials.pop(index=i)
+                                    mesh_object.active_material_index = i
+                                    bpy.ops.object.material_slot_remove()
+
+                            for p in mesh_object.data.polygons:
+                                if p.material_index >= len(mesh_object.data.materials):
+                                    p.material_index = -1
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = mesh_object
+                        else:
+                            if mesh_object.active_material:
+                                mesh_object.active_material.node_tree.nodes.clear()
+                                for i in range(len(mesh_object.material_slots)):
+                                    bpy.ops.object.material_slot_remove({'object': mesh_object})
+
+
+                            if mesh_object.active_material is None:
+                                if mesh_object.type == 'MESH':
+                                    if mesh_object.data.vertex_colors:
+                                        hasVertexColor = True
+
+                                assetName = mesh_object.name
+                                matName = (assetName + "Mat")
+                                mat = bpy.data.materials.new(name=matName)
+                                mat.use_nodes = True
+                                mat_output = mat.node_tree.nodes.get('Material Output')
+                                shader = mat_output.inputs[0].links[0].from_node
+                                nodes = mat.node_tree.nodes
+                                for node in nodes:
+                                    if node.type != 'OUTPUT_MATERIAL': # skip the material output node as we'll need it later
+                                        nodes.remove(node) 
+
+                                if (hasVertexColor):
+                                    shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                                else:
+                                    shader = mat.node_tree.nodes.new(type='ShaderNodeBsdfDiffuse')
+
+                                shaderToRGB_A = mat.node_tree.nodes.new(type='ShaderNodeShaderToRGB')
+                                ramp_A = mat.node_tree.nodes.new(type='ShaderNodeValToRGB')
+                                light_path = mat.node_tree.nodes.new(type='ShaderNodeLightPath')
+                                mix_shader = mat.node_tree.nodes.new(type='ShaderNodeMixShader')
+
+
+                                shader.inputs[0].default_value = (1, 1,1, 1) # base color
+                                ramp_A.color_ramp.elements[0].position = 0.00
+                                ramp_A.color_ramp.elements[1].position = 0.09
+                                ramp_A.color_ramp.interpolation = 'CONSTANT'
+
+                                mat.node_tree.links.new(shader.outputs[0], shaderToRGB_A.inputs[0])
+                                mat.node_tree.links.new(shaderToRGB_A.outputs[0], ramp_A.inputs[0])
+                                mat.node_tree.links.new(ramp_A.outputs[0], mix_shader.inputs[2])
+                                mat.node_tree.links.new(light_path.outputs[0], mix_shader.inputs[0])
+                                mat.node_tree.links.new(mix_shader.outputs[0], mat_output.inputs[0])
+
+                                # for i in range(len(ob.material_slots)):
+                                #     bpy.context.object.active_material_index = i
+                                #     outline_mat = ob.active_material
+                                #     if "WhiteOutline" in outline_mat.name:
+                                #         for node in outline_mat.node_tree.nodes:
+                                #             if "Background" in node.name: 
+                                #                 shader = node
+
+                                #             if "BSDF" in node.name: 
+                                #                 shader = node
+                                                
+                                #             if shader:
+                                #                 ncolorNode = outline_mat.node_tree.nodes.new('ShaderNodeAttribute')
+                                #                 ncolorNode.attribute_name = vertexColorName
+                                #                 outline_mat.node_tree.links.new(shader.inputs[0], ncolorNode.outputs[0])
+
+
+                                if (hasVertexColor):
+                                    vertexColorName = mesh_object.data.vertex_colors[0].name
+                                    colorNode = mat.node_tree.nodes.new('ShaderNodeAttribute')
+                                    colorNode.attribute_name = vertexColorName
+                                    mat.node_tree.links.new(shader.inputs[0], colorNode.outputs[0])
+
+                                mesh_object["is_gradient"] = True              
+                                mesh_object["toon_color_light"] = [1.0,0.333,1.0,1.0]              
+                                mesh_object["toon_color_dark"] = [0.33,0.1,0.0,1.0]              
+
+                                if "ink" not in toonfill_mode:
+                                    for mod in mesh_object.modifiers:
+                                        if 'InkThickness' in mod.name:
+                                            bpy.ops.object.modifier_remove(modifier="InkThickness")
+                                        if 'WhiteOutline' in mod.name:
+                                            bpy.ops.object.modifier_remove(modifier="WhiteOutline")
+                                        if 'BlackOutline' in mod.name:
+                                            bpy.ops.object.modifier_remove(modifier="BlackOutline")
+
+                                # Assign it to object
+                                if mesh_object.data.materials:
+                                    mesh_object.data.materials[0] = mat
+                                else:
+                                    mesh_object.data.materials.append(mat)
+
+                    if "ink" in toonfill_mode:
+                        if backstage_collection:
+                            # bpy.context.scene.collection.objects.link(mobj)
+                            # bpy.ops.object.select_all(action='DESELECT')
+                            # mesh_object.select_set(state=True)
+                            # mobj.select_set(state=True)
+                            # bpy.context.view_layer.objects.active = mobj
+                            # bpy.ops.object.material_slot_copy()
+                            # bpy.context.scene.collection.objects.unlink(mobj)
+                            # bpy.ops.object.select_all(action='DESELECT')
+                            # mesh_object.select_set(state=True)
+                            # bpy.context.view_layer.objects.active = mesh_object
+
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            ink_swatch_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = ink_swatch_object
+                            bpy.ops.object.material_slot_copy()
+
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = mesh_object
+                            for i, mat in reversed(list(enumerate(mesh_object.data.materials))):
+                                if "ink" in toonfill_mode and "toon" in toonfill_mode:
+                                    if ("L_Toon." not in mat.name) and  ("L_OutlineNoShadowLight." not in mat.name) and  ("L_OutlineNoShadowDark." not in mat.name):
+                                        mesh_object.active_material_index = i
+                                        bpy.ops.object.material_slot_remove()
+                                else:
+                                    if ("L_Ink." not in mat.name) and  ("L_OutlineNoShadowLight." not in mat.name) and  ("L_OutlineNoShadowDark." not in mat.name):
+                                        mesh_object.active_material_index = i
+                                        bpy.ops.object.material_slot_remove()
+
+                            for p in mesh_object.data.polygons:
+                                if p.material_index >= len(mesh_object.data.materials):
+                                    p.material_index = -1
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = mesh_object
+
+
+                        else:
+                            OutlineMatName = "BlackOutline"
+                            matName = (OutlineMatName + "Mat")
                             mat = bpy.data.materials.new(name=matName)
+                            mesh_object.data.materials.append(mat)             
                             mat.use_nodes = True
                             mat_output = mat.node_tree.nodes.get('Material Output')
                             shader = mat_output.inputs[0].links[0].from_node
@@ -1995,175 +2120,61 @@ def outline(self,context,mesh_objects, mode):
                             for node in nodes:
                                 if node.type != 'OUTPUT_MATERIAL': # skip the material output node as we'll need it later
                                     nodes.remove(node) 
+                            shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                            shader.name = "Background"
+                            shader.label = "Background"
+                            shader.inputs[0].default_value = (0, 0, 0, 1)
+                            mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
 
-                            if (hasVertexColor):
-                                shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                            else:
-                                shader = mat.node_tree.nodes.new(type='ShaderNodeBsdfDiffuse')
+                            mat.use_backface_culling = True
+                            mat.shadow_method = 'NONE'
 
-                            shaderToRGB_A = mat.node_tree.nodes.new(type='ShaderNodeShaderToRGB')
-                            ramp_A = mat.node_tree.nodes.new(type='ShaderNodeValToRGB')
-                            light_path = mat.node_tree.nodes.new(type='ShaderNodeLightPath')
-                            mix_shader = mat.node_tree.nodes.new(type='ShaderNodeMixShader')
-
-
-                            shader.inputs[0].default_value = (1, 1,1, 1) # base color
-                            ramp_A.color_ramp.elements[0].position = 0.00
-                            ramp_A.color_ramp.elements[1].position = 0.09
-                            ramp_A.color_ramp.interpolation = 'CONSTANT'
-
-                            mat.node_tree.links.new(shader.outputs[0], shaderToRGB_A.inputs[0])
-                            mat.node_tree.links.new(shaderToRGB_A.outputs[0], ramp_A.inputs[0])
-                            mat.node_tree.links.new(ramp_A.outputs[0], mix_shader.inputs[2])
-                            mat.node_tree.links.new(light_path.outputs[0], mix_shader.inputs[0])
-                            mat.node_tree.links.new(mix_shader.outputs[0], mat_output.inputs[0])
-
-                            # for i in range(len(ob.material_slots)):
-                            #     bpy.context.object.active_material_index = i
-                            #     outline_mat = ob.active_material
-                            #     if "WhiteOutline" in outline_mat.name:
-                            #         for node in outline_mat.node_tree.nodes:
-                            #             if "Background" in node.name: 
-                            #                 shader = node
-
-                            #             if "BSDF" in node.name: 
-                            #                 shader = node
-                                            
-                            #             if shader:
-                            #                 ncolorNode = outline_mat.node_tree.nodes.new('ShaderNodeAttribute')
-                            #                 ncolorNode.attribute_name = vertexColorName
-                            #                 outline_mat.node_tree.links.new(shader.inputs[0], ncolorNode.outputs[0])
+                            OutlineMatName = "WhiteOutline"
+                            matName = (OutlineMatName + "Mat")
+                            mat = bpy.data.materials.new(name=matName)
+                            mesh_object.data.materials.append(mat)             
+                            mat.use_nodes = True
+                            mat_output = mat.node_tree.nodes.get('Material Output')
+                            shader = mat_output.inputs[0].links[0].from_node
+                            nodes = mat.node_tree.nodes
+                            for node in nodes:
+                                if node.type != 'OUTPUT_MATERIAL': # skip the material output node as we'll need it later
+                                    nodes.remove(node) 
+                            shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                            shader.name = "Background"
+                            shader.label = "Background"
+                            shader.inputs[0].default_value = (1, 1, 1, 1)
+                            mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+                            mat.use_backface_culling = True
+                            mat.shadow_method = 'NONE'
 
 
-                            if (hasVertexColor):
-                                vertexColorName = mesh_object.data.vertex_colors[0].name
-                                colorNode = mat.node_tree.nodes.new('ShaderNodeAttribute')
-                                colorNode.attribute_name = vertexColorName
-                                mat.node_tree.links.new(shader.inputs[0], colorNode.outputs[0])
-
-                            mesh_object["is_gradient"] = True              
-                            mesh_object["toon_color_light"] = [1.0,0.333,1.0,1.0]              
-                            mesh_object["toon_color_dark"] = [0.33,0.1,0.0,1.0]              
-
-                            if "ink" not in mode:
-                                for mod in mesh_object.modifiers:
-                                    if 'InkThickness' in mod.name:
-                                        bpy.ops.object.modifier_remove(modifier="InkThickness")
-                                    if 'WhiteOutline' in mod.name:
-                                        bpy.ops.object.modifier_remove(modifier="WhiteOutline")
-                                    if 'BlackOutline' in mod.name:
-                                        bpy.ops.object.modifier_remove(modifier="BlackOutline")
-
-                            # Assign it to object
-                            if mesh_object.data.materials:
-                                mesh_object.data.materials[0] = mat
-                            else:
-                                mesh_object.data.materials.append(mat)
-
-                if "ink" in mode:
-                    if backstage_collection:
-                        # bpy.context.scene.collection.objects.link(mobj)
-                        # bpy.ops.object.select_all(action='DESELECT')
-                        # mesh_object.select_set(state=True)
-                        # mobj.select_set(state=True)
-                        # bpy.context.view_layer.objects.active = mobj
-                        # bpy.ops.object.material_slot_copy()
-                        # bpy.context.scene.collection.objects.unlink(mobj)
-                        # bpy.ops.object.select_all(action='DESELECT')
-                        # mesh_object.select_set(state=True)
-                        # bpy.context.view_layer.objects.active = mesh_object
-
-                        bpy.ops.object.select_all(action='DESELECT')
-                        mesh_object.select_set(state=True)
-                        ink_swatch_object.select_set(state=True)
-                        bpy.context.view_layer.objects.active = ink_swatch_object
-                        bpy.ops.object.material_slot_copy()
-
-                        bpy.ops.object.select_all(action='DESELECT')
-                        mesh_object.select_set(state=True)
-                        bpy.context.view_layer.objects.active = mesh_object
-                        for i, mat in reversed(list(enumerate(mesh_object.data.materials))):
-                            if "ink" in mode and "toon" in mode:
-                                if ("L_Toon." not in mat.name) and  ("L_OutlineNoShadowLight." not in mat.name) and  ("L_OutlineNoShadowDark." not in mat.name):
-                                    mesh_object.active_material_index = i
-                                    bpy.ops.object.material_slot_remove()
-                            else:
-                                if ("L_Ink." not in mat.name) and  ("L_OutlineNoShadowLight." not in mat.name) and  ("L_OutlineNoShadowDark." not in mat.name):
-                                    mesh_object.active_material_index = i
-                                    bpy.ops.object.material_slot_remove()
-
-                        for p in mesh_object.data.polygons:
-                            if p.material_index >= len(mesh_object.data.materials):
-                                p.material_index = -1
-                        bpy.ops.object.select_all(action='DESELECT')
-                        mesh_object.select_set(state=True)
-                        bpy.context.view_layer.objects.active = mesh_object
+                    # add custom property
+                    mesh_object["is_toon_shaded"] = True
 
 
-                    else:
-                        OutlineMatName = "BlackOutline"
-                        matName = (OutlineMatName + "Mat")
-                        mat = bpy.data.materials.new(name=matName)
-                        mesh_object.data.materials.append(mat)             
-                        mat.use_nodes = True
-                        mat_output = mat.node_tree.nodes.get('Material Output')
-                        shader = mat_output.inputs[0].links[0].from_node
-                        nodes = mat.node_tree.nodes
-                        for node in nodes:
-                            if node.type != 'OUTPUT_MATERIAL': # skip the material output node as we'll need it later
-                                nodes.remove(node) 
-                        shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                        shader.name = "Background"
-                        shader.label = "Background"
-                        shader.inputs[0].default_value = (0, 0, 0, 1)
-                        mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+                    # bpy.types.Objects.toon_color_top = bpy.props.FloatVectorProperty(
+                    #                                 name = "toon_color_top",
+                    #                                 subtype = "COLOR",
+                    #                                 size = 4,
+                    #                                 min = 0.0,
+                    #                                 max = 1.0,
+                    #                                 default = (1,0.0,0.8,1.0)
+                    #                                 )
+                    # bpy.types.Objects.toon_color_bot = bpy.props.FloatVectorProperty(
+                    #                                 name = "toon_color_bot",
+                    #                                 subtype = "COLOR",
+                    #                                 size = 4,
+                    #                                 min = 0.0,
+                    #                                 max = 1.0,
+                    #                                 default = (0.25,0.3,0.7,1.0)
+                    #                                 )
 
-                        mat.use_backface_culling = True
-                        mat.shadow_method = 'NONE'
-
-                        OutlineMatName = "WhiteOutline"
-                        matName = (OutlineMatName + "Mat")
-                        mat = bpy.data.materials.new(name=matName)
-                        mesh_object.data.materials.append(mat)             
-                        mat.use_nodes = True
-                        mat_output = mat.node_tree.nodes.get('Material Output')
-                        shader = mat_output.inputs[0].links[0].from_node
-                        nodes = mat.node_tree.nodes
-                        for node in nodes:
-                            if node.type != 'OUTPUT_MATERIAL': # skip the material output node as we'll need it later
-                                nodes.remove(node) 
-                        shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                        shader.name = "Background"
-                        shader.label = "Background"
-                        shader.inputs[0].default_value = (1, 1, 1, 1)
-                        mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-                        mat.use_backface_culling = True
-                        mat.shadow_method = 'NONE'
+                    if is_insensitive:
+                        mesh_object.hide_select = True
 
 
-                # add custom property
-                mesh_object["is_toon_shaded"] = True
 
-
-                # bpy.types.Objects.toon_color_top = bpy.props.FloatVectorProperty(
-                #                                 name = "toon_color_top",
-                #                                 subtype = "COLOR",
-                #                                 size = 4,
-                #                                 min = 0.0,
-                #                                 max = 1.0,
-                #                                 default = (1,0.0,0.8,1.0)
-                #                                 )
-                # bpy.types.Objects.toon_color_bot = bpy.props.FloatVectorProperty(
-                #                                 name = "toon_color_bot",
-                #                                 subtype = "COLOR",
-                #                                 size = 4,
-                #                                 min = 0.0,
-                #                                 max = 1.0,
-                #                                 default = (0.25,0.3,0.7,1.0)
-                #                                 )
-
-                if is_insensitive:
-                    mesh_object.hide_select = True
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
     return {'FINISHED'} 
@@ -6289,8 +6300,6 @@ class BR_OT_panel_clear_ink_lighting(bpy.types.Operator):
                 bpy.data.objects.remove(obs.pop())
             bpy.data.collections.remove(lighting_collection)
             empty_trash(self, context)
-            self.report({'INFO'}, 'Deleted Previous Lighting!')
-
 
         # backstage_collection = getCurrentBackstageCollection()
 
@@ -6304,29 +6313,20 @@ class BR_OT_panel_clear_ink_lighting(bpy.types.Operator):
                     if "OBJECT" not in starting_mode:
                         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
                         bpy.ops.object.select_all(action='DESELECT')
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(state=True)
+            bpy.context.view_layer.objects.active = obj
 
+            is_insensitive = False
             if obj.type == 'MESH' or obj.type == 'CURVE' :
                 try:
                     del obj["is_toon_shaded"]
                 except:
                     pass 
 
-                is_insensitive = False
                 if obj.hide_select:
                     obj.hide_select = False
                     is_insensitive = True
-
-                for mod in obj.modifiers:
-                    if 'InkThickness' in mod.name:
-                        bpy.ops.object.modifier_remove(modifier=mod.name)
-                    if 'WhiteOutline' in mod.name:
-                        bpy.ops.object.modifier_remove(modifier=mod.name)
-                    if 'BlackOutline' in mod.name:
-                        bpy.ops.object.modifier_remove(modifier=mod.name)
-
-                for vgroup in obj.vertex_groups:
-                    if 'Ink_Thickness' in vgroup.name:
-                        obj.vertex_groups.remove(vgroup)
 
                 try:
                     drivers_data = obj.animation_data.drivers
@@ -6335,13 +6335,27 @@ class BR_OT_panel_clear_ink_lighting(bpy.types.Operator):
                 except:
                     pass
 
+                for mod in obj.modifiers:
+                    # print("-----------------------------")
+                    if 'InkThickness' in mod.name:
+                        bpy.ops.object.modifier_remove(modifier=mod.name)
+                    if 'WhiteOutline' in mod.name:
+                        bpy.ops.object.modifier_remove(modifier=mod.name)
+                    if 'BlackOutline' in mod.name:
+                        bpy.ops.object.modifier_remove(modifier=mod.name)
+
+
+                for vgroup in obj.vertex_groups:
+                    if 'Ink_Thickness' in vgroup.name:
+                        obj.vertex_groups.remove(vgroup)
+
                 if obj.active_material:
-                    obj.active_material.node_tree.nodes.clear()
                     for i in range(len(obj.material_slots)):
                         bpy.ops.object.material_slot_remove({'object': obj})
-                
-                if is_insensitive:
-                    obj.hide_select = True
+
+
+            if is_insensitive:
+                obj.hide_select = True
 
         return {'FINISHED'}
 
@@ -6787,75 +6801,107 @@ class BR_OT_add_blackout(bpy.types.Operator):
     bl_idname = "view3d.spiraloid_3d_comic_blackout"
     bl_label = "Blackout Selected"
     bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
-        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        ink_swatch_object = getCurrentMaterialSwatch()
         selected_objects = bpy.context.selected_objects
-        for mesh_object in selected_objects:
-            if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' :
-                try:
-                    del mesh_object["is_toon_shaded"]
-                except:
-                    pass 
-
-                is_insensitive = False
-                if mesh_object.hide_select:
-                    mesh_object.hide_select = False
-                    is_insensitive = True
-
-                    for mod in mesh_object.modifiers:
-                        if 'InkThickness' in mod.name:
-                            bpy.ops.object.modifier_remove(modifier=mod.name)
-                        if 'WhiteOutline' in mod.name:
-                            bpy.ops.object.modifier_remove(modifier=mod.name)
-                        if 'BlackOutline' in mod.name:
-                            bpy.ops.object.modifier_remove(modifier=mod.name)
-
-                    for vgroup in mesh_object.vertex_groups:
-                        if 'Ink_Thickness' in vgroup.name:
-                            mesh_object.vertex_groups.remove(vgroup)
-
+        if bpy.context.mode == 'OBJECT':
+        # bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+            for mesh_object in selected_objects:
+                if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' :
                     try:
-                        drivers_data = mesh_object.animation_data.drivers
-                        for dr in drivers_data:  
-                            mesh_object.driver_remove(dr.data_path, -1)
+                        del mesh_object["is_toon_shaded"]
                     except:
-                        pass
+                        pass 
 
-                if mesh_object.active_material:
-                    mesh_object.active_material.node_tree.nodes.clear()
-                    for i in range(len(mesh_object.material_slots)):
-                        bpy.ops.object.material_slot_remove({'object': mesh_object})
+                    is_insensitive = False
+                    if mesh_object.hide_select:
+                        mesh_object.hide_select = False
+                        is_insensitive = True
 
-                if mesh_object.active_material is None:
-                    assetName = mesh_object.name
-                    matName = (assetName + "Mat")
-                    mat = bpy.data.materials.new(name=matName)
-                    mat.use_nodes = True
-                    mat_output = mat.node_tree.nodes.get('Material Output')
-                    shader = mat_output.inputs[0].links[0].from_node
-                    nodes = mat.node_tree.nodes
-                    for node in nodes:
-                        if node.type != 'OUTPUT_MATERIAL': # skip the material output node as we'll need it later
-                            nodes.remove(node) 
+                        for mod in mesh_object.modifiers:
+                            if 'InkThickness' in mod.name:
+                                bpy.ops.object.modifier_remove(modifier=mod.name)
+                            if 'WhiteOutline' in mod.name:
+                                bpy.ops.object.modifier_remove(modifier=mod.name)
+                            if 'BlackOutline' in mod.name:
+                                bpy.ops.object.modifier_remove(modifier=mod.name)
 
-                    shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
-                    shader.name = "Background"
-                    shader.label = "Background"
-                    shader.inputs[0].default_value = (0, 0, 0, 1)
-                    mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
-                    mat.use_backface_culling = True
-                    mat.shadow_method = 'NONE'
+                        for vgroup in mesh_object.vertex_groups:
+                            if 'Ink_Thickness' in vgroup.name:
+                                mesh_object.vertex_groups.remove(vgroup)
 
-                    # Assign it to object
-                    if mesh_object.data.materials:
-                        mesh_object.data.materials[0] = mat
-                    else:
-                        mesh_object.data.materials.append(mat)
-                    mesh_object["is_toon_shaded"] = 1
+                        try:
+                            drivers_data = mesh_object.animation_data.drivers
+                            for dr in drivers_data:  
+                                mesh_object.driver_remove(dr.data_path, -1)
+                        except:
+                            pass
+
+                    if mesh_object.active_material:
+                        mesh_object.active_material.node_tree.nodes.clear()
+                        for i in range(len(mesh_object.material_slots)):
+                            bpy.ops.object.material_slot_remove({'object': mesh_object})
+
+                    if mesh_object.active_material is None:
+                        assetName = mesh_object.name
+                        matName = (assetName + "Mat")
+                        mat = bpy.data.materials.new(name=matName)
+                        mat.use_nodes = True
+                        mat_output = mat.node_tree.nodes.get('Material Output')
+                        shader = mat_output.inputs[0].links[0].from_node
+                        nodes = mat.node_tree.nodes
+                        for node in nodes:
+                            if node.type != 'OUTPUT_MATERIAL': # skip the material output node as we'll need it later
+                                nodes.remove(node) 
+
+                        shader = mat.node_tree.nodes.new(type='ShaderNodeBackground')
+                        shader.name = "Background"
+                        shader.label = "Background"
+                        shader.inputs[0].default_value = (0, 0, 0, 1)
+                        mat.node_tree.links.new(shader.outputs[0], mat_output.inputs[0])
+                        mat.use_backface_culling = True
+                        mat.shadow_method = 'NONE'
+
+                        # Assign it to object
+                        if mesh_object.data.materials:
+                            mesh_object.data.materials[0] = mat
+                        else:
+                            mesh_object.data.materials.append(mat)
+                        mesh_object["is_toon_shaded"] = 1
 
 
-                if is_insensitive:
-                    mesh_object.hide_select = True
+                    if is_insensitive:
+                        mesh_object.hide_select = True
+
+        if bpy.context.mode == 'EDIT_MESH':
+            for mesh_object in selected_objects:
+                if mesh_object.type == 'MESH':
+                    try:
+                        del mesh_object["is_toon_shaded"]
+                    except:
+                        pass 
+
+                    if ink_swatch_object:
+                            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            ink_swatch_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = ink_swatch_object
+                            bpy.ops.object.material_slot_copy()
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = mesh_object
+                            for i, mat in reversed(list(enumerate(mesh_object.data.materials))):
+                                if "L_BlackShadow." not in mat.name:
+                                    # letter.data.materials.pop(index=i)
+                                    mesh_object.active_material_index = i
+                                    bpy.ops.object.material_slot_remove()
+                            mesh_object.active_material_index =  len(mesh_object.data.materials) - 1
+                            mesh_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = mesh_object
+                            bpy.ops.object.mode_set(mode='EDIT_MESH', toggle=False)  
+                            bpy.ops.object.material_slot_assign()
 
 
         return {'FINISHED'}
@@ -6981,223 +7027,260 @@ class BR_OT_toonfill(bpy.types.Operator):
         panel_settings = bpy.context.scene.panel_settings
         toonfill_mode = panel_settings.s3dc_toonfill_mode
         toonfill_type = panel_settings.s3dc_toonfill_type
+        selected_objects = bpy.context.selected_objects
 
-        if "Visible" in toonfill_mode:
-            if bpy.context.object:
-                starting_mode = bpy.context.object.mode
-                if "OBJECT" not in starting_mode:
-                    if "POSE" in starting_mode:
-                        selected_bones = bpy.context.selected_pose_bones
-                    if "EDIT" in starting_mode:
-                        selected_elementes = bpy.context.selected
-                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)                
+        currSceneIndex = getCurrentSceneIndex()
+        sceneNumber = getCurrentPanelNumber(True)
+        lighting_group = ""
+        export_collection = getCurrentExportCollection(self, context)
+        lighting_collection = getCurrentLightingCollection(self, context)
+        backstage_collection = getCurrentBackstageCollection()
+        panel_material_swatch = getMaterialSwatch(False)
+        ink_swatch_object = getCurrentMaterialSwatch()
+        if backstage_collection:
+            bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = False
 
-            currSceneIndex = getCurrentSceneIndex()
-            sceneNumber = getCurrentPanelNumber(True)
-            lighting_group = ""
-            export_collection = getCurrentExportCollection(self, context)
-            lighting_collection = getCurrentLightingCollection(self, context)
-            backstage_collection = getCurrentBackstageCollection()
-            panel_material_swatch = getMaterialSwatch(False)
-            ink_swatch_object = getCurrentMaterialSwatch()
+        if bpy.context.mode != 'EDIT_MESH':
+            if "Visible" in toonfill_mode:
+                if bpy.context.object:
+                    starting_mode = bpy.context.object.mode
+                    if "OBJECT" not in starting_mode:
+                        if "POSE" in starting_mode:
+                            selected_bones = bpy.context.selected_pose_bones
+                        if "EDIT" in starting_mode:
+                            selected_elementes = bpy.context.selected
+                        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)                
 
 
-            if not backstage_collection:
-                self.report({'INFO'}, 'No Backstage Collection found, initializng as 3D Comic Panel!')
-                BR_OT_panel_init.execute(self, context)
-                backstage_collection = getCurrentBackstageCollection()
+                if not backstage_collection:
+                    self.report({'INFO'}, 'No Backstage Collection found, initializng as 3D Comic Panel!')
+                    BR_OT_panel_init.execute(self, context)
+                    backstage_collection = getCurrentBackstageCollection()
 
-            # if backstage_collection:
-            #     backstage_objects = backstage_collection.objects
-            #     for obj in backstage_objects:
-            #         if "Materials" in obj.name:
-            #             material_swatch_object = obj
-            
-            if ink_swatch_object:
-                sky_color = (0, 0, 0, 1)
-                bpy.ops.object.select_all(action='DESELECT')
-                visible_objects = []
-                for obj in bpy.context.view_layer.objects:
-                    if obj.visible_get: 
-                        if obj.type == 'MESH' or obj.type == 'CURVE' :
-                            ink_swatch_object_name = ink_swatch_object.name
-                            if not "ground" in obj.name and not ink_swatch_object_name in obj.name: 
-                                visible_objects.append(obj)
-                            else:
-                                tmp_array = [obj]
-                                # outline(self,context,tmp_array, "toon")
-                outline(self, context, visible_objects, "toon_ink")
-                active_camera = bpy.context.scene.camera
-                if active_camera:
-                    active_camera_name = active_camera.name
-
-                lighting_collection_name =  "Lighting." + str(sceneNumber) 
-                lighting_group_name = lighting_collection_name
-                keylight_name = "Key." + str(sceneNumber)
-                sky_name = "Sky." + str(sceneNumber)
-
-                scene = bpy.data.scenes[currSceneIndex]
-                scene_objects = scene.objects
-                for obj in scene_objects:
-                    if lighting_collection_name in obj.name:
-                        lighting_group = obj
-                    if keylight_name in obj.name:
-                        keylight = obj
-
-                if not lighting_collection:
-                    lighting_collection = bpy.data.collections.new(lighting_collection_name)
+                # if backstage_collection:
+                #     backstage_objects = backstage_collection.objects
+                #     for obj in backstage_objects:
+                #         if "Materials" in obj.name:
+                #             material_swatch_object = obj
+                
+                if ink_swatch_object:
+                    sky_color = (0, 0, 0, 1)
                     bpy.ops.object.select_all(action='DESELECT')
-                    bpy.ops.object.empty_add(type='SPHERE', align='WORLD', location=(0, 0, 1.52), scale=(1, 1, 1))
-                    lighting_group = bpy.context.active_object
-                    lighting_group.name = lighting_group_name
-                    lighting_group.show_in_front = True
-                    lighting_group.empty_display_size = 0.1
-                    lighting_collection.objects.link(lighting_group)
+                    visible_objects = []
+                    for obj in bpy.context.view_layer.objects:
+                        if obj.visible_get: 
+                            if obj.type == 'MESH' or obj.type == 'CURVE' :
+                                ink_swatch_object_name = ink_swatch_object.name
+                                if not "ground" in obj.name and not ink_swatch_object_name in obj.name: 
+                                    visible_objects.append(obj)
+                                else:
+                                    tmp_array = [obj]
+                                    # outline(self,context,tmp_array, "toon")
+                    outline(self, context, visible_objects, "toon_ink")
+                    active_camera = bpy.context.scene.camera
+                    if active_camera:
+                        active_camera_name = active_camera.name
+
+                    lighting_collection_name =  "Lighting." + str(sceneNumber) 
+                    lighting_group_name = lighting_collection_name
+                    keylight_name = "Key." + str(sceneNumber)
+                    sky_name = "Sky." + str(sceneNumber)
+
+                    scene = bpy.data.scenes[currSceneIndex]
+                    scene_objects = scene.objects
+                    for obj in scene_objects:
+                        if lighting_collection_name in obj.name:
+                            lighting_group = obj
+                        if keylight_name in obj.name:
+                            keylight = obj
+
+                    if not lighting_collection:
+                        lighting_collection = bpy.data.collections.new(lighting_collection_name)
+                        bpy.ops.object.select_all(action='DESELECT')
+                        bpy.ops.object.empty_add(type='SPHERE', align='WORLD', location=(0, 0, 1.52), scale=(1, 1, 1))
+                        lighting_group = bpy.context.active_object
+                        lighting_group.name = lighting_group_name
+                        lighting_group.show_in_front = True
+                        lighting_group.empty_display_size = 0.1
+                        lighting_collection.objects.link(lighting_group)
+                        try:
+                            export_collection.objects.unlink(lighting_group)
+                        except:
+                            pass
+
+                        if export_collection:
+                            export_collection.children.link(lighting_collection)
+                            bpy.context.scene.collection.children.link(lighting_collection)
+
+                        bpy.ops.object.select_all(action='DESELECT')
+                        lighting_group.select_set(state=True)
+
+                        for obj in bpy.data.scenes[currSceneIndex].objects:
+                            if "Camera_aim." in obj.name:
+                                if active_camera:
+                                    active_camera.select_set(state=True)
+                                    bpy.context.view_layer.objects.active = active_camera
+                                    bpy.ops.object.parent_no_inverse_set()
+
+                        bpy.ops.object.select_all(action='DESELECT')
+                        bpy.ops.object.light_add(type='SPOT', align='WORLD', location=(5, -5, 10), scale=(1, 1, 1))
+                        keylight = bpy.context.active_object
+                        keylight.name = keylight_name
+                        lighting_group.select_set(state=True)
+                        bpy.context.view_layer.objects.active = lighting_group
+                        keylight.location[0] = 2.5
+                        keylight.location[1] = -2.5
+                        keylight.location[2] = 5
+                        keylight.rotation_euler[0] = -2.61799
+                        keylight.rotation_euler[1] = -2.61799
+                        keylight.rotation_euler[2] = -1.5708
+                        keylight.data.energy = 10000
+                        keylight.data.color = (1, 1, 1)
+                        keylight.data.use_contact_shadow = False
+                        keylight.data.shadow_buffer_clip_start = .1
+                        keylight.data.spot_size =  2.26893
+                        keylight.data.shadow_soft_size = 0
+                        keylight.data.shadow_buffer_bias = 0.001
+                        keylight.data.use_custom_distance = True
+                        keylight.data.cutoff_distance = 100
+                        bpy.context.collection.objects.unlink(keylight) 
+                        lighting_collection.objects.link(keylight)
                     try:
-                        export_collection.objects.unlink(lighting_group)
+                        bpy.context.scene.collection.children.unlink(lighting_collection)
                     except:
                         pass
 
-                    if export_collection:
-                        export_collection.children.link(lighting_collection)
-                        bpy.context.scene.collection.children.link(lighting_collection)
+
+                    # create a new world
+                    if scene.world is not None:
+                        current_world = scene.world
+                        bpy.data.worlds.remove(current_world, do_unlink=True)
+                        empty_trash(self, context)
+
+                    colorSwatch = [(1.0,1.0,1.0,1.0), (0.0,0.0,0.0,1.0), (0.05,0.08,0.11,1.0) ]
+                    mat_world = bpy.data.worlds.new(sky_name)
+                    scene.world = mat_world
+
+                    mat_world.use_nodes = True
+                    mat_world.node_tree.nodes["Background"].inputs[0].default_value = (0.00393594, 0.00393594, 0.00393594, 1)
+                    world_output = mat_world.node_tree.nodes.get('World Output')
+                    background_shader = world_output.inputs[0].links[0].from_node
+                    background_color = mat_world.node_tree.nodes.new(type='ShaderNodeRGB')
+                    light_path = mat_world.node_tree.nodes.new(type='ShaderNodeLightPath')
+                    mix_shader = mat_world.node_tree.nodes.new(type='ShaderNodeMixShader')
+
+                    mat_world.node_tree.links.new(background_color.outputs[0], background_shader.inputs[0])
+                    mat_world.node_tree.links.new(background_shader.outputs[0], mix_shader.inputs[2])
+                    mat_world.node_tree.links.new(light_path.outputs[0], mix_shader.inputs[0])
+                    mat_world.node_tree.links.new(mix_shader.outputs[0], world_output.inputs[0])
+
+                    # background_color.outputs[0].default_value = sky_color
+
+                    if backstage_collection:
+                        bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = False
+
+                    if ink_swatch_object:
+                        # backstage_objects = backstage_collection.objects
+                        # for mobj in backstage_objects:
+                        #     if "Materials." in mobj.name:
+                                sky_color = ink_swatch_object["Sky"]
+                                if sky_color:
+                                    if sky_color == colorSwatch[0]:
+                                        ink_swatch_object["Sky"] = colorSwatch[1]
+
+                                    if sky_color == colorSwatch[1]:
+                                        ink_swatch_object["Sky"] = colorSwatch[0]                     
+
+                                    colorDriverRed = background_color.outputs[0].driver_add("default_value")[0] 
+                                    colorDriverGreen = background_color.outputs[0].driver_add("default_value")[1] 
+                                    colorDriverBlue = background_color.outputs[0].driver_add("default_value")[2] 
+
+                                    colorDriverRed.driver.type = 'SUM'
+                                    newVar = colorDriverRed.driver.variables.new()
+                                    newVar.name = "Sky"
+                                    newVar.type = 'SINGLE_PROP'
+                                    newVar.targets[0].id = ink_swatch_object
+                                    newVar.targets[0].data_path = '["Sky"][0]' 
+
+                                    colorDriverGreen.driver.type = 'SUM'
+                                    newVar = colorDriverGreen.driver.variables.new()
+                                    newVar.name = "Sky"
+                                    newVar.type = 'SINGLE_PROP'
+                                    newVar.targets[0].id = ink_swatch_object
+                                    newVar.targets[0].data_path = '["Sky"][1]' 
+
+                                    colorDriverBlue.driver.type = 'SUM'
+                                    newVar = colorDriverBlue.driver.variables.new()
+                                    newVar.name = "Sky"
+                                    newVar.type = 'SINGLE_PROP'
+                                    newVar.targets[0].id = ink_swatch_object
+                                    newVar.targets[0].data_path = '["Sky"][2]' 
+
+                    bpy.context.scene.eevee.use_gtao = False
+                    bpy.context.scene.eevee.use_bloom = False
+                    bpy.context.scene.eevee.use_ssr = False
+                    bpy.context.scene.eevee.use_taa_reprojection = False
+                    bpy.context.scene.eevee.taa_samples = 8
+                    bpy.context.scene.eevee.shadow_cube_size = '4096'
+                    bpy.context.scene.eevee.shadow_cascade_size = '64'
+                    bpy.context.scene.eevee.use_soft_shadows = False
+
 
                     bpy.ops.object.select_all(action='DESELECT')
-                    lighting_group.select_set(state=True)
+                    keylight.select_set(state=True)
+                    bpy.context.view_layer.objects.active = keylight
 
-                    for obj in bpy.data.scenes[currSceneIndex].objects:
-                        if "Camera_aim." in obj.name:
-                            if active_camera:
-                                active_camera.select_set(state=True)
-                                bpy.context.view_layer.objects.active = active_camera
-                                bpy.ops.object.parent_no_inverse_set()
-
-                    bpy.ops.object.select_all(action='DESELECT')
-                    bpy.ops.object.light_add(type='SPOT', align='WORLD', location=(5, -5, 10), scale=(1, 1, 1))
-                    keylight = bpy.context.active_object
-                    keylight.name = keylight_name
-                    lighting_group.select_set(state=True)
-                    bpy.context.view_layer.objects.active = lighting_group
-                    keylight.location[0] = 2.5
-                    keylight.location[1] = -2.5
-                    keylight.location[2] = 5
-                    keylight.rotation_euler[0] = -2.61799
-                    keylight.rotation_euler[1] = -2.61799
-                    keylight.rotation_euler[2] = -1.5708
-                    keylight.data.energy = 10000
-                    keylight.data.color = (1, 1, 1)
-                    keylight.data.use_contact_shadow = False
-                    keylight.data.shadow_buffer_clip_start = .1
-                    keylight.data.spot_size =  2.26893
-                    keylight.data.shadow_soft_size = 0
-                    keylight.data.shadow_buffer_bias = 0.001
-                    keylight.data.use_custom_distance = True
-                    keylight.data.cutoff_distance = 100
-                    bpy.context.collection.objects.unlink(keylight) 
-                    lighting_collection.objects.link(keylight)
-                try:
-                    bpy.context.scene.collection.children.unlink(lighting_collection)
-                except:
-                    pass
-
-
-                # create a new world
-                if scene.world is not None:
-                    current_world = scene.world
-                    bpy.data.worlds.remove(current_world, do_unlink=True)
-                    empty_trash(self, context)
-
-                colorSwatch = [(1.0,1.0,1.0,1.0), (0.0,0.0,0.0,1.0), (0.05,0.08,0.11,1.0) ]
-                mat_world = bpy.data.worlds.new(sky_name)
-                scene.world = mat_world
-
-                mat_world.use_nodes = True
-                mat_world.node_tree.nodes["Background"].inputs[0].default_value = (0.00393594, 0.00393594, 0.00393594, 1)
-                world_output = mat_world.node_tree.nodes.get('World Output')
-                background_shader = world_output.inputs[0].links[0].from_node
-                background_color = mat_world.node_tree.nodes.new(type='ShaderNodeRGB')
-                light_path = mat_world.node_tree.nodes.new(type='ShaderNodeLightPath')
-                mix_shader = mat_world.node_tree.nodes.new(type='ShaderNodeMixShader')
-
-                mat_world.node_tree.links.new(background_color.outputs[0], background_shader.inputs[0])
-                mat_world.node_tree.links.new(background_shader.outputs[0], mix_shader.inputs[2])
-                mat_world.node_tree.links.new(light_path.outputs[0], mix_shader.inputs[0])
-                mat_world.node_tree.links.new(mix_shader.outputs[0], world_output.inputs[0])
-
-                # background_color.outputs[0].default_value = sky_color
-
-                if backstage_collection:
-                    bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = False
-
-                if ink_swatch_object:
-                    # backstage_objects = backstage_collection.objects
-                    # for mobj in backstage_objects:
-                    #     if "Materials." in mobj.name:
-                            sky_color = ink_swatch_object["Sky"]
-                            if sky_color:
-                                if sky_color == colorSwatch[0]:
-                                    ink_swatch_object["Sky"] = colorSwatch[1]
-
-                                if sky_color == colorSwatch[1]:
-                                    ink_swatch_object["Sky"] = colorSwatch[0]                     
-
-                                colorDriverRed = background_color.outputs[0].driver_add("default_value")[0] 
-                                colorDriverGreen = background_color.outputs[0].driver_add("default_value")[1] 
-                                colorDriverBlue = background_color.outputs[0].driver_add("default_value")[2] 
-
-                                colorDriverRed.driver.type = 'SUM'
-                                newVar = colorDriverRed.driver.variables.new()
-                                newVar.name = "Sky"
-                                newVar.type = 'SINGLE_PROP'
-                                newVar.targets[0].id = ink_swatch_object
-                                newVar.targets[0].data_path = '["Sky"][0]' 
-
-                                colorDriverGreen.driver.type = 'SUM'
-                                newVar = colorDriverGreen.driver.variables.new()
-                                newVar.name = "Sky"
-                                newVar.type = 'SINGLE_PROP'
-                                newVar.targets[0].id = ink_swatch_object
-                                newVar.targets[0].data_path = '["Sky"][1]' 
-
-                                colorDriverBlue.driver.type = 'SUM'
-                                newVar = colorDriverBlue.driver.variables.new()
-                                newVar.name = "Sky"
-                                newVar.type = 'SINGLE_PROP'
-                                newVar.targets[0].id = ink_swatch_object
-                                newVar.targets[0].data_path = '["Sky"][2]' 
-
-                bpy.context.scene.eevee.use_gtao = False
-                bpy.context.scene.eevee.use_bloom = False
-                bpy.context.scene.eevee.use_ssr = False
-                bpy.context.scene.eevee.use_taa_reprojection = False
-                bpy.context.scene.eevee.taa_samples = 8
-                bpy.context.scene.eevee.shadow_cube_size = '4096'
-                bpy.context.scene.eevee.shadow_cascade_size = '64'
-                bpy.context.scene.eevee.use_soft_shadows = False
-
-
-                bpy.ops.object.select_all(action='DESELECT')
-                keylight.select_set(state=True)
-                bpy.context.view_layer.objects.active = keylight
-
-                bpy.ops.view3d.snap_cursor_to_center()
-                context.scene.tool_settings.transform_pivot_point = 'CURSOR'
-
-
-
-
-
-        if "Selected" in toonfill_mode:
-            if bpy.context.mode != 'EDIT_MESH':
+                    bpy.ops.view3d.snap_cursor_to_center()
+                    context.scene.tool_settings.transform_pivot_point = 'CURSOR'
+            if "Selected" in toonfill_mode:
                 if "ink_toon" in toonfill_type:
                     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-                    selected_objects = bpy.context.selected_objects
                     for ob in selected_objects:
                         try:
                             del ob["is_toon_shaded"]
                         except:
                             pass 
                     outline(self,context,selected_objects, "ink_toon")
+                if "blackout" in toonfill_type:
+                    outline(self,context,selected_objects, "blackout")
+
+        else:
+            for mesh_object in selected_objects:
+                if mesh_object.type == 'MESH':
+                    if ink_swatch_object:
+                            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            # ink_swatch_object.select_set(state=True)
+                            # bpy.context.view_layer.objects.active = ink_swatch_object
+                            # bpy.ops.object.material_slot_copy()
+                            # bpy.ops.object.select_all(action='DESELECT')
+                            # mesh_object.select_set(state=True)
+                            # bpy.context.view_layer.objects.active = mesh_object
+                            # for i, mat in reversed(list(enumerate(mesh_object.data.materials))):
+                            #     if "L_BlackShadow." not in mat.name and ".TEMPLATE" in mat.name  :
+                            #         # letter.data.materials.pop(index=i)
+                            #         mesh_object.active_material_index = i
+                            #         bpy.ops.object.material_slot_remove()
+
+
+                            for i, mat in reversed(list(enumerate(ink_swatch_object.data.materials))):
+                                if "blackout" in toonfill_type:
+                                    if "L_BlackShadow." in mat.name:
+                                        fill_mat = mat
+                                if "whiteout" in toonfill_type:
+                                    if "L_WhiteShadow." in mat.name:
+                                        fill_mat = mat
+                            bpy.ops.object.material_slot_add()
+                            new_material_slot_index =  len(mesh_object.data.materials) -1
+                            mesh_object.data.materials[new_material_slot_index] = fill_mat
+
+                            bpy.ops.object.select_all(action='DESELECT')
+                            mesh_object.select_set(state=True)
+                            mesh_object.active_material_index =  len(mesh_object.data.materials) - 1
+                            bpy.context.view_layer.objects.active = mesh_object
+                            bpy.ops.object.mode_set(mode='EDIT', toggle=False)  
+                            bpy.ops.object.material_slot_assign()
 
 
         # set viewport display
@@ -7229,6 +7312,9 @@ class BR_OT_toonfill(bpy.types.Operator):
                         #     bpy.ops.view3d.localview()
 
 
+        if backstage_collection:
+            bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
+        
         return {'FINISHED'}
 
 
@@ -10933,7 +11019,7 @@ class BR_MT_3d_comic_submenu_lighting(bpy.types.Menu):
         layout.separator()
         layout.operator("view3d.spiraloid_3d_comic_cycle_sky", text="Cycle Sky", icon="FILE_IMAGE")
         layout.separator()
-        layout.operator("view3d.spiraloid_3d_comic_clear_all_ink_lighting", text="Clear Ink Toonshade all", icon="MATSHADERBALL")
+        layout.operator("wm.spiraloid_3d_comic_clear_all_ink_lighting", text="Clear Ink Toonshade all", icon="MATSHADERBALL")
 
         # layout.operator("view3d.spiraloid_3d_comic_init_vehicle_lighting")
         # layout.operator("view3d.spiraloid_3d_comic_init_magic_hour_lighting")
