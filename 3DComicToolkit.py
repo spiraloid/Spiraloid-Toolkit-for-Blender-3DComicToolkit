@@ -2,7 +2,7 @@ bl_info = {
     'name': '3D Comic Toolkit',
     'author': 'Bay Raitt',
     'version': (0, 5),
-    'blender': (2, 92, 0),
+    'blender': (2, 93, 0),
     "description": "3D Comic Toolkit - requires factory addons: Bool Tool to be activated!! ",
     'category': 'Import-Export',
     'location': 'Spiraloid > 3D Comic',
@@ -7263,7 +7263,6 @@ class BR_OT_toonfill(bpy.types.Operator):
                             #         mesh_object.active_material_index = i
                             #         bpy.ops.object.material_slot_remove()
 
-
                             for i, mat in reversed(list(enumerate(ink_swatch_object.data.materials))):
                                 if "blackout" in toonfill_type:
                                     if "L_BlackShadow." in mat.name:
@@ -7271,9 +7270,12 @@ class BR_OT_toonfill(bpy.types.Operator):
                                 if "whiteout" in toonfill_type:
                                     if "L_WhiteShadow." in mat.name:
                                         fill_mat = mat
+                            
+                            
                             bpy.ops.object.material_slot_add()
                             new_material_slot_index =  len(mesh_object.data.materials) -1
-                            mesh_object.data.materials[new_material_slot_index] = fill_mat
+                            if fill_mat:
+                                mesh_object.data.materials[new_material_slot_index] = fill_mat
 
                             bpy.ops.object.select_all(action='DESELECT')
                             mesh_object.select_set(state=True)
@@ -7414,16 +7416,6 @@ class BR_MT_export_3d_comic_all(bpy.types.Operator):
 
         return {'FINISHED'}
 
-
-
-
-
-
-
-
-
-        return {'FINISHED'}
-
 # class BR_MT_export_3d_comic_letters_all(bpy.types.Operator):
 #     """Export all 3D Comic letters and start a local server.  Existing panels will be overwritten"""
 #     bl_idname = "view3d.spiraloid_export_3d_comic_letters_all"
@@ -7560,7 +7552,7 @@ class BR_MT_read_3d_comic(bpy.types.Operator):
                 bat_file.write(drive_letter +'\n')  
                 bat_file.write('cd ' + file_dir +'\n')  
                 bat_file.write('taskkill /IM "python.exe" /F' +'\n')
-                bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
+                bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'&savepoint=0\n')  
                 bat_file.write('python -m  http.server ' +'\n')
                 bat_file.write('pause' +'\n')
                 bat_file.close()
