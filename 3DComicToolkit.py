@@ -2750,10 +2750,10 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             copy_tree(addon_reader_dir, file_dir)        
 
 
-    if not export_only_current:
+    # if not export_only_current:
         # begin writing the javascript file for the comic
-        js_file = open(js_file_path, "w")
-        js_file.write('var files = [' +'\n')
+    js_file = open(js_file_path, "w")
+    js_file.write('var files = [' +'\n')
         # js_file.write('      "./panels/header.w100h50.glb",' +'\n')  
         # js_file.write('      "./panels/black.w100h100.glb",' +'\n')  
 
@@ -3515,28 +3515,29 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             # bpy.ops.export_scene.obj(   filepath = path_to_export_file, use_selection   =   True )
             i = i + 1
 
-    if not export_only_current:            
-        # finish writing the javascript file
-        js_file.write('      "./panels/shared/p.black.w100h25.generic.glb",' +'\n')  
-        # js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
-        js_file.write('];' +'\n')
-        js_file.close()
+    # if not export_only_current:            
+    #     # finish writing the javascript file
+    #     js_file.write('      "./panels/shared/p.black.w100h25.generic.glb",' +'\n')  
+    #     # js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
+    #     js_file.write('];' +'\n')
+    #     js_file.close()
 
-        # create local server bat file (windows only)
-        bat_file = open(bat_file_path, "w")
-        stringFragments = file_dir.split(':')
-        drive_letter = stringFragments[0] + ":"
+    #     # create local server bat file (windows only)
+    #     bat_file = open(bat_file_path, "w")
+    #     stringFragments = file_dir.split(':')
+    #     drive_letter = stringFragments[0] + ":"
 
-        bat_file.write('@echo off' +'\n')  
-        bat_file.write(drive_letter +'\n')  
-        bat_file.write('cd ' + file_dir +'\n')  
-        bat_file.write('taskkill /IM "python.exe" /F' +'\n')
-        bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
-        bat_file.write('python -m  http.server ' +'\n')
-        # bat_file.write('tasklist /nh /fi "imagename eq python.exe" | find /i "python.exe" > nul | (python -m  http.server)' +'\n')
-        bat_file.write('pause' +'\n')
-        bat_file.close()
-    else:
+    #     bat_file.write('@echo off' +'\n')  
+    #     bat_file.write(drive_letter +'\n')  
+    #     bat_file.write('cd ' + file_dir +'\n')  
+    #     bat_file.write('taskkill /IM "python.exe" /F' +'\n')
+    #     bat_file.write('start http://localhost:8000/?lan=' + active_language_abreviated +'^&savepoint=0\n')  
+    #     bat_file.write('python -m  http.server ' +'\n')
+    #     # bat_file.write('tasklist /nh /fi "imagename eq python.exe" | find /i "python.exe" > nul | (python -m  http.server)' +'\n')
+    #     bat_file.write('pause' +'\n')
+    #     bat_file.close()
+
+    if export_only_current :
         js_file = open(js_file_path, "w")
         js_file.write('var files = [' +'\n')
         for panel_scene in bpy.data.scenes:
@@ -3558,7 +3559,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
     self.report({'INFO'}, 'Exported Comic!')
     # subprocess.Popen('explorer '+ file_dir)
     # subprocess.Popen(bat_file_path)
-    BR_MT_read_3d_comic.execute(self, context)
+    # BR_MT_read_3d_comic.execute(self, context)
     
     return {'FINISHED'}
 
@@ -7448,24 +7449,6 @@ class BR_MT_export_3d_comic_all(bpy.types.Operator):
 #             export_letters(self, context,True)
 #         return {'FINISHED'}
 
-
-class BR_MT_export_3d_comic_current(bpy.types.Operator):
-    """Export current 3D Comic panel scene and start a local server.  Existing panel will be overwritten"""
-    bl_idname = "view3d.spiraloid_export_3d_comic_current"
-    bl_label ="Export Panel"
-    bl_options = {'REGISTER', 'UNDO'}
-    # config: bpy.props.PointerProperty(type=BuildComicSettings)
-
-    def execute(self, context):
-        if bpy.data.is_dirty:
-            # self.report({'WARNING'}, "You must save your file first!")
-            # bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
-            self.report({'WARNING'}, "You must save your file first!")
-
-        else:
-            export_panel(self, context,True, True)
-        return {'FINISHED'}
-
  
 class BR_MT_quick_save_export_3d_comic_current(bpy.types.Operator):
     """Export current 3D Comic panel scene and start a local server.  Only Existing panel will be overwritten"""
@@ -7492,9 +7475,8 @@ class BR_MT_quick_save_export_3d_comic_current(bpy.types.Operator):
                 #looks like a panel exists, generate the comic folders and files
                 # bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath) # why does this break the UI?
                 export_panel(self, context,False, True)
-                BR_MT_read_3d_comic.execute(self, context)
 
-
+        BR_MT_read_3d_comic.execute(self, context)
         return {'FINISHED'}
 
 
@@ -10317,7 +10299,7 @@ class BR_MT_3d_comic_menu(bpy.types.Menu):
         layout.separator()
         layout.operator("view3d.spiraloid_export_3d_comic_all", icon="NODE_COMPOSITING")
         if developer_mode:
-            layout.operator("view3d.spiraloid_export_3d_comic_current", icon="FILE_BLANK")
+            layout.operator("wm.spiraloid_quicks_save_export_3d_comic_current", icon="FILE_BLANK")
         layout.operator("wm.spiraloid_quicks_save_export_3d_comic_current", icon="SOLO_ON")
         layout.separator()
         layout.operator("view3d.spiraloid_read_3d_comic", icon="HIDE_OFF")
@@ -11113,7 +11095,6 @@ classes = (
     BR_OT_regenerate_3d_comic_preview,
     BR_OT_delete_comic_scene,
     BR_MT_export_3d_comic_all,
-    BR_MT_export_3d_comic_current,
     BR_MT_quick_save_export_3d_comic_current,
     # BR_MT_export_3d_comic_letters_all,
     # BR_MT_export_3d_comic_letters_current,
