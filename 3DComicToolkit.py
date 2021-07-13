@@ -2750,10 +2750,10 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             copy_tree(addon_reader_dir, file_dir)        
 
 
-    # if not export_only_current:
+    if not export_only_current:
         # begin writing the javascript file for the comic
-    js_file = open(js_file_path, "w")
-    js_file.write('var files = [' +'\n')
+        js_file = open(js_file_path, "w")
+        js_file.write('var files = [' +'\n')
         # js_file.write('      "./panels/header.w100h50.glb",' +'\n')  
         # js_file.write('      "./panels/black.w100h100.glb",' +'\n')  
 
@@ -3515,12 +3515,12 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             # bpy.ops.export_scene.obj(   filepath = path_to_export_file, use_selection   =   True )
             i = i + 1
 
-    # if not export_only_current:            
-    #     # finish writing the javascript file
-    #     js_file.write('      "./panels/shared/p.black.w100h25.generic.glb",' +'\n')  
-    #     # js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
-    #     js_file.write('];' +'\n')
-    #     js_file.close()
+    if not export_only_current:            
+        # finish writing the javascript file
+        js_file.write('      "./panels/shared/p.black.w100h25.generic.glb",' +'\n')  
+        # js_file.write('      "./panels/footer.w100h50.glb",' +'\n')  
+        js_file.write('];' +'\n')
+        js_file.close()
 
     #     # create local server bat file (windows only)
     #     bat_file = open(bat_file_path, "w")
