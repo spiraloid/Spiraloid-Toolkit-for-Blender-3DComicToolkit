@@ -735,6 +735,7 @@
 								child.castShadow = true;
 								child.receiveShadow = true;
 								var color = child.material.color;
+								var toon_color_light = color;
 								if (child.userData.toon_color_light) {
 									isColor = true;
 									toon_color_light = new THREE.Color(child.userData.toon_color_light);
