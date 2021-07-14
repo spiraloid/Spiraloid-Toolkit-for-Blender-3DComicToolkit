@@ -12,7 +12,7 @@ import bpy
 
 
 class KeyCollectionTreadmillSettings(bpy.types.PropertyGroup):
-    treadmillSourceCollection : bpy.props.PointerProperty(
+    source_treadmill_collection : bpy.props.PointerProperty(
         type=bpy.types.Collection,
         name="Source",         
         description="The collection to use as a treadmill"
@@ -31,23 +31,23 @@ class KeyCollectionTreadmillSettings(bpy.types.PropertyGroup):
 
 class BR_OT_key_collection_treadmill(bpy.types.Operator):
     """key selected collection as a stationary treadmill with two reinstances"""
-    bl_idname = "wm.spiraloid_key_collection_readmill"
+    bl_idname = "wm.spiraloid_3d_comic_key_collection_readmill"
     bl_label = "key collection treadmill..."
     bl_options = {'REGISTER', 'UNDO'}
-    config: bpy.props.PointerProperty(type=KeyCollectionTreadmillSettings)
+    # config: bpy.props.PointerProperty(type=KeyCollectionTreadmillSettings)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         key_collection_treadmill_settings = scene.key_collection_treadmill_settings
         strategy_row = layout.row(align=True)
-        layout.prop(key_collection_treadmill_settings, "treadmillSourceCollection" )
+        layout.prop(key_collection_treadmill_settings, "source_treadmill_collection" )
         layout.prop(key_collection_treadmill_settings, "speed_strategy")
 
  
     def execute(self, context):          
         settings = context.scene.key_collection_treadmill_settings
-        source_collection = settings.treadmillSourceCollection
+        source_collection = settings.source_treadmill_collection
         source_collection_name = source_collection.name
         scene_collection = bpy.context.view_layer.layer_collection
         treadmill_collection_name =  (source_collection_name  + "_treadmill")
@@ -81,14 +81,14 @@ def menu_draw(self, context):
 def register():
     bpy.utils.register_class(BR_OT_key_collection_treadmill)
     bpy.utils.register_class(KeyCollectionTreadmillSettings)
-
     bpy.types.Scene.key_collection_treadmill_settings = bpy.props.PointerProperty(type=KeyCollectionTreadmillSettings)
     bpy.types.VIEW3D_MT_object_animation.append(menu_draw)  
 
 def unregister():
     bpy.utils.unregister_class(BR_OT_key_collection_treadmill)
-    bpy.types.VIEW3D_MT_object_animation.remove(menu_draw)  
     bpy.utils.unregister_class(KeyCollectionTreadmillSettings)
+    del bpy.types.Scene.key_collection_treadmill_settings
+    bpy.types.VIEW3D_MT_object_animation.remove(menu_draw)  
 
     if __name__ != "__main__":
         bpy.types.VIEW3D_MT_view.remove(menu_draw)

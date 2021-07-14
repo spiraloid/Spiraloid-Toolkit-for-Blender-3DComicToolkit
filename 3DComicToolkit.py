@@ -254,8 +254,9 @@ def automap(mesh_objects, decimate_ratio):
 
     # UV map target_object if no UV's present
     for mesh_object in mesh_objects:
-        if mesh_object.type == 'MESH':
+        if (bpy.context.mode != 'OBJECT'):
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        if mesh_object.type == 'MESH':
             bpy.ops.object.select_all(action='DESELECT')
             mesh_object.select_set(state=True)
             bpy.context.view_layer.objects.active = mesh_object
@@ -8226,7 +8227,8 @@ class BR_OT_bake_collection(bpy.types.Operator):
 
 
             for bakemesh in bake_meshes :
-
+                if (bpy.context.mode != 'OBJECT'):
+                    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
                 bpy.ops.object.select_all(action='DESELECT')
                 bakemesh.select_set(state=True)
@@ -8236,9 +8238,10 @@ class BR_OT_bake_collection(bpy.types.Operator):
                 # nuke_flat_texture(selected_objects, width, height)
 
                 if bakemesh.active_material is not None:
+
                     # bakemesh.active_material.node_tree.nodes.clear()
                     for i in range(len(bakemesh.material_slots)):
-                        bpy.ops.object.material_slot_remove({'object': ob})
+                        bpy.ops.object.material_slot_remove({'object': bakemesh})
                 bpy.ops.object.shade_smooth()
 
                 assetName = bakemesh.name

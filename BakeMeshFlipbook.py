@@ -80,12 +80,13 @@ def empty_trash(self, context):
 def scene_mychosenobject_poll(self, object):
     return object.type == 'MESH'
 
-class BakeFlipbookPanelSettings(bpy.types.PropertyGroup):
+class BakeMeshFlipbookSettings(bpy.types.PropertyGroup):
     start_frame : bpy.props.IntProperty(name="Start Frame",  description="frame to start Flipbook", default=1 )
     end_frame : bpy.props.IntProperty(name="End Frame",  description="frame to end Flipbook", default=40 )
     frame_step : bpy.props.IntProperty(name="Frame Step",  description="Flipbook frame step", min=1, default=2 )
     decimate : bpy.props.BoolProperty(name="Decimate Frames",  description="decimate frames", default=True )
     boolean : bpy.props.BoolProperty(name="Boolean Frames",  description="boolean frames", default=False )
+    shapekey : bpy.props.BoolProperty(name="Shapekey Frames",  description="shapekey frames", default=False )
     apply_decimate : bpy.props.BoolProperty(name="Apply Decimation",  description="apply decimation to frames", default=True )
     decimate_ratio : FloatProperty(
         name="Decimate Ratio",
@@ -112,42 +113,43 @@ class BakeFlipbookPanelSettings(bpy.types.PropertyGroup):
 
 class BR_OT_bake_mesh_flipbook(bpy.types.Operator):
     """Bake selected object as a mesh per frame with animated visibility like a flipbook"""
-    bl_idname = "view3d.bake_mesh_flipbook"
+    bl_idname = "view3d.spiraloid_3d_comic_bake_mesh_flipbook"
     bl_label = "Bake Mesh Flipbook..."
     bl_options = {'REGISTER', 'UNDO'}
-    config: bpy.props.PointerProperty(type=BakeFlipbookPanelSettings)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        bake_flipbook_panel_settings = scene.bake_flipbook_panel_settings
+        bake_mesh_flipbookl_settings = scene.bake_mesh_flipbookl_settings
 
         strategy_row = layout.row(align=True)
 
-        layout.prop(bake_flipbook_panel_settings, "start_frame")
-        layout.prop(bake_flipbook_panel_settings, "end_frame")
+        layout.prop(bake_mesh_flipbookl_settings, "start_frame")
+        layout.prop(bake_mesh_flipbookl_settings, "end_frame")
         layout.separator()
-        layout.prop(bake_flipbook_panel_settings, "frame_step")
-        layout.prop(bake_flipbook_panel_settings, "decimate")
+        layout.prop(bake_mesh_flipbookl_settings, "frame_step")
+        layout.prop(bake_mesh_flipbookl_settings, "decimate")
         d_row = layout.row(align=True)
-        if bake_flipbook_panel_settings.decimate == True:
-            layout.prop(bake_flipbook_panel_settings, "apply_decimate")
-            layout.prop(bake_flipbook_panel_settings, "decimate_ratio")
+        if bake_mesh_flipbookl_settings.decimate == True:
+            layout.prop(bake_mesh_flipbookl_settings, "apply_decimate")
+            layout.prop(bake_mesh_flipbookl_settings, "decimate_ratio")
             d_row.enabled = True
         else :
             d_row.enabled = False
 
-        layout.prop(bake_flipbook_panel_settings, "boolean")
+        layout.prop(bake_mesh_flipbookl_settings, "boolean")
         b_row = layout.row(align=True)
-        if bake_flipbook_panel_settings.boolean == True:
-            layout.prop(bake_flipbook_panel_settings, "boolObject" )
-            layout.prop(bake_flipbook_panel_settings, "boolStrategy" )
+        if bake_mesh_flipbookl_settings.boolean == True:
+            layout.prop(bake_mesh_flipbookl_settings, "boolObject" )
+            layout.prop(bake_mesh_flipbookl_settings, "boolStrategy" )
             b_row.enabled = True
         else :
             b_row.enabled = False
+        layout.prop(bake_mesh_flipbookl_settings, "shapekey")
+        
 
     def execute(self, context):          
-        settings = context.scene.bake_flipbook_panel_settings
+        settings = context.scene.bake_mesh_flipbookl_settings
         flipbook_collection_name = "Flipbook"
         bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
@@ -189,38 +191,39 @@ class BR_OT_bake_mesh_flipbook(bpy.types.Operator):
                 bpy.ops.object.duplicate_move(OBJECT_OT_duplicate={"linked":False, "mode":'TRANSLATION'}, TRANSFORM_OT_translate={"value":(0, 0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":True, "use_proportional_edit":False, "proportional_edit_falloff":'INVERSE_SQUARE', "proportional_size":0.101089, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False, "use_automerge_and_split":False})
 
 
-                dupe = bpy.context.selected_objects
-                dupe[0].name = ("frame_" + str(i))
-                for mod in [m for m in dupe[0].modifiers]:
+                dupe = bpy.context.selected_objects[0]
+                dupe.name = ("frame_" + str(i))
+
+                for mod in [m for m in dupe.modifiers]:
                     # bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)  #pre 2.90 syntax
                     bpy.ops.object.modifier_apply(modifier=mod.name)
 
                 bpy.ops.object.particle_system_remove()
 
                 if settings.decimate:
-                        mod = bpy.data.objects[dupe[0].name].modifiers.new(name='Decimate',type='DECIMATE')
+                        mod = bpy.data.objects[dupe.name].modifiers.new(name='Decimate',type='DECIMATE')
                         mod.decimate_type = 'DISSOLVE'
                         mod.angle_limit = 0.0872665
 
-                        mod2 = bpy.data.objects[dupe[0].name].modifiers.new(name='Decimate',type='DECIMATE')
+                        mod2 = bpy.data.objects[dupe.name].modifiers.new(name='Decimate',type='DECIMATE')
                         mod2.use_collapse_triangulate = True
                         mod2.ratio = settings.decimate_ratio
                         
                         if settings.apply_decimate:
                             bpy.ops.object.select_all(action='DESELECT')
-                            dupe[0].select_set(state=True)
-                            bpy.context.view_layer.objects.active =  dupe[0]
-                            for mod in [m for m in  dupe[0].modifiers if m.type == 'DECIMATE']:
+                            dupe.select_set(state=True)
+                            bpy.context.view_layer.objects.active =  dupe
+                            for mod in [m for m in  dupe.modifiers if m.type == 'DECIMATE']:
                                 # bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name) #pre 2.90 syntax
                                 bpy.ops.object.modifier_apply(modifier=mod.name)
 
-                if settings.boolean and settings.boolObject is not "Null":
-                    mod = bpy.data.objects[dupe[0].name].modifiers.new(name='Boolean',type='BOOLEAN')
+                if settings.boolObject:
+                    mod = bpy.data.objects[dupe.name].modifiers.new(name='Boolean',type='BOOLEAN')
                     mod.object = bpy.data.objects[settings.boolObject.name]
                     bpy.ops.object.select_all(action='DESELECT')
-                    dupe[0].select_set(state=True)
-                    bpy.context.view_layer.objects.active =  dupe[0]
-                    for mod in [m for m in  dupe[0].modifiers if m.type == 'BOOLEAN']:
+                    dupe.select_set(state=True)
+                    bpy.context.view_layer.objects.active =  dupe
+                    for mod in [m for m in  dupe.modifiers if m.type == 'BOOLEAN']:
                         bpy.context.object.modifiers["Boolean"].operation = settings.boolStrategy
                         # bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
                         bpy.ops.object.modifier_apply(modifier=mod.name)
@@ -233,53 +236,57 @@ class BR_OT_bake_mesh_flipbook(bpy.types.Operator):
 
 
                 if not settings.shapekey:
-                    cur_scalex = dupe[0].scale.x
-                    cur_scaley = dupe[0].scale.y
-                    cur_scalez = dupe[0].scale.z
+                    bpy.ops.anim.keyframe_clear_v3d()
 
-                    dupe[0].scale.x = 0.001
-                    dupe[0].scale.y = 0.001
-                    dupe[0].scale.z = 0.001  
-                    # dupe[0].hide_viewport = True
-                    # dupe[0].keyframe_insert(data_path="hide_viewport", frame= frame_start + i - frame_step )
-                    dupe[0].keyframe_insert(data_path="scale", frame =  (frame_start + i) - frame_step )
+                    cur_scalex = dupe.scale.x
+                    cur_scaley = dupe.scale.y
+                    cur_scalez = dupe.scale.z
 
-                    dupe[0].scale.x = cur_scalex
-                    dupe[0].scale.y = cur_scaley
-                    dupe[0].scale.z = cur_scalez  
-                    # dupe[0].hide_viewport = False                
-                    # dupe[0].keyframe_insert(data_path="hide_viewport", frame= frame_start + i)
-                    dupe[0].keyframe_insert(data_path="scale", frame= frame_start + i)
+                    dupe.scale.x = 0.001
+                    dupe.scale.y = 0.001
+                    dupe.scale.z = 0.001  
+                    # dupe.hide_viewport = True
+                    # dupe.keyframe_insert(data_path="hide_viewport", frame= frame_start + i - frame_step )
+                    dupe.keyframe_insert(data_path="scale", frame =  (frame_start + i) - frame_step )
+
+                    dupe.scale.x = cur_scalex
+                    dupe.scale.y = cur_scaley
+                    dupe.scale.z = cur_scalez  
+                    # dupe.hide_viewport = False                
+                    # dupe.keyframe_insert(data_path="hide_viewport", frame= frame_start + i)
+                    dupe.keyframe_insert(data_path="scale", frame= frame_start + i)
                     # context.scene.frame_set(frame_start + i + frame_step - .001, subframe=0.001)
-                    # dupe[0].keyframe_insert(data_path="scale", frame= (frame_start + i) + frame_step - .001)
+                    # dupe.keyframe_insert(data_path="scale", frame= (frame_start + i) + frame_step - .001)
 
-                    dupe[0].scale.x = 0.001
-                    dupe[0].scale.y = 0.001
-                    dupe[0].scale.z = 0.001                 
-                    # dupe[0].hide_viewport = True
-                    # dupe[0].keyframe_insert(data_path="hide_viewport", frame= frame_start + i + frame_step)
-                    dupe[0].keyframe_insert(data_path="scale", frame= (frame_start + i) + frame_step)
+                    dupe.scale.x = 0.001
+                    dupe.scale.y = 0.001
+                    dupe.scale.z = 0.001                 
+                    # dupe.hide_viewport = True
+                    # dupe.keyframe_insert(data_path="hide_viewport", frame= frame_start + i + frame_step)
+                    dupe.keyframe_insert(data_path="scale", frame= (frame_start + i) + frame_step)
                     
 
 
 
-                    bpy.data.collections[source_collection_name].objects.unlink(dupe[0])
-                    bpy.data.collections[flipbook_collection_name].objects.link(dupe[0])
+                    bpy.data.collections[source_collection_name].objects.unlink(dupe)
+                    bpy.data.collections[flipbook_collection_name].objects.link(dupe)
 
-                    fcurves = dupe[0].animation_data.action.fcurves
+                    fcurves = dupe.animation_data.action.fcurves
                     for fcurve in fcurves:
                         for kf in fcurve.keyframe_points:
                             kf.interpolation = 'CONSTANT'
                 else:
                     if i != 0:
                         bpy.ops.object.select_all(action='DESELECT')
-                        dupe[0].select_set(state=True)
-                        bpy.context.view_layer.objects.active =  dupe[0]
-                        bpy.ops.object.join_shapes()
-                        bpy.data.shape_keys["Key"].key_blocks["frame_10"].value = 1
-                        bpy.ops.action.delete()
+                        dupe.select_set(state=True)
+                        bpy.context.view_layer.objects.active =  dupe
+                        # bpy.ops.object.join_shapes()
+                        # bpy.data.shape_keys["Key"].key_blocks["frame_10"].value = 1
+                        # bpy.ops.action.delete()
 
 
+
+                # flipbook_collection.objects.link(dupe)
 
 
 
@@ -371,13 +378,16 @@ def menu_draw(self, context):
 def register():
     bpy.utils.register_class(BR_OT_bake_mesh_flipbook)
     bpy.types.VIEW3D_MT_object_animation.append(menu_draw)  
-    bpy.utils.register_class(BakeFlipbookPanelSettings)
-    bpy.types.Scene.bake_flipbook_panel_settings = bpy.props.PointerProperty(type=BakeFlipbookPanelSettings)
+    bpy.utils.register_class(BakeMeshFlipbookSettings)
+
+    bpy.types.Scene.bake_mesh_flipbookl_settings = bpy.props.PointerProperty(type=BakeMeshFlipbookSettings)
 
 def unregister():
     bpy.utils.unregister_class(BR_OT_bake_mesh_flipbook)
     bpy.types.VIEW3D_MT_object_animation.remove(menu_draw)  
-    bpy.utils.unregister_class(BakeFlipbookPanelSettings)
+    bpy.utils.unregister_class(BakeMeshFlipbookSettings)
+    del bpy.types.Scene.bake_mesh_flipbookl_settings
+
 
     if __name__ != "__main__":
         bpy.types.VIEW3D_MT_view.remove(menu_draw)
