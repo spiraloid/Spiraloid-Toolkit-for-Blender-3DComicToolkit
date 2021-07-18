@@ -548,6 +548,55 @@ def getCurrentSceneIndex():
         if bpy.data.scenes[currSceneIndex].name == currScene.name:
             return currSceneIndex
 
+
+
+
+def relinkAllSwatchColors():
+    ink_swatch_object = getCurrentMaterialSwatch()
+    world_nodes = bpy.context.scene.world 
+    if world_nodes:
+        sky_color = ink_swatch_object["Sky"]
+        background_node = world_nodes.node_tree.nodes.get('Background')
+        colorNode = background_node.inputs[0].links[0].from_node
+        if sky_color:
+            try:
+                colorNode.outputs[0].driver_remove("default_value")[0] 
+                colorNode.outputs[0].driver_remove("default_value")[1] 
+                colorNode.outputs[0].driver_remove("default_value")[2] 
+            except:
+                pass
+
+            colorDriverRed = colorNode.outputs[0].driver_add("default_value")[0] 
+            colorDriverGreen = colorNode.outputs[0].driver_add("default_value")[1] 
+            colorDriverBlue = colorNode.outputs[0].driver_add("default_value")[2] 
+
+            colorDriverRed.driver.type = 'SUM'
+            newVar = colorDriverRed.driver.variables.new()
+            newVar.name = "Sky"
+            newVar.type = 'SINGLE_PROP'
+            newVar.targets[0].id = ink_swatch_object
+            newVar.targets[0].data_path = '["Sky"][0]' 
+
+            colorDriverGreen.driver.type = 'SUM'
+            newVar = colorDriverGreen.driver.variables.new()
+            newVar.name = "Sky"
+            newVar.type = 'SINGLE_PROP'
+            newVar.targets[0].id = ink_swatch_object
+            newVar.targets[0].data_path = '["Sky"][1]' 
+
+            colorDriverBlue.driver.type = 'SUM'
+            newVar = colorDriverBlue.driver.variables.new()
+            newVar.name = "Sky"
+            newVar.type = 'SINGLE_PROP'
+            newVar.targets[0].id = ink_swatch_object
+            newVar.targets[0].data_path = '["Sky"][2]' 
+
+
+
+        #remove driver
+        #remake driver
+        print ("woo")
+
 def getCurrentPanelNumber(padded):
     scene_name = bpy.context.window.scene.name
     currSceneIndex = getCurrentSceneIndex()
@@ -1176,7 +1225,28 @@ def validate_naming(self, context):
                 c.name = "Letters." + str(paddedSceneNumber) 
             if "Backstage." in c.name:
                 c.name = "Backstage." + str(paddedSceneNumber) 
+            bpy.context.view_layer.layer_collection.children[c.name].exclude = False
 
+
+
+        letters_collection = getCurrentLettersCollection()
+        backstage_collection = getCurrentBackstageCollection()
+        # if backstage_collection:
+        #     objects = backstage_collection.objects
+        #     for obj in objects:
+        #         if "Materials.Global" in obj.name:
+        #             bpy.ops.object.select_all(action='DESELECT')
+        #             obj.select_set(state=True)
+        #             bpy.context.view_layer.objects.active = obj
+        #             bpy.ops.object.delete()
+        #             global_ink_swatch_object = bpy.data.scenes[0].collection.children['Backstage.Global'].objects['Materials.Global']
+        #             backstage_collection.objects.link(global_ink_swatch_object)
+
+        # if backstage_collection:
+        #     objects = backstage_collection.objects
+        #     for obj in objects:
+        #         if "Materials." in obj.name:
+        #             obj.name = "Materials." + str(paddedSceneNumber) 
 
 
         export_collection = getCurrentExportCollection(self, context)
@@ -1195,7 +1265,6 @@ def validate_naming(self, context):
                 if "Lighting." in obj.name:
                     obj.name = 'Lighting.'+ str(paddedSceneNumber)
 
-            letters_collection = getCurrentLettersCollection()
             letters_objects = letters_collection.objects
             for obj in letters_objects:
 
@@ -1289,6 +1358,12 @@ def validate_naming(self, context):
                     #     ob.name = 'Letters_french.'+ str(paddedSceneNumber)
         else:
             self.report({'ERROR'}, 'No Export Collection Found!  Scene Must be reinitialized')
+
+        if backstage_collection:
+            bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
+
+        if currScene.world:
+            currScene.world.name = "Sky." + paddedSceneNumber
 
 
 def toggle_workmode(self, context, rendermode):
@@ -3981,7 +4056,7 @@ class BR_OT_clone_comic_scene(bpy.types.Operator):
 
         newScene = bpy.ops.scene.new(type='FULL_COPY')
         bpy.context.scene.name = newSceneName
-
+        
         bpy.context.scene.cursor.location[2] = 1.52
 
         # BR_OT_panel_init.execute(self, context)
@@ -4082,58 +4157,65 @@ def insert_comic_panel(self, context, camera_strategy):
 
 
 
-def split_comic_panel(self, context, camera_strategy):
-    toonfill_use_global = bpy.context.scene.panel_settings.s3dc_toonfill_use_global
+# def split_comic_panel(self, context, camera_strategy):
+#     toonfill_use_global = bpy.context.scene.panel_settings.s3dc_toonfill_use_global
 
-    scene = context.scene
-    new_panel_row_settings = scene.new_panel_row_settings
-    new_panel_count = new_panel_row_settings.new_panel_count
-    use_borders = new_panel_row_settings.border_strategy
+#     scene = context.scene
+#     new_panel_row_settings = scene.new_panel_row_settings
+#     new_panel_count = new_panel_row_settings.new_panel_count
+#     use_borders = new_panel_row_settings.border_strategy
 
-    for i in range(new_panel_count):
-        panel_width = int(100 / new_panel_count)
+#     for i in range(2):
 
-        currSceneIndex = getCurrentSceneIndex()
-        renameAllScenesAfter(self, context)
+#         # rowSceneNames = getRowSceneNames()
+#         # rowCount = len(rowSceneNames)
+#         panel_width = int(100 / 2)
+#         panel_number = getCurrentPanelNumber(True)    
+#         currentRowScene_name = 'p.'+ str(panel_number) + '.w' + str(current_panel_width) + 'h' + str(current_panel_height)
+#         bpy.data.scenes[currSceneIndex].name = currentRowScene_name
 
-        numString = getCurrentPanelNumber(False)
-        newSceneIndex = currSceneIndex + 1
-        newPanelIndex = numString + 1
-        newPanelIndexPadded = "%04d" % newPanelIndex
-        newSceneName = 'p.'+ str(newPanelIndexPadded) + ".w" + str(panel_width) + "h"  + str(panel_width)
+#         currSceneIndex = getCurrentSceneIndex()
+#         renameAllScenesAfter(self, context)
 
-        newScene = bpy.ops.scene.new(type='FULL_COPY')
-        bpy.context.scene.name = newSceneName
-        bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
-        # print("=======DEBUG: " + str(currSceneIndex))
-        # raise KeyboardInterrupt()
-        BR_OT_panel_init.execute(self, context)
-        BR_OT_panel_validate_naming_all.execute(self, context)
-        for v in bpy.context.window.screen.areas:
-            if v.type=='VIEW_3D':
-                v.spaces[0].region_3d.view_perspective = 'CAMERA'
-                override = {
-                    'area': v,
-                    'region': v.regions[0],
-                }
-                if bpy.ops.view3d.view_center_camera.poll(override):
-                    bpy.ops.view3d.view_center_camera(override)
-        bpy.ops.object.select_all(action='DESELECT')
+#         numString = getCurrentPanelNumber(False)
+#         newSceneIndex = currSceneIndex + 1
+#         newPanelIndex = numString + 1
+#         newPanelIndexPadded = "%04d" % newPanelIndex
+#         newSceneName = 'p.'+ str(newPanelIndexPadded) + ".w" + str(panel_width) + "h"  + str(panel_width)
 
-        backstage_collection = getCurrentBackstageCollection()
-        if backstage_collection:
-            global_ink_swatch_object = bpy.data.scenes[0].collection.children['Backstage.Global'].objects['Materials.Global']
-            backstage_collection.objects.link(global_ink_swatch_object)
+#         newScene = bpy.ops.scene.new(type='FULL_COPY')
 
-            if not toonfill_use_global:
-                bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
+#         bpy.context.scene.name = newSceneName
+#         bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
+#         raise KeyboardInterrupt()
+#         # print("=======DEBUG: " + str(currSceneIndex))
+#         BR_OT_panel_init.execute(self, context)
+#         BR_OT_panel_validate_naming_all.execute(self, context)
+#         for v in bpy.context.window.screen.areas:
+#             if v.type=='VIEW_3D':
+#                 v.spaces[0].region_3d.view_perspective = 'CAMERA'
+#                 override = {
+#                     'area': v,
+#                     'region': v.regions[0],
+#                 }
+#                 if bpy.ops.view3d.view_center_camera.poll(override):
+#                     bpy.ops.view3d.view_center_camera(override)
+#         bpy.ops.object.select_all(action='DESELECT')
 
-        if "Static" not in camera_strategy:
-            key_camera_auto(self, context, camera_strategy)
-        if use_borders:
-            BR_OT_add_letter_border.execute(self, context)
+#         backstage_collection = getCurrentBackstageCollection()
+#         if backstage_collection:
+#             global_ink_swatch_object = bpy.data.scenes[0].collection.children['Backstage.Global'].objects['Materials.Global']
+#             backstage_collection.objects.link(global_ink_swatch_object)
 
-    return {'FINISHED'}
+#             if not toonfill_use_global:
+#                 bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
+
+#         if "Static" not in camera_strategy:
+#             key_camera_auto(self, context, camera_strategy)
+#         if use_borders:
+#             BR_OT_add_letter_border.execute(self, context)
+
+#     return {'FINISHED'}
 
 
 class NewPanelRowSettings(bpy.types.PropertyGroup):
@@ -4159,52 +4241,137 @@ class NewPanelRowSettings(bpy.types.PropertyGroup):
     border_strategy : bpy.props.BoolProperty(name="Frame",  description="create a border frame around the panels", default=True )
     duplicate : bpy.props.BoolProperty(name="Duplicate",  description="Duplicate current panel", default=True )
 
-class BR_OT_new_panel_row(bpy.types.Operator, ImportHelper):
+# class BR_OT_new_panel_row(bpy.types.Operator, ImportHelper):
+class BR_OT_new_panel_row(bpy.types.Operator):
     """Insert a new empty comic panel scene or scenes side by side"""
-    bl_idname = "screen.spiraloid_3d_comic_new_panel_row"
+    bl_idname = "screen.spiraloid_3d_comic_new_panel_split"
     bl_label = "Add Panels"
     bl_options = {'REGISTER', 'UNDO'}
-    config: bpy.props.PointerProperty(type=NewPanelRowSettings)
+    # config: bpy.props.PointerProperty(type=NewPanelRowSettings)
 
-    def draw(self, context):
-        layout = self.layout
-        scene = context.scene
-        new_panel_row_settings = scene.new_panel_row_settings
-        layout = self.layout
-        layout.prop(new_panel_row_settings, "new_panel_count")
-        split = layout.split(factor=0.5)
-        col_1 = split.column()
-        col_2 = split.column()
-        layout.separator()
-        col_1.separator()
-        col_1.prop(new_panel_row_settings, "border_strategy")
-        col_1.prop(new_panel_row_settings, "duplicate")
-        layout.prop(new_panel_row_settings, "camera_strategy", text="Camera Move")
-        layout.separator()
+    # def draw(self, context):
+    #     layout = self.layout
+    #     scene = context.scene
+    #     new_panel_row_settings = scene.new_panel_row_settings
+    #     layout = self.layout
+    #     layout.prop(new_panel_row_settings, "new_panel_count")
+    #     split = layout.split(factor=0.5)
+    #     col_1 = split.column()
+    #     col_2 = split.column()
+    #     layout.separator()
+    #     col_1.separator()
+    #     col_1.prop(new_panel_row_settings, "border_strategy")
+    #     col_1.prop(new_panel_row_settings, "duplicate")
+    #     layout.prop(new_panel_row_settings, "camera_strategy", text="Camera Move")
+    #     layout.separator()
+
+    # def execute(self, context):
+    #     currSceneIndex = getCurrentSceneIndex()
+    #     scene = bpy.data.scenes[0]
+    #     if "Cover" not in scene.name:
+    #         self.report({'ERROR'}, 'No 3D Comic folders found next to .blend file!  you need to Build 3D Comic first.')
+    #     else:
+    #         settings = context.scene.new_panel_row_settings
+    #         # current_scene_name = context.scene.name
+    #         # if "p." in bpy.context.scene.name:    
+    #         if not settings.duplicate:
+    #             insert_comic_panel(self, context, settings.camera_strategy)
+    #         else:
+    #             if currSceneIndex == 0:
+    #                 self.report({'ERROR'}, "You Don't have any panels to duplicate and split yet")
+    #             else:
+    #                 split_comic_panel(self, context, settings.camera_strategy)
+    #         # else:
+    #             # self.report({'ERROR'}, "No Active Comic Found")
+
+    #     return {'FINISHED'}
+
+    # def invoke(self, context, event):
+    #     return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
+        toonfill_use_global = bpy.context.scene.panel_settings.s3dc_toonfill_use_global
+        scene = context.scene
+        new_panel_row_settings = scene.new_panel_row_settings
+        new_panel_count = new_panel_row_settings.new_panel_count
+        use_borders = new_panel_row_settings.border_strategy
         currSceneIndex = getCurrentSceneIndex()
-        scene = bpy.data.scenes[0]
-        if "Cover" not in scene.name:
-            self.report({'ERROR'}, 'No 3D Comic folders found next to .blend file!  you need to Build 3D Comic first.')
-        else:
-            settings = context.scene.new_panel_row_settings
-            # current_scene_name = context.scene.name
-            # if "p." in bpy.context.scene.name:    
-            if not settings.duplicate:
-                insert_comic_panel(self, context, settings.camera_strategy)
-            else:
-                if currSceneIndex == 0:
-                    self.report({'ERROR'}, "You Don't have any panels to duplicate and split yet")
-                else:
-                    split_comic_panel(self, context, settings.camera_strategy)
-            # else:
-                # self.report({'ERROR'}, "No Active Comic Found")
+
+
+        # rowSceneNames = getRowSceneNames()
+        # rowCount = len(rowSceneNames)
+        rowSceneIndexes = []
+        panel_width = int(100 / 2)
+        panel_number = getCurrentPanelNumber(True)    
+        currentRowScene_name = 'p.'+ str(panel_number) + '.w' + str(panel_width) + 'h' + str(panel_width)
+        bpy.data.scenes[currSceneIndex].name = currentRowScene_name
+        rowSceneIndexes.append(currSceneIndex)
+
+        renameAllScenesAfter(self, context)
+
+        numString = getCurrentPanelNumber(False)
+        newSceneIndex = currSceneIndex + 1
+        newPanelIndex = numString + 1
+        newPanelIndexPadded = "%04d" % newPanelIndex
+        newSceneName = 'p.'+ str(newPanelIndexPadded) + ".w" + str(panel_width) + "h"  + str(panel_width)
+
+        newScene = bpy.ops.scene.new(type='FULL_COPY')
+
+        bpy.context.scene.name = newSceneName
+        bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
+        rowSceneIndexes.append(newSceneIndex)
+
+
+
+
+        # raise KeyboardInterrupt()
+        # print("=======DEBUG: " + str(currSceneIndex))
+
+        for sceneIndex in rowSceneIndexes:
+            bpy.context.window.scene = bpy.data.scenes[sceneIndex]
+            # BR_OT_panel_init.execute(self, context)
+            BR_OT_panel_validate_naming_all.execute(self, context)
+            panel_number = getCurrentPanelNumber(True)
+            ink_swatch_object_name = "Materials." + panel_number
+            backstage_collection = getCurrentBackstageCollection()
+            if backstage_collection:
+                backstage_objects = backstage_collection.objects
+                for mobj in backstage_objects:
+                    if "Materials.0" in mobj.name:
+                        mobj.name = ink_swatch_object_name
+                    if "Materials.Global" in mobj.name:
+                        backstage_collection.objects.unlink(mobj)
+                        empty_trash(self, context)
+                        global_ink_swatch_object = bpy.data.scenes[0].collection.children['Backstage.Global'].objects['Materials.Global']
+                        backstage_collection.objects.link(global_ink_swatch_object)
+            relinkAllSwatchColors()
+
+        for v in bpy.context.window.screen.areas:
+            if v.type=='VIEW_3D':
+                v.spaces[0].region_3d.view_perspective = 'CAMERA'
+                override = {
+                    'area': v,
+                    'region': v.regions[0],
+                }
+                if bpy.ops.view3d.view_center_camera.poll(override):
+                    bpy.ops.view3d.view_center_camera(override)
+        bpy.ops.object.select_all(action='DESELECT')
+
+        # backstage_collection = getCurrentBackstageCollection()
+        # if backstage_collection:
+        #     global_ink_swatch_object = bpy.data.scenes[0].collection.children['Backstage.Global'].objects['Materials.Global']
+        #     backstage_collection.objects.link(global_ink_swatch_object)
+
+        #     if not toonfill_use_global:
+        #         bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
+
+        # if "Static" not in camera_strategy:
+        #     key_camera_auto(self, context, camera_strategy)
+        # if use_borders:
+        #     BR_OT_add_letter_border.execute(self, context)
 
         return {'FINISHED'}
 
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
 
 
 class BR_OT_new_panel(bpy.types.Operator):
@@ -7791,7 +7958,7 @@ class BR_OT_bake_collection(bpy.types.Operator):
     bl_idname = "wm.spiraloid_bake_collection"
     bl_label = "Bake Collection..."
     bl_options = {'REGISTER', 'UNDO'}
-    config: bpy.props.PointerProperty(type=BakePanelSettings)
+    # config: bpy.props.PointerProperty(type=BakePanelSettings)
 
 
     def draw(self, context):
@@ -10536,7 +10703,7 @@ class BR_MT_3d_comic_panels(bpy.types.Panel):
 
 
             layout.operator("screen.spiraloid_3d_comic_new_panel", text="New", icon="FILE_BLANK")
-            layout.operator("screen.spiraloid_3d_comic_new_panel_row", text="Split...", icon="MOD_TRIANGULATE")
+            layout.operator("screen.spiraloid_3d_comic_new_panel_split", text="Split...", icon="MOD_TRIANGULATE")
             layout.operator("view3d.spiraloid_3d_comic_clone_panel", text="Duplicate", icon="DUPLICATE")
             layout.operator("view3d.spiraloid_3d_comic_blank_panel", text="Insert Black", icon="COLORSET_16_VEC")
             layout.separator()
