@@ -548,9 +548,6 @@ def getCurrentSceneIndex():
         if bpy.data.scenes[currSceneIndex].name == currScene.name:
             return currSceneIndex
 
-
-
-
 def relinkAllSwatchColors():
     ink_swatch_object = getCurrentMaterialSwatch()
     world_nodes = bpy.context.scene.world 
@@ -1227,10 +1224,24 @@ def validate_naming(self, context):
                 c.name = "Backstage." + str(paddedSceneNumber) 
             bpy.context.view_layer.layer_collection.children[c.name].exclude = False
 
-
-
         letters_collection = getCurrentLettersCollection()
         backstage_collection = getCurrentBackstageCollection()
+        if backstage_collection:
+            panel_number = getCurrentPanelNumber(True)
+            ink_swatch_object_name = "Materials." + panel_number
+            backstage_collection = getCurrentBackstageCollection()
+            if backstage_collection:
+                backstage_objects = backstage_collection.objects
+                for mobj in backstage_objects:
+                    if "Materials.0" in mobj.name:
+                        mobj.name = ink_swatch_object_name
+                    if "Materials.Global" in mobj.name:
+                        backstage_collection.objects.unlink(mobj)
+                        empty_trash(self, context)
+                        global_ink_swatch_object = bpy.data.scenes[0].collection.children['Backstage.Global'].objects['Materials.Global']
+                        backstage_collection.objects.link(global_ink_swatch_object)
+            relinkAllSwatchColors()
+
         # if backstage_collection:
         #     objects = backstage_collection.objects
         #     for obj in objects:
@@ -1262,8 +1273,6 @@ def validate_naming(self, context):
                     obj.name = 'Camera.'+ str(paddedSceneNumber)
                 if "Camera_aim." in obj.name:
                     obj.name = 'Camera_aim.'+ str(paddedSceneNumber)
-                if "Lighting." in obj.name:
-                    obj.name = 'Lighting.'+ str(paddedSceneNumber)
 
             letters_objects = letters_collection.objects
             for obj in letters_objects:
@@ -1359,11 +1368,22 @@ def validate_naming(self, context):
         else:
             self.report({'ERROR'}, 'No Export Collection Found!  Scene Must be reinitialized')
 
+        for obj in currScene.objects:
+            if "Lighting." in obj.name:
+                obj.name = 'Lighting.'+ str(paddedSceneNumber)
+            if "Key." in obj.name:
+                obj.name = "Key." + str(paddedSceneNumber) 
+            if "Turntable." in obj.name:
+                obj.name = "Turntable." + str(paddedSceneNumber) 
+
+
         if backstage_collection:
             bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
 
         if currScene.world:
             currScene.world.name = "Sky." + paddedSceneNumber
+
+
 
 
 def toggle_workmode(self, context, rendermode):
@@ -1374,12 +1394,17 @@ def toggle_workmode(self, context, rendermode):
     global isWireframe
     global previous_toolbar_state
     global previous_region_ui_state
+    global previous_gpencil_object
 
     if rendermode:
         isWorkmodeToggled = True        
 
-    if bpy.context.mode == 'OBJECT':
-        previous_mode =  'OBJECT'
+    if previous_mode != 'PAINT_GPENCIL':
+        if bpy.context.mode == 'OBJECT':
+            previous_mode =  'OBJECT'
+    else:
+        previous_mode =  'PAINT_GPENCIL'
+
     if bpy.context.mode == 'EDIT_MESH':
         previous_mode =  'EDIT'
         bpy.context.space_data.overlay.show_overlays = False
@@ -1394,6 +1419,10 @@ def toggle_workmode(self, context, rendermode):
         previous_mode =  'WEIGHT_PAINT'
     if bpy.context.mode == 'TEXTURE_PAINT':
         previous_mode =  'TEXTURE_PAINT'
+    if bpy.context.mode == 'PAINT_GPENCIL':
+        previous_mode =  'PAINT_GPENCIL'
+        previous_gpencil_object = bpy.context.active_object
+
 
     my_areas = bpy.context.workspace.screens[0].areas
     for area in my_areas:
@@ -1506,6 +1535,13 @@ def toggle_workmode(self, context, rendermode):
                             space.shading.use_scene_world_render = True
                             if (lights):
                                 space.shading.use_scene_lights_render = True
+
+                    if previous_mode == 'PAINT_GPENCIL':
+                        if previous_gpencil_object:
+                            bpy.ops.gpencil.paintmode_toggle()
+                            bpy.context.mode == 'PAINT_GPENCIL'
+
+
                 else:
                     space.overlay.show_overlays = True
                     space.overlay.show_cursor = True
@@ -1536,6 +1572,34 @@ def toggle_workmode(self, context, rendermode):
                         #         ob.select_set(state=True)
                         #         bpy.context.view_layer.objects.active = ob
                         #     bpy.ops.object.editmode_toggle()
+
+                    if previous_mode == 'PAINT_GPENCIL':
+                        if previous_gpencil_object:
+                            # bpy.ops.object.select_all(action='DESELECT')
+                            previous_gpencil_object.select_set(state=True)
+                            bpy.context.view_layer.objects.active = previous_gpencil_object
+                            bpy.ops.gpencil.paintmode_toggle()
+                            my_shading = 'MATERIAL'
+                            space.overlay.show_overlays = True
+                            space.overlay.show_cursor = True
+                            space.overlay.show_floor = True
+                            space.overlay.show_axis_x = True
+                            space.overlay.show_axis_y = True
+                            space.overlay.show_extras = True
+                            space.overlay.show_relationship_lines = False
+                            space.overlay.show_bones = True
+                            space.overlay.show_motion_paths = True
+                            space.overlay.show_object_origins = True
+                            space.overlay.show_annotation = True
+                            space.overlay.show_text = True
+                            space.overlay.show_stats = True
+                            space.overlay.wireframe_threshold = 1
+                            space.overlay.show_fade_inactive = False
+                            space.show_gizmo = True
+
+                            # space.show_region_header = True
+                            space.show_region_toolbar = previous_toolbar_state
+                            space.show_region_ui = previous_region_ui_state
 
 
 
@@ -1810,7 +1874,8 @@ def outline(self,context,mesh_objects, toonfill_mode ):
     if bpy.context.mode != 'EDIT_MESH':
         for mesh_object in mesh_objects:
             is_toon_shaded = mesh_object.get("is_toon_shaded")
-            if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' or mesh_object.type == 'FONT':
+            # if mesh_object.type == 'MESH' or mesh_object.type == 'CURVE' or mesh_object.type == 'FONT':
+            if mesh_object.type == 'MESH' :
                 if not is_toon_shaded:
                     is_insensitive = False
 
@@ -4144,6 +4209,7 @@ def insert_comic_panel(self, context, camera_strategy):
         if use_borders:
             BR_OT_add_letter_border.execute(self, context)
         ink_swatch_object = getCurrentMaterialSwatch()
+        toggle_workmode(self, context, False)
 
 
         # bpy.context.scene["s3dc_toonfill_use_global"] = BoolProperty(s3dc_toonfill_use_global)
@@ -4331,20 +4397,7 @@ class BR_OT_new_panel_row(bpy.types.Operator):
             bpy.context.window.scene = bpy.data.scenes[sceneIndex]
             # BR_OT_panel_init.execute(self, context)
             BR_OT_panel_validate_naming_all.execute(self, context)
-            panel_number = getCurrentPanelNumber(True)
-            ink_swatch_object_name = "Materials." + panel_number
-            backstage_collection = getCurrentBackstageCollection()
-            if backstage_collection:
-                backstage_objects = backstage_collection.objects
-                for mobj in backstage_objects:
-                    if "Materials.0" in mobj.name:
-                        mobj.name = ink_swatch_object_name
-                    if "Materials.Global" in mobj.name:
-                        backstage_collection.objects.unlink(mobj)
-                        empty_trash(self, context)
-                        global_ink_swatch_object = bpy.data.scenes[0].collection.children['Backstage.Global'].objects['Materials.Global']
-                        backstage_collection.objects.link(global_ink_swatch_object)
-            relinkAllSwatchColors()
+
 
         for v in bpy.context.window.screen.areas:
             if v.type=='VIEW_3D':
@@ -4385,7 +4438,7 @@ class BR_OT_new_panel(bpy.types.Operator):
         if "Cover" not in scene.name:
             self.report({'ERROR'}, 'No 3D Comic folders found next to .blend file!  you need to Build 3D Comic first.')
         else:
-            insert_comic_panel(self, context, "Static")
+            insert_comic_panel(self, context, "camera_random")
         return {'FINISHED'}
 
 
@@ -5073,10 +5126,14 @@ class BR_OT_add_letter_sfx(bpy.types.Operator):
 
 
 def key_camera_auto(self, context, camera_strategy):
+    panel_number = getCurrentPanelNumber(True)
+
     active_camera = bpy.context.scene.camera
     start = bpy.context.scene.frame_start
     end = bpy.context.scene.frame_end
-    mid = end / 2.3
+    previous_random_int = 0
+    mid = int(end / 2.3)
+    randomized_camera_strategy = "undefined camera strategy"
     if active_camera:
         active_camera.animation_data_clear()
         C=bpy.context
@@ -5085,27 +5142,29 @@ def key_camera_auto(self, context, camera_strategy):
             C.area.type='DOPESHEET_EDITOR'
 
             if camera_strategy == "camera_random":
-                print("Camera needs to pan randomly!!!!!!!!!!!!!")
-                bpy.context.scene.frame_current = start
-                active_camera.location[0] = 0.0
-                active_camera.location[1] = -12
-                active_camera.location[2] = 10
-                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
-
-                bpy.context.scene.frame_current = mid
-                active_camera.location[0] = 0.0
-                active_camera.location[1] = -12
-                active_camera.location[2] = 3
-                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
-
-                bpy.context.scene.frame_current = end
-                active_camera.location[0] = 0.0
-                active_camera.location[1] = -12
-                active_camera.location[2] = 1.52
-                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
-
-                bpy.ops.action.interpolation_type(type='BEZIER')
-                bpy.ops.action.select_all(action='DESELECT')
+                # print("Camera needs to pan randomly!!!!!!!!!!!!!")
+                index =[
+                    ("camera_slide_up"),
+                    ("camera_slide_down"),
+                    ("camera_pan_left"),
+                    ("camera_pan_right"),
+                    ("camera_truck_in"),
+                    ("camera_truck_out"),
+                    ("turntable_cw"),
+                    ("turntable_ccw")
+                ]
+                i = len(index) -1
+                if i >= 0:
+                    random_int = random.randint(0, i)
+                    while (random_int == previous_random_int):
+                        random_int = random.randint(0, i)
+                        if (random_int != previous_random_int):
+                            break
+                else:
+                    random_int = 0
+                previous_random_int = random_int
+                camera_strategy = index[random_int]
+            # print(randomized_camera_strategy)
 
             if camera_strategy == "camera_slide_up":
                 bpy.context.scene.frame_current = start
@@ -5195,7 +5254,6 @@ def key_camera_auto(self, context, camera_strategy):
                 bpy.ops.action.interpolation_type(type='BEZIER')
                 bpy.ops.action.select_all(action='DESELECT')
 
-
             if camera_strategy == "camera_truck_in":
                 bpy.context.scene.frame_current = start
                 active_camera.location[0] =  0
@@ -5217,7 +5275,6 @@ def key_camera_auto(self, context, camera_strategy):
 
                 bpy.ops.action.interpolation_type(type='BEZIER')
                 bpy.ops.action.select_all(action='DESELECT')
-
 
             if camera_strategy == "camera_truck_out":
                 bpy.context.scene.frame_current = start
@@ -5241,34 +5298,64 @@ def key_camera_auto(self, context, camera_strategy):
                 bpy.ops.action.interpolation_type(type='BEZIER')
                 bpy.ops.action.select_all(action='DESELECT')
 
+            if camera_strategy == "turntable_cw":
+                bpy.ops.object.select_all(action='DESELECT')
+                bpy.ops.curve.primitive_bezier_circle_add(radius=1, enter_editmode=False, align='WORLD', location=(0, 0, 0), scale=(3, 3, 3))
+                turntable_object = bpy.context.selected_objects[0]
+                turntable_object_name = "Turntable." + panel_number
+                turntable_object.name = turntable_object_name
 
-            if camera_strategy == "world_spin_cw":
-                
                 bpy.context.scene.frame_current = start
-                active_camera.location[0] =  0
-                active_camera.location[1] = -12
-                active_camera.location[2] = 1.52
-                active_camera.keyframe_insert(data_path="location", index=-1, frame=start)
+                turntable_object.rotation_euler[0] = 0
+                turntable_object.rotation_euler[1] = 0
+                turntable_object.rotation_euler[2] = 4.71239
+                turntable_object.keyframe_insert(data_path="rotation_euler", index=-1, frame=start)
 
-                bpy.context.scene.frame_current = mid
-                active_camera.location[0] =  0
-                active_camera.location[1] = -17
-                active_camera.location[2] = 1.52
-                active_camera.keyframe_insert(data_path="location", index=-1, frame=mid)
+                bpy.ops.action.select_all(action='SELECT')
+                bpy.ops.action.interpolation_type(type='SINE')
+                kf = turntable_object.animation_data.action.fcurves[2].keyframe_points[0]
+                kf.easing = 'EASE_OUT'
 
                 bpy.context.scene.frame_current = end
-                active_camera.location[0] = 0.0
-                active_camera.location[1] = -30
-                active_camera.location[2] = 1.52
-                active_camera.keyframe_insert(data_path="location", index=-1, frame=end)
+                turntable_object.rotation_euler[0] = 0
+                turntable_object.rotation_euler[1] = 0
+                turntable_object.rotation_euler[2] =  -6.44026
+                turntable_object.keyframe_insert(data_path="rotation_euler", index=-1, frame=end)
 
-                bpy.ops.action.interpolation_type(type='BEZIER')
                 bpy.ops.action.select_all(action='DESELECT')
 
+            if camera_strategy == "turntable_ccw":
+                bpy.ops.object.select_all(action='DESELECT')
+                bpy.ops.curve.primitive_bezier_circle_add(radius=4, enter_editmode=False, align='WORLD', location=(0, 0, 0), scale=(3, 3, 3))
+                turntable_object = bpy.context.selected_objects[0]
+                turntable_object_name = "Turntable." + panel_number
+                turntable_object.name = turntable_object_name
 
+                bpy.context.scene.frame_current = start
+                turntable_object.rotation_euler[0] = 0
+                turntable_object.rotation_euler[1] = 0
+                turntable_object.rotation_euler[2] = -4.71239
+                turntable_object.keyframe_insert(data_path="rotation_euler", index=-1, frame=start)
+
+                bpy.ops.action.select_all(action='SELECT')
+                bpy.ops.action.interpolation_type(type='SINE')
+                kf = turntable_object.animation_data.action.fcurves[2].keyframe_points[0]
+                kf.easing = 'EASE_OUT'
+
+                bpy.context.scene.frame_current = end
+                turntable_object.rotation_euler[0] = 0
+                turntable_object.rotation_euler[1] = 0
+                turntable_object.rotation_euler[2] =  6.44026
+                turntable_object.keyframe_insert(data_path="rotation_euler", index=-1, frame=end)
+
+                bpy.ops.action.select_all(action='DESELECT')
+
+                
+
+
+        print("New Panel Auto Camera is: " + camera_strategy)
         C.area.type = old_area_type
-
-
+    return {'FINISHED'}
 
 
 
@@ -10909,7 +10996,7 @@ class BR_MT_3d_comic_panel_build(bpy.types.Panel):
         global ink_swatch_object
         layout = self.layout
         scene = context.scene
-        ink_swatch_object = getCurrentMaterialSwatch()
+        # ink_swatch_object = getCurrentMaterialSwatch()
         panel_settings = scene.panel_settings
 
 
