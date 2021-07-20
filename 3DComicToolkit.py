@@ -1538,8 +1538,11 @@ def toggle_workmode(self, context, rendermode):
 
                     if previous_mode == 'PAINT_GPENCIL':
                         if previous_gpencil_object:
-                            bpy.ops.gpencil.paintmode_toggle()
-                            bpy.context.mode == 'PAINT_GPENCIL'
+                            selected_object = bpy.context.view_layer.objects.active
+                            if selected_object:
+                                if selected_object.type == 'GPENCIL':
+                                    bpy.ops.gpencil.paintmode_toggle()
+                                    bpy.context.mode == 'PAINT_GPENCIL'
 
 
                 else:
@@ -2787,7 +2790,11 @@ def export_panel(self, context, export_only_current, remove_skeletons):
     # if bpy.data.is_dirty:
     #     # self.report({'WARNING'}, "You must save your file first!")
     #     bpy.context.window_manager.popup_menu(warn_not_saved, title="Warning", icon='ERROR')
+    panel_settings = bpy.context.scene.panel_settings
+    apply_armature = panel_settings.s3dc_apply_armatures
+
     bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
+
 
     # else:
     if bpy.context.object:
@@ -3084,16 +3091,26 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             for obj in objects:
                 if obj is not None and obj.visible_get:
                     print (obj.name)
+                    bpy.ops.object.select_all(action='DESELECT')
+                    obj.select_set(state=True)
+                    bpy.context.view_layer.objects.active = obj
 
                     if obj.type == 'ARMATURE':
                         armatures.append(obj)
 
                     if obj.type == 'MESH':
-                        if developer_mode:
-                            if not obj.find_armature():
+                        if apply_armature:
+                            if obj.find_armature():
+                                for mod in obj.modifiers:
+                                    if 'Skeleton' in mod.name:
+                                        bpy.ops.object.modifier_apply( modifier="Decimate")
+                                        meshes.append(obj)
+
+                            else:
                                 meshes.append(obj)
                         else:
-                            meshes.append(obj)
+                            if not obj.find_armature():
+                                meshes.append(obj)
 
                         if obj.animation_data:
                             # Collect places where animation/driver data possibly present.
@@ -3122,40 +3139,40 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                                         obj.animation_data_clear()
                                 
 
-                    is_toon_shaded = obj.get("is_toon_shaded")
-                    if is_toon_shaded:
-                        bpy.ops.object.select_all(action='DESELECT')
-                        obj.select_set(state=True)
-                        bpy.context.view_layer.objects.active = obj
+                        is_toon_shaded = obj.get("is_toon_shaded")
+                        if is_toon_shaded:
+                            bpy.ops.object.select_all(action='DESELECT')
+                            obj.select_set(state=True)
+                            bpy.context.view_layer.objects.active = obj
 
-                        try:
-                            # ToonDarkColor = obj.material_slots[0].material.node_tree.nodes["ColorRamp"].color_ramp.elements[0].color 
-                            ToonLightColor = obj.material_slots[0].material.node_tree.nodes["ColorRamp"].color_ramp.elements[1].color 
-                            ToonDarkColor = obj.material_slots[0].material.node_tree.nodes["ColorRamp"].color_ramp.elements[0].color 
+                            try:
+                                # ToonDarkColor = obj.material_slots[0].material.node_tree.nodes["ColorRamp"].color_ramp.elements[0].color 
+                                ToonLightColor = obj.material_slots[0].material.node_tree.nodes["ColorRamp"].color_ramp.elements[1].color 
+                                ToonDarkColor = obj.material_slots[0].material.node_tree.nodes["ColorRamp"].color_ramp.elements[0].color 
 
-                            # obj["ToonBlack"] = (Color((ToonDarkColor[0], ToonDarkColor[1], ToonDarkColor[2])))
-                            # obj["ToonWhite"] = (Color((ToonLightColor[0], ToonLightColor[1], ToonLightColor[2])))
-
-
-                            hex_color_light = toHex(ToonLightColor[0],ToonLightColor[1],ToonLightColor[2])
-                            hex_color_dark = toHex(ToonDarkColor[0],ToonDarkColor[1],ToonDarkColor[2])
+                                # obj["ToonBlack"] = (Color((ToonDarkColor[0], ToonDarkColor[1], ToonDarkColor[2])))
+                                # obj["ToonWhite"] = (Color((ToonLightColor[0], ToonLightColor[1], ToonLightColor[2])))
 
 
+                                hex_color_light = toHex(ToonLightColor[0],ToonLightColor[1],ToonLightColor[2])
+                                hex_color_dark = toHex(ToonDarkColor[0],ToonDarkColor[1],ToonDarkColor[2])
 
-                            # obj.data["toon_color"] = (Color((ToonLightColor[0], ToonLightColor[1], ToonLightColor[2])))
-                            # obj.data["toon_color"] = "0x" + hex_color
-                            obj.data["toon_color_light"] = "#" + hex_color_light
-                            obj.data["toon_color_dark"] = "#" + hex_color_dark
-                        except:
-                            pass
 
-                        for mod in obj.modifiers:
-                            if 'InkThickness' in mod.name:
-                                obj.modifiers["InkThickness"].show_viewport = True
-                            if 'WhiteOutline' in mod.name:
-                                obj.modifiers["WhiteOutline"].show_viewport = True
-                            if 'BlackOutline' in mod.name:
-                                obj.modifiers["BlackOutline"].show_viewport = True
+
+                                # obj.data["toon_color"] = (Color((ToonLightColor[0], ToonLightColor[1], ToonLightColor[2])))
+                                # obj.data["toon_color"] = "0x" + hex_color
+                                obj.data["toon_color_light"] = "#" + hex_color_light
+                                obj.data["toon_color_dark"] = "#" + hex_color_dark
+                            except:
+                                pass
+
+                            for mod in obj.modifiers:
+                                if 'InkThickness' in mod.name:
+                                    obj.modifiers["InkThickness"].show_viewport = True
+                                if 'WhiteOutline' in mod.name:
+                                    obj.modifiers["WhiteOutline"].show_viewport = True
+                                if 'BlackOutline' in mod.name:
+                                    obj.modifiers["BlackOutline"].show_viewport = True
 
                     if obj.visible_get and  obj.type == 'GPENCIL':
                         # bpy.ops.gpencil.editmode_toggle(False)
@@ -7588,26 +7605,39 @@ class BR_OT_toonfill(bpy.types.Operator):
                     outline(self,context,selected_objects, "ink_toon")
                 if "blackout" in toonfill_type:
                     outline(self,context,selected_objects, "blackout")
-
         else:
-            for mesh_object in selected_objects:
-                if mesh_object.type == 'MESH':
-                    if ink_swatch_object:
+            if ink_swatch_object:
+                for mesh_object in selected_objects:
+                    if mesh_object.type == 'MESH':
+                        #if in edge select mode
+                        if tuple(bpy.context.scene.tool_settings.mesh_select_mode) == (False, True, False):
+                            current_parent = bpy.context.selected_objects[0].parent
+                            bpy.ops.mesh.duplicate_move(MESH_OT_duplicate={"mode":1})
+                            bpy.ops.mesh.separate(type='SELECTED')
+                            bpy.ops.object.editmode_toggle()
+                            stroke_mesh = bpy.context.selected_objects[1]
+                            bpy.ops.object.select_all(action='DESELECT')
+                            stroke_mesh.select_set(state=True)
+                            bpy.context.view_layer.objects.active = stroke_mesh
+                            stroke_mesh.modifiers.clear()
+                            startFrame = bpy.context.scene.frame_start
+                            bpy.context.scene.frame_set(startFrame)
+                            bpy.ops.object.convert(target='GPENCIL')
+                            stroke_mesh = bpy.context.selected_objects[0]
+                            if current_parent:
+                                current_parent.select_set(state=True)
+                                bpy.context.view_layer.objects.active = current_parent
+                                bpy.ops.object.parent_set()
+                                bpy.context.view_layer.objects.active = stroke_mesh
+
+
+
+
+                        #if in face select mode
+                        if tuple(bpy.context.scene.tool_settings.mesh_select_mode) == (False, False, True):
                             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)  
                             bpy.ops.object.select_all(action='DESELECT')
                             mesh_object.select_set(state=True)
-                            # ink_swatch_object.select_set(state=True)
-                            # bpy.context.view_layer.objects.active = ink_swatch_object
-                            # bpy.ops.object.material_slot_copy()
-                            # bpy.ops.object.select_all(action='DESELECT')
-                            # mesh_object.select_set(state=True)
-                            # bpy.context.view_layer.objects.active = mesh_object
-                            # for i, mat in reversed(list(enumerate(mesh_object.data.materials))):
-                            #     if "L_BlackShadow." not in mat.name and ".TEMPLATE" in mat.name  :
-                            #         # letter.data.materials.pop(index=i)
-                            #         mesh_object.active_material_index = i
-                            #         bpy.ops.object.material_slot_remove()
-
                             for i, mat in reversed(list(enumerate(ink_swatch_object.data.materials))):
                                 if "blackout" in toonfill_type:
                                     if "L_BlackShadow." in mat.name:
@@ -7661,7 +7691,8 @@ class BR_OT_toonfill(bpy.types.Operator):
 
         if backstage_collection:
             bpy.context.view_layer.layer_collection.children[backstage_collection.name].exclude = True
-        
+        toggle_workmode(self, context, True)
+
         return {'FINISHED'}
 
 
