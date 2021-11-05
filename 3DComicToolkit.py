@@ -8212,7 +8212,7 @@ class BR_MT_explore_3d_comic(bpy.types.Operator):
         file_path = bpy.data.filepath
         comic_name = os.path.dirname(file_path) 
         issue_folder = os.path.dirname(comic_name) 
-        os.startfile(issue_folder) 
+        open_directory(issue_folder) 
         return {'FINISHED'}
 
 
