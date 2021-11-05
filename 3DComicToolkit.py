@@ -19,6 +19,7 @@ from bpy_extras.io_utils import ExportHelper
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
 
 from platform import system
+import sys
 from distutils.dir_util import copy_tree
 import glob
 
@@ -100,6 +101,14 @@ addon_resources_dir = main_dir + "/Resources/"
 
 #------------------------------------------------------
 # utilities
+
+def open_directory(path):
+    if sys.platform == "win32":
+        subprocess.call('explorer "{}"'.format(path), shell=True)
+    elif sys.platform == "linux":
+        subprocess.call('xdg-open "{}"'.format(path), shell=True)
+    elif sys.platform == "darwin":
+        subprocess.call(["open", path])
 
 def warn_not_saved(self, context):
     self.layout.label(text= "You must save your file first!")
@@ -829,7 +838,7 @@ def getMaterialSwatch(isGlobal):
 def getSharedActorBlendFilenames(self, context):
     file_path = bpy.data.filepath
     file_dir = os.path.dirname(os.path.dirname(file_path))
-    SharedActorFilepath =  file_dir + "\\blender\\shared\\actors\\"
+    SharedActorFilepath =  file_dir + "/blender/shared/actors/"
     items =  [("none", " ", "none", 0)]
     files = [f for f in os.listdir(os.path.dirname(SharedActorFilepath)) if f.endswith(".blend")]
     for file in files:
@@ -849,7 +858,7 @@ def swapSelectSharedActor(self, context):
     targetFileName = scene.panel_settings.s3dc_shared_actor_blend_filenames
     file_path = bpy.data.filepath
     file_dir = os.path.dirname(os.path.dirname(file_path))
-    filename =  file_dir + "\\blender\\shared\\actors\\" + targetFileName
+    filename =  file_dir + "/blender/shared/actors/" + targetFileName
     if os.path.exists(filename):
         # print("::::::::::::::::::" + filename)
         # with bpy.data.libraries.load(str(file)) as (data_from, data_to):
@@ -1019,8 +1028,8 @@ def load_resource(self, context, blendFileName, is_random):
     #     addon_path = "/.config/blender/" + common_subdir
     # elif system() == 'Windows':
     #     addon_path = (
-    #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
-    #         + common_subdir.replace("/", "\\")
+    #         "/AppData/Roaming/Blender Foundation/Blender/"
+    #         + common_subdir.replace("/", "/")
     #     )
     #     # os.path.join()
     # elif system() == 'Darwin':
@@ -1028,7 +1037,7 @@ def load_resource(self, context, blendFileName, is_random):
     # addon_dir = user_dir + addon_path
 
 
-    # user = bpy.utils.user_resource('SCRIPTS', "addons\\test2\\")
+    # user = bpy.utils.user_resource('SCRIPTS', "addons/test2/")
     use_addon_resource = False
     if not os.path.exists(blendFileName):
         use_addon_resource = True
@@ -1192,7 +1201,7 @@ def load_shared_resource(self, context, blendFileName, is_random):
 
     if os.path.exists(template_filepath):
         root_folder = os.path.dirname(bpy.data.filepath)
-        shared_assets_folder = root_folder + '\\shared\\'
+        shared_assets_folder = root_folder + '/shared/'
         template_basefilename = os.path.basename(template_filepath) 
         shared_asset_filepath = shared_assets_folder + template_basefilename
         
@@ -1202,7 +1211,7 @@ def load_shared_resource(self, context, blendFileName, is_random):
     if os.path.exists(template_glb_filepath):
         template_glb_basefilename = os.path.basename(template_glb_filepath) 
         file_dir = os.path.dirname(os.path.dirname(bpy.data.filepath))
-        shared_glb_path = (os.path.join(file_dir, "panels\\shared\\"))
+        shared_glb_path = (os.path.join(file_dir, "panels/shared/"))
         if os.path.exists(shared_glb_path):
             shared_asset_glb_filepath = (shared_glb_path + template_glb_basefilename)
             shutil.copy(template_glb_filepath, shared_asset_glb_filepath)
@@ -3050,27 +3059,27 @@ def export_panel(self, context, export_only_current, remove_skeletons):
 
 
     # delete existing panels
-    if os.path.exists(file_dir+'\\panels\\'):
+    if os.path.exists(file_dir+'/panels/'):
         if not export_only_current:
             # delete existing panel.glb fils.
-            for panel_files in glob.glob(file_dir+'\\panels\\*.' + active_language_abreviated +'.glb'):
+            for panel_files in glob.glob(file_dir+'/panels/*.' + active_language_abreviated +'.glb'):
                 print('os.remove(', panel_files, ')')
                 os.remove(panel_files)
         else:
-            for panel_files in glob.glob(file_dir +'\\panels\\'+ current_scene_name + '.' + active_language_abreviated + '.glb'):
+            for panel_files in glob.glob(file_dir +'/panels/'+ current_scene_name + '.' + active_language_abreviated + '.glb'):
                 print('os.remove(', panel_files, ')')
                 os.remove(panel_files)
     else:
-        os.mkdir(file_dir+'\\panels\\')
+        os.mkdir(file_dir+'/panels/')
 
-    if not os.path.exists(file_dir+'\\panels\\shared\\'):
+    if not os.path.exists(file_dir+'/panels/shared/'):
         self.report({'ERROR'}, "No shared folder present near save location! 3D Comic directory needs to be rebuilt?")
 
 
 
     # copy template reader files
     if not export_only_current:            
-        if not os.path.exists(file_dir+'\\index.html'):
+        if not os.path.exists(file_dir+'/index.html'):
             # # copy 3D Comic Html
             # user_dir = os.path.expanduser("~")
             # reader_subdir = "/Reader"
@@ -3078,8 +3087,8 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             #     addon_path = "/.config/blender/" + common_subdir
             # elif system() == 'Windows':
             #     addon_path = (
-            #         "\\AppData\\Roaming\\Blender Foundation\\Blender\\"
-            #         + common_subdir.replace("/", "\\")
+            #         "/AppData/Roaming/Blender Foundation/Blender/"
+            #         + common_subdir.replace("/", "/")
             #     )
             #     # os.path.join()
             # elif system() == 'Darwin':
@@ -3167,8 +3176,8 @@ def export_panel(self, context, export_only_current, remove_skeletons):
                             linked_library_blend_file_name =  os.path.basename(linked_library_blend_filepath_name)
                             linked_library_stringFragments = linked_library_blend_file_name.split('_')
                             asset_name = linked_library_stringFragments[0]
-                            linked_folder_abspath = (os.path.join(file_dir, "panels\\shared\\"))
-                            linked_glb_abspath_filename = (linked_folder_abspath + "\\" + asset_name + ".glb")
+                            linked_folder_abspath = (os.path.join(file_dir, "panels/shared/"))
+                            linked_glb_abspath_filename = (linked_folder_abspath + "/" + asset_name + ".glb")
                             linked_glb_relpath_filename = ("./shared/" + asset_name + ".glb")
                             if not os.path.exists(linked_glb_abspath_filename):
                                 self.report({'ERROR'}, 'Cannot find shared asset :' + linked_glb_abspath_filename)
@@ -3727,7 +3736,7 @@ def export_panel(self, context, export_only_current, remove_skeletons):
             #                 bpy.ops.object.delete() 
 
             panel_path = (os.path.join(file_dir, "panels"))
-            path_to_export_file = (panel_path + "\\" + scene.name + "." + active_language_abreviated + ".glb")
+            path_to_export_file = (panel_path + "/" + scene.name + "." + active_language_abreviated + ".glb")
             bpy.ops.export_scene.gltf(
                 export_format='GLB',
                 ui_tab='GENERAL', 
@@ -3986,11 +3995,11 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
         root_folder, extension = os.path.splitext(self.filepath)
         comic_name = os.path.basename(self.filepath) 
         issue_name = "s01e01"
-        issue_folder = root_folder + '\\' + issue_name 
-        working_folder = issue_folder + '\\blender'
-        shared_assets_folder = working_folder + '\\shared\\'
+        issue_folder = root_folder + '/' + issue_name 
+        working_folder = issue_folder + '/blender'
+        shared_assets_folder = working_folder + '/shared/'
 
-        filename = working_folder + '\\' + comic_name + "_v.001.blend"
+        filename = working_folder + '/' + comic_name + "_v.001.blend"
         if os.path.exists(root_folder):
             bpy.context.window_manager.popup_menu(warn_folder_exists, title="Warning", icon='ERROR')
         else:
@@ -4046,10 +4055,10 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
             # # export all scenes
             # i = 0
 
-            os.mkdir(file_dir+'\\panels\\')
+            os.mkdir(file_dir+'/panels/')
 
             # copy template reader files
-            if not os.path.exists(file_dir+'\\index.html'):
+            if not os.path.exists(file_dir+'/index.html'):
                 # scripts_dir = bpy.utils.user_resource('SCRIPTS', "addons")
                 # addon_resources_subdir = "/Spiraloid-Toolkit-for-Blender-3DComicToolkit-master/Resources/"        
                 # addon_dir = scripts_dir + addon_resources_subdir
@@ -4090,7 +4099,7 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
                             bpy.ops.view3d.view_center_camera(override)
 
 
-            bpy.context.scene.render.filepath =  issue_folder + "\\images\\main_banner.jpg"
+            bpy.context.scene.render.filepath =  issue_folder + "/images/main_banner.jpg"
             bpy.context.scene.render.image_settings.color_mode = 'RGB'
             bpy.context.scene.render.image_settings.file_format = 'JPEG'
             bpy.context.scene.render.use_overwrite = True
@@ -4752,7 +4761,7 @@ class BR_OT_extract_comic_scene(bpy.types.Operator):
         blend_file_dir = file_path.replace(file_name+file_ext, '')
         file_dir = os.path.dirname(os.path.dirname(file_path))
                  
-        panels_dir = file_dir+"\\panels\\"
+        panels_dir = file_dir+"/panels/"
         if not os.path.exists(panels_dir):
             os.makedirs(panels_dir)
 
@@ -8188,7 +8197,7 @@ class BR_MT_quick_save_export_3d_comic_current(bpy.types.Operator):
             export_panel(self, context,True, True)
         else:
             # looks like a doesn't exist.  check if we're in a comic dbs.
-            if not os.path.exists(file_dir+'\\panels\\'):
+            if not os.path.exists(file_dir+'/panels/'):
                 #we're not in a comic dbs, lets make one.
                 # self.report({'WARNING'}, "No comic folders found, try making a comic first")
                 self.report({'ERROR'}, 'No 3D Comic found next to .blend file!  Try Export 3D Comic first.' + bpy.context.scene.name)
@@ -8212,7 +8221,7 @@ class BR_MT_explore_3d_comic(bpy.types.Operator):
         file_path = bpy.data.filepath
         comic_name = os.path.dirname(file_path) 
         issue_folder = os.path.dirname(comic_name) 
-        open_directory(issue_folder) 
+        open_directory(issue_folder)
         return {'FINISHED'}
 
 
@@ -8311,7 +8320,7 @@ class BR_OT_spiraloid_3d_comic_workshop(bpy.types.Operator):
 def bake_collection_composite():
     if bake_ao_applied and bake_ao and bake_albedo:
         if os.path.exists(file_dir):
-            materials_dir = file_dir+"\\Materials\\"
+            materials_dir = file_dir+"/Materials/"
             if os.path.exists(materials_dir):
                 assetName = target_object.name
                 texName_albedo = (assetName + "_albedo")
@@ -8636,7 +8645,7 @@ class BR_OT_bake_collection(bpy.types.Operator):
         file_ext = '.blend'
         file_dir = file_path.replace(file_name+file_ext, '')
         # materials_dir = file_dir+"\Materials\"
-        materials_dir = file_dir+"\\Materials\\"
+        materials_dir = file_dir+"/Materials/"
         if not os.path.exists(materials_dir):
             os.makedirs(materials_dir)
         
@@ -11502,7 +11511,7 @@ class BR_MT_3d_comic_submenu_letters(bpy.types.Menu):
 # def add_items_from_collection_callback(self, context):
 #     global working_folder
 #     scene = context.scene
-#     path =  working_folder + "\\shared\\"
+#     path =  working_folder + "/shared/"
 #     shared_disk_assets = []
 #     if path.is_file():
 #         with bpy.data.libraries.load(str(path)) as (data_from, data_to):
@@ -11554,9 +11563,9 @@ class BR_MT_3d_comic_submenu_disk_assets(bpy.types.Menu):
 #     extensions = ('.jpeg', '.jpg', '.png')
 
 #     # Icons Directory    
-#     # directory = bpy.utils.user_resource('SCRIPTS', "addons\\Icons\\")
+#     # directory = bpy.utils.user_resource('SCRIPTS', "addons/Icons/")
 #     global working_folder
-#     directory =  working_folder + "\\shared\\"
+#     directory =  working_folder + "/shared/"
 
 #     enum_items = []
 
@@ -11590,6 +11599,7 @@ class BR_MT_3d_comic_submenu_disk_assets(bpy.types.Menu):
 #     return pcoll.my_previews
 
 
+
 def update_selected(self, context):
     # get_shared_disk_assets(self, context)
     print("loading item : ", context.scene.shared_disk_assets)
@@ -11598,7 +11608,7 @@ def update_selected(self, context):
 def get_shared_disk_assets(self, context):
     global working_folder
     scene = context.scene
-    path =  working_folder + "\\shared\\"
+    path =  working_folder + "/shared/"
     disk_assets = []
     if context is None:
         return disk_assets
