@@ -59,6 +59,8 @@ GETTING STARTED:
 
 To make a 3D comic, you must have the .blend file and the folders where it's saved in exactly a very specific way.   Fortunately, the toolkit handles all of this for you (most of the time - but it's very easy for you to creak things should you stray from the golden path)  Because of this, I strongly recomend using blender copy-paste feature that lets you copy and paste 3D models between two running versions of blender. treat one version like a working scene where it's ok to be messy, and treat the other version with your Comic_v.001.blend as the golden version that you know will build correctly.  If you keep this file efficient and cleanly organized you shouldn't run into much trouble.  Here's how to make that file.
 
+0: "3DComics > Utilities > Toggle Developer"
+
 1: “3DComics > Create a new 3D comic”
 
 This will create all the folders and save your 3D Comic a blend file in the correct location.
