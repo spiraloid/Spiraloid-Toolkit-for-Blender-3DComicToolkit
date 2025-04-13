@@ -4077,17 +4077,16 @@ class BR_OT_new_3d_comic(bpy.types.Operator, ImportHelper):
 
             bpy.context.scene.name = title_name
             bpy.data.objects['Title'].data.body = comic_name
-
+            screen = bpy.context.screen
             for window in bpy.context.window_manager.windows:
-                for v in  window.screen.areas:  # iterate through areas in current screen
-                    if v.type=='VIEW_3D':
-                        v.spaces[0].region_3d.view_perspective = 'CAMERA'
-                        override = {
-                            'area': v,
-                            'region': v.regions[0],
-                        }
-                        if bpy.ops.view3d.view_center_camera.poll(override):
-                            bpy.ops.view3d.view_center_camera(override)
+                screen = window.screen
+                for area in screen.areas:
+                    if area.type == 'VIEW_3D':
+                        for region in area.regions:
+                            if region.type == 'WINDOW':
+                                with bpy.context.temp_override(window=window, area=area, region=region):
+                                    if bpy.ops.view3d.view_center_camera.poll():
+                                        bpy.ops.view3d.view_center_camera()
 
 
             bpy.context.scene.render.filepath =  issue_folder + "\\images\\main_banner.jpg"
@@ -4355,15 +4354,18 @@ class BR_OT_clone_comic_scene(bpy.types.Operator):
         # BR_OT_panel_init.execute(self, context)
         BR_OT_panel_validate_naming_all.execute(self, context)
 
-        for v in bpy.context.window.screen.areas:
-            if v.type=='VIEW_3D':
-                v.spaces[0].region_3d.view_perspective = 'CAMERA'
-                override = {
-                    'area': v,
-                    'region': v.regions[0],
-                }
-                if bpy.ops.view3d.view_center_camera.poll(override):
-                    bpy.ops.view3d.view_center_camera(override)
+        for window in bpy.context.window_manager.windows:
+            screen = window.screen
+            for area in screen.areas:
+                if area.type == 'VIEW_3D':
+                    for region in area.regions:
+                        if region.type == 'WINDOW':
+                            for space in area.spaces:
+                                if space.type == 'VIEW_3D' and hasattr(space, 'region_3d'):
+                                    space.region_3d.view_perspective = 'CAMERA'
+                                    with bpy.context.temp_override(window=window, area=area, region=region):
+                                        if bpy.ops.view3d.view_center_camera.poll():
+                                            bpy.ops.view3d.view_center_camera()
 
         bpy.ops.object.select_all(action='DESELECT')
         bpy.context.window.scene = bpy.data.scenes[newSceneIndex]
@@ -4417,15 +4419,15 @@ def insert_comic_panel(self, context, camera_strategy):
         # raise KeyboardInterrupt()
         BR_OT_panel_init.execute(self, context)
         BR_OT_panel_validate_naming_all.execute(self, context)
-        for v in bpy.context.window.screen.areas:
-            if v.type=='VIEW_3D':
-                v.spaces[0].region_3d.view_perspective = 'CAMERA'
-                override = {
-                    'area': v,
-                    'region': v.regions[0],
-                }
-                if bpy.ops.view3d.view_center_camera.poll(override):
-                    bpy.ops.view3d.view_center_camera(override)
+        for window in bpy.context.window_manager.windows:
+            screen = window.screen
+            for area in screen.areas:
+                if area.type == 'VIEW_3D':
+                    for region in area.regions:
+                        if region.type == 'WINDOW':
+                            with bpy.context.temp_override(window=window, area=area, region=region):
+                                if bpy.ops.view3d.view_center_camera.poll():
+                                    bpy.ops.view3d.view_center_camera()
         bpy.ops.object.select_all(action='DESELECT')
 
         backstage_collection = getCurrentBackstageCollection()
@@ -4632,15 +4634,18 @@ class BR_OT_new_panel_row(bpy.types.Operator):
             BR_OT_panel_validate_naming_all.execute(self, context)
 
 
-        for v in bpy.context.window.screen.areas:
-            if v.type=='VIEW_3D':
-                v.spaces[0].region_3d.view_perspective = 'CAMERA'
-                override = {
-                    'area': v,
-                    'region': v.regions[0],
-                }
-                if bpy.ops.view3d.view_center_camera.poll(override):
-                    bpy.ops.view3d.view_center_camera(override)
+        for window in bpy.context.window_manager.windows:
+            screen = window.screen
+            for area in screen.areas:
+                if area.type == 'VIEW_3D':
+                    for region in area.regions:
+                        if region.type == 'WINDOW':
+                            for space in area.spaces:
+                                if space.type == 'VIEW_3D' and hasattr(space, 'region_3d'):
+                                    space.region_3d.view_perspective = 'CAMERA'
+                                    with bpy.context.temp_override(window=window, area=area, region=region):
+                                        if bpy.ops.view3d.view_center_camera.poll():
+                                            bpy.ops.view3d.view_center_camera()
         bpy.ops.object.select_all(action='DESELECT')
 
         # backstage_collection = getCurrentBackstageCollection()
